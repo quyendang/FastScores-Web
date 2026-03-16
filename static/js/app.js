@@ -309,6 +309,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initTableSort('rankingsTable');
   initTableSort(null); // also attach to any other tables with .sortable headers
 
+  // Button event listeners
+  document.getElementById('langToggle')?.addEventListener('click', toggleLang);
+  document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+
   // Footer year
   const yearEl = document.getElementById('footerYear');
   if (yearEl) yearEl.textContent = new Date().getFullYear();
