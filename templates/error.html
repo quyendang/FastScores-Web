@@ -1,82 +1,60 @@
 {% extends "base.html" %}
 
 {% block title %}
-  {% if error_code is defined and error_code == 404 %}404 — Not Found
-  {% elif error_code is defined and error_code == 410 %}410 — Expired
-  {% else %}Error
-  {% endif %} · ClassPro
+  {%- if error_code is defined and error_code == 410 %}Link Expired
+  {%- elif error_code is defined and error_code == 404 %}Not Found
+  {%- else %}Error
+  {%- endif %} · ClassPro
 {% endblock %}
 
 {% block content %}
-<div class="error-page">
+<div class="d-flex align-items-center justify-content-center" style="min-height:60vh;">
+  <div class="text-center px-4" style="max-width:480px;">
 
-  {% set ec = error_code if error_code is defined else 404 %}
+    {# Large icon #}
+    <div class="mb-4">
+      {% if error_code is defined and error_code == 410 %}
+        <i class="bi bi-clock-history text-warning" style="font-size:4rem;"></i>
+      {% elif error_code is defined and error_code == 404 %}
+        <i class="bi bi-search text-secondary" style="font-size:4rem;"></i>
+      {% else %}
+        <i class="bi bi-exclamation-triangle text-danger" style="font-size:4rem;"></i>
+      {% endif %}
+    </div>
 
-  <!-- Icon -->
-  <div class="error-icon" aria-hidden="true">
-    {% if ec == 410 %}
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" stroke-width="1.75"
-         stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <polyline points="12 6 12 12 16 14"/>
-    </svg>
-    {% elif ec == 404 %}
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" stroke-width="1.75"
-         stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="11" cy="11" r="8"/>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      <line x1="11" y1="8"  x2="11" y2="12"/>
-      <line x1="11" y1="16" x2="11.01" y2="16"/>
-    </svg>
-    {% else %}
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" stroke-width="1.75"
-         stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8"  x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-    {% endif %}
+    {# Error code badge #}
+    <span class="badge bg-secondary mb-3 fs-6">
+      {{ error_code if error_code is defined else 'Error' }}
+    </span>
+
+    {# Title #}
+    <h1 class="h3 fw-bold mb-3">
+      {% if error_code is defined and error_code == 410 %}
+        <span data-i18n="linkExpired">Link Expired</span>
+      {% elif error_code is defined and error_code == 404 %}
+        <span data-i18n="pageNotFound">Page Not Found</span>
+      {% else %}
+        Something went wrong
+      {% endif %}
+    </h1>
+
+    {# Message #}
+    <p class="text-muted mb-4">
+      {% if message is defined and message %}
+        {{ message }}
+      {% elif error_code is defined and error_code == 410 %}
+        <span data-i18n="linkExpiredMsg">This report link has expired.</span>
+      {% else %}
+        <span data-i18n="pageNotFoundMsg">This report link is invalid or does not exist.</span>
+      {% endif %}
+    </p>
+
+    {# Back button #}
+    <a href="/" class="btn btn-primary px-4">
+      <i class="bi bi-house-fill me-2"></i>
+      <span data-i18n="goHome">Back to Home</span>
+    </a>
+
   </div>
-
-  <!-- Code -->
-  <div class="error-code">{{ ec }}</div>
-
-  <!-- Message -->
-  <h1 class="error-message">
-    {% if message is defined and message %}
-      {{ message }}
-    {% elif ec == 404 %}
-      <span data-i18n="errorTitle404">Page Not Found</span>
-    {% elif ec == 410 %}
-      <span data-i18n="errorTitle410">Report Expired</span>
-    {% else %}
-      <span data-i18n="errorGeneric">Something went wrong.</span>
-    {% endif %}
-  </h1>
-
-  <!-- Detail -->
-  <p class="error-detail">
-    {% if detail is defined and detail %}
-      {{ detail }}
-    {% elif ec == 404 %}
-      <span data-i18n="errorDetail404">This report link does not exist or may have been removed.</span>
-    {% elif ec == 410 %}
-      <span data-i18n="errorDetail410">This report link has expired and is no longer available.</span>
-    {% endif %}
-  </p>
-
-  <!-- Back home -->
-  <a href="/" class="btn btn-outline" aria-label="Go back to home page">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <line x1="19" y1="12" x2="5" y2="12"/>
-      <polyline points="12 19 5 12 12 5"/>
-    </svg>
-    <span data-i18n="backHome">← Back to Home</span>
-  </a>
-
 </div>
 {% endblock %}

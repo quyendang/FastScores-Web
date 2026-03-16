@@ -1,142 +1,168 @@
 {% extends "base.html" %}
 
-{% block title %}ClassPro — Chia sẻ báo cáo lớp học{% endblock %}
-{% block description %}ClassPro giúp giáo viên tạo và chia sẻ báo cáo lớp học đẹp, chuyên nghiệp trong vài giây.{% endblock %}
+{% block title %}ClassPro — Class Report Sharing{% endblock %}
+{% block description %}ClassPro helps teachers create and share beautiful class reports in seconds. No login required for viewers.{% endblock %}
 
 {% block content %}
-<!-- ── Hero ──────────────────────────────────────────────── -->
-<section class="hero">
-  <div class="container">
 
-    <div class="hero-badge" aria-hidden="true">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2.5"
-           stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
-      ClassPro
+<!-- ── Hero Section ──────────────────────────────────────────── -->
+<section class="hero-section text-center py-5">
+  <div class="container py-4">
+
+    <!-- Icon circle -->
+    <div class="hero-icon-wrap mx-auto mb-4">
+      <i class="bi bi-book-fill text-white" style="font-size:2.5rem;"></i>
     </div>
 
-    <h1 class="hero-title">
-      <span data-i18n="tagline">Chia sẻ báo cáo lớp học dễ dàng</span>
-    </h1>
+    <!-- Headline -->
+    <h1 class="display-4 fw-bold mb-3 hero-headline">ClassPro</h1>
 
-    <p class="hero-tagline" data-i18n="taglineSub">
-      Tạo báo cáo đẹp, dễ chia sẻ cho lớp học của bạn chỉ trong vài giây.
+    <!-- Tagline (bilingual, JS switches) -->
+    <p class="lead mb-4 hero-sub" data-i18n="heroTagline">
+      Easy class report sharing
     </p>
 
-    <!-- App icon / visual -->
-    <div aria-hidden="true" style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
-
-      <!-- Class report pill -->
-      <div style="display:inline-flex;align-items:center;gap:8px;
-                  background:var(--surface);border:1px solid var(--border);
-                  border-radius:var(--radius-full);padding:8px 18px;
-                  font-size:.875rem;font-weight:500;color:var(--text-secondary);
-                  box-shadow:var(--shadow-sm);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-             stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-        <span data-i18n="feat1Title">Báo cáo lớp học</span>
-      </div>
-
-      <!-- Student report pill -->
-      <div style="display:inline-flex;align-items:center;gap:8px;
-                  background:var(--surface);border:1px solid var(--border);
-                  border-radius:var(--radius-full);padding:8px 18px;
-                  font-size:.875rem;font-weight:500;color:var(--text-secondary);
-                  box-shadow:var(--shadow-sm);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-             stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-          <circle cx="12" cy="7" r="4"/>
-        </svg>
-        <span data-i18n="feat2Title">Báo cáo học sinh</span>
-      </div>
-
-      <!-- Export pill -->
-      <div style="display:inline-flex;align-items:center;gap:8px;
-                  background:var(--surface);border:1px solid var(--border);
-                  border-radius:var(--radius-full);padding:8px 18px;
-                  font-size:.875rem;font-weight:500;color:var(--text-secondary);
-                  box-shadow:var(--shadow-sm);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-             stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        <span data-i18n="feat3Title">Xuất Excel</span>
-      </div>
-
+    <!-- Trust badges -->
+    <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+      <span class="badge rounded-pill hero-trust-badge">
+        <i class="bi bi-check-circle-fill me-1"></i>
+        <span data-i18n="noLoginNeeded">No login required</span>
+      </span>
+      <span class="badge rounded-pill hero-trust-badge">
+        <i class="bi bi-phone-fill me-1"></i>
+        <span data-i18n="mobileFriendly">Mobile friendly</span>
+      </span>
+      <span class="badge rounded-pill hero-trust-badge">
+        <i class="bi bi-shield-lock-fill me-1"></i>
+        <span data-i18n="readOnly">Read-only · Secure</span>
+      </span>
     </div>
+
+    <!-- Feature pills preview -->
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+      <span class="hero-pill">
+        <i class="bi bi-bar-chart-fill text-primary me-1"></i>
+        <span data-i18n="featureClassReport">Class Report</span>
+      </span>
+      <span class="hero-pill">
+        <i class="bi bi-person-badge-fill text-purple me-1"></i>
+        <span data-i18n="featureStudentReport">Student Report</span>
+      </span>
+      <span class="hero-pill">
+        <i class="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i>
+        <span data-i18n="featureExport">Export Excel/CSV</span>
+      </span>
+    </div>
+
   </div>
 </section>
 
-<!-- ── Feature Cards ─────────────────────────────────────── -->
-<section class="features" aria-labelledby="featuresHeading">
+<!-- ── Features Section ───────────────────────────────────────── -->
+<section class="features-section py-5">
   <div class="container">
-    <h2 id="featuresHeading" class="section-title mb-16" style="display:block;text-align:center;" data-i18n="summary">
-      Tổng quan
-    </h2>
 
-    <div class="features-grid">
+    <h2 class="text-center fw-semibold mb-5 section-eyebrow" data-i18n="summary">Summary</h2>
+
+    <div class="row g-4 justify-content-center">
 
       <!-- Card 1: Class Report -->
-      <div class="feature-card">
-        <div class="feature-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
-          </svg>
+      <div class="col-12 col-md-4">
+        <div class="card feature-card h-100 border-0 shadow-sm p-1">
+          <div class="card-body p-4">
+            <div class="feature-icon-tile bg-primary bg-opacity-10 text-primary mb-3">
+              <i class="bi bi-bar-chart-fill fs-4"></i>
+            </div>
+            <div class="accent-bar bg-primary"></div>
+            <h3 class="fs-6 fw-bold mb-2" data-i18n="featureClassReport">Class Report</h3>
+            <p class="text-muted small mb-0" data-i18n="featureClassDesc">
+              Full class rankings, grades &amp; attendance
+            </p>
+          </div>
         </div>
-        <h3 class="feature-title" data-i18n="feat1Title">Báo cáo lớp học</h3>
-        <p class="feature-desc" data-i18n="feat1Desc">
-          Tổng quan toàn lớp — điểm số, xếp hạng và điểm danh trong một liên kết.
-        </p>
       </div>
 
       <!-- Card 2: Student Report -->
-      <div class="feature-card">
-        <div class="feature-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
+      <div class="col-12 col-md-4">
+        <div class="card feature-card h-100 border-0 shadow-sm p-1">
+          <div class="card-body p-4">
+            <div class="feature-icon-tile text-white mb-3" style="background:rgba(111,66,193,.13);">
+              <i class="bi bi-person-badge-fill fs-4" style="color:#6f42c1;"></i>
+            </div>
+            <div class="accent-bar" style="background:#6f42c1;"></div>
+            <h3 class="fs-6 fw-bold mb-2" data-i18n="featureStudentReport">Student Report</h3>
+            <p class="text-muted small mb-0" data-i18n="featureStudentDesc">
+              Individual performance, rank &amp; history
+            </p>
+          </div>
         </div>
-        <h3 class="feature-title" data-i18n="feat2Title">Báo cáo học sinh</h3>
-        <p class="feature-desc" data-i18n="feat2Desc">
-          Chi tiết từng học sinh với điểm theo môn, điểm danh và thông tin cá nhân.
-        </p>
       </div>
 
       <!-- Card 3: Export -->
-      <div class="feature-card">
-        <div class="feature-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
+      <div class="col-12 col-md-4">
+        <div class="card feature-card h-100 border-0 shadow-sm p-1">
+          <div class="card-body p-4">
+            <div class="feature-icon-tile bg-success bg-opacity-10 text-success mb-3">
+              <i class="bi bi-file-earmark-spreadsheet-fill fs-4"></i>
+            </div>
+            <div class="accent-bar bg-success"></div>
+            <h3 class="fs-6 fw-bold mb-2" data-i18n="featureExport">Export Excel/CSV</h3>
+            <p class="text-muted small mb-0" data-i18n="featureExportDesc">
+              Download data in one click
+            </p>
+          </div>
         </div>
-        <h3 class="feature-title" data-i18n="feat3Title">Xuất Excel</h3>
-        <p class="feature-desc" data-i18n="feat3Desc">
-          Tải xuống báo cáo đầy đủ dưới dạng CSV hoặc Excel để lưu trữ và sử dụng ngoại tuyến.
-        </p>
       </div>
 
     </div>
   </div>
 </section>
+
+<!-- ── How It Works ───────────────────────────────────────────── -->
+<section class="how-section py-5 bg-body-secondary border-top border-bottom">
+  <div class="container">
+
+    <h2 class="text-center fw-semibold mb-5 section-eyebrow" data-i18n="howItWorks">How it works</h2>
+
+    <div class="row g-4 justify-content-center text-center">
+
+      <div class="col-12 col-md-4">
+        <div class="step-circle mx-auto mb-3">1</div>
+        <h4 class="fs-6 fw-semibold mb-2" data-i18n="step1Title">Teacher shares</h4>
+        <p class="text-muted small mb-0" data-i18n="step1">Teacher creates share link in app</p>
+      </div>
+
+      <!-- Arrow (desktop only) -->
+      <div class="col-auto d-none d-md-flex align-items-center">
+        <i class="bi bi-arrow-right text-muted fs-4"></i>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="step-circle mx-auto mb-3">2</div>
+        <h4 class="fs-6 fw-semibold mb-2" data-i18n="step2Title">Open link</h4>
+        <p class="text-muted small mb-0" data-i18n="step2">Parent opens link — no login needed</p>
+      </div>
+
+      <!-- Arrow (desktop only) -->
+      <div class="col-auto d-none d-md-flex align-items-center">
+        <i class="bi bi-arrow-right text-muted fs-4"></i>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="step-circle mx-auto mb-3">3</div>
+        <h4 class="fs-6 fw-semibold mb-2" data-i18n="step3Title">View report</h4>
+        <p class="text-muted small mb-0" data-i18n="step3">View full report instantly</p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Footer note ────────────────────────────────────────────── -->
+<div class="container py-4 text-center">
+  <p class="text-muted small mb-0" data-i18n="linkNote">
+    Links expire after 7 days · Read-only · No account needed
+  </p>
+</div>
+
 {% endblock %}
