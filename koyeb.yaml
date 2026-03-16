@@ -1,0 +1,25 @@
+# Koyeb deployment configuration
+# Deploy at: https://app.koyeb.com → New Service → Docker/GitHub
+name: classpro-web
+service:
+  type: web
+  git:
+    branch: main
+  build:
+    type: dockerfile
+  run:
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+  ports:
+    - port: 8000
+      protocol: http
+  env:
+    - key: SUPABASE_URL
+      value: ""   # fill in Koyeb dashboard
+    - key: SUPABASE_SERVICE_KEY
+      value: ""   # fill in Koyeb dashboard
+  health_checks:
+    - path: /health
+      port: 8000
+  scaling:
+    min: 1
+    max: 1

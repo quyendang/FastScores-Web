@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}{{ classroom.name }} — ClassPro{% endblock %}
+{% block description %}Báo cáo lớp {{ classroom.name }} · {{ classroom.subject }}{% endblock %}
+{% block og_title %}{{ classroom.name }} — Class Report{% endblock %}
+{% block og_description %}{{ students | length }} students · Avg {{ "%.1f" | format(class_avg) }} · ClassPro{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- ── Report Header ──────────────────────────────────── -->
+  <header class="report-header">
+
+    <!-- Accent color bar -->
+    <div class="accent-bar"
+         style="background: {{ classroom.color | default('#4F6EF7') }};"
+         aria-hidden="true"></div>
+
+    <h1 class="report-classroom-name">{{ classroom.name }}</h1>
+
+    <div class="report-meta">
+      {% if classroom.subject %}
+      <span class="report-meta-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        {{ classroom.subject }}
+      </span>
+      {% endif %}
+
+      {% if classroom.room %}
+      <span class="report-meta-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        {{ classroom.room }}
+      </span>
+      {% endif %}
+
+      {% if classroom.schedule %}
+      <span class="report-meta-item">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8"  y1="2" x2="8"  y2="6"/>
+          <line x1="3"  y1="10" x2="21" y2="10"/>
+        </svg>
+        {{ classroom.schedule }}
+      </span>
+      {% endif %}
+    </div>
+
+    <!-- Export buttons -->
+    <div class="export-row">
+      <a href="/export/{{ token }}?format=csv"
+         class="btn btn-outline"
+         aria-label="Export CSV">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span data-i18n="exportCSV">Xuất CSV</span>
+      </a>
+      <a href="/export/{{ token }}?format=excel"
+         class="btn btn-outline"
+         aria-label="Export Excel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span data-i18n="exportExcel">Xuất Excel</span>
+      </a>
+    </div>
+
+  </header>
+
+  <!-- ── Summary Stats ──────────────────────────────────── -->
+  <section aria-labelledby="summaryHeading">
+    <h2 id="summaryHeading" class="section-title" style="display:block;margin-bottom:12px;"
+        data-i18n="summary">Tổng quan</h2>
+
+    <div class="stat-strip">
+
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="totalStudents">Tổng học sinh</div>
+        <div class="stat-value">{{ students | length }}</div>
+        <div class="stat-unit" data-i18n="students">Học sinh</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="classAverage">Điểm TB lớp</div>
+        <div class="stat-value">
+          {% if class_avg is not none %}
+            {{ "%.1f" | format(class_avg) }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+        <div class="stat-unit">/{{ classroom.grading_scale | default(10) }}</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="attendanceRate">Tỉ lệ điểm danh</div>
+        <div class="stat-value">
+          {% if class_attendance_rate is not none %}
+            {{ "%.0f" | format(class_attendance_rate * 100) }}%
+          {% else %}
+            —
+          {% endif %}
+        </div>
+        <div class="stat-unit" data-i18n="present">Có mặt</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label" data-i18n="totalSessions">Tổng số buổi</div>
+        <div class="stat-value">{{ total_sessions | default(0) }}</div>
+        <div class="stat-unit" data-i18n="sessions">Buổi học</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Rankings Table ─────────────────────────────────── -->
+  <section aria-labelledby="rankingsHeading" style="margin-top:32px;">
+    <div class="section-header">
+      <h2 id="rankingsHeading" class="section-title" data-i18n="rankings">Bảng xếp hạng</h2>
+    </div>
+
+    {% if students %}
+    <div class="table-wrapper" role="region" aria-label="Student rankings" tabindex="0">
+      <table id="rankingsTable">
+        <thead>
+          <tr>
+            <th data-col="0" data-type="number" class="sortable sort-asc"
+                data-i18n="rank">Hạng</th>
+            <th data-col="1" data-type="string" class="sortable"
+                data-i18n="student">Học sinh</th>
+            <th data-col="2" data-type="string" class="sortable"
+                data-i18n="studentCode">Mã học sinh</th>
+            <th data-col="3" data-type="number" class="sortable"
+                data-i18n="avgGrade">Điểm TB</th>
+            <th data-col="4" data-type="string"
+                data-i18n="letterGrade">Xếp loại</th>
+            <th data-col="5" data-type="number" class="sortable"
+                data-i18n="attendance">Điểm danh</th>
+            {# Dynamic category columns #}
+            {% for cat in categories %}
+            <th style="white-space:nowrap;">{{ cat.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+          {% set rank = s.rank | default(loop.index) %}
+          <tr>
+
+            <!-- Rank -->
+            <td class="rank-cell{% if rank == 1 %} rank-1{% elif rank == 2 %} rank-2{% elif rank == 3 %} rank-3{% endif %}"
+                data-sort="{{ rank }}">
+              {% if rank == 1 %}
+                <span class="rank-medal" aria-label="1st place">🥇</span>
+              {% elif rank == 2 %}
+                <span class="rank-medal" aria-label="2nd place">🥈</span>
+              {% elif rank == 3 %}
+                <span class="rank-medal" aria-label="3rd place">🥉</span>
+              {% else %}
+                {{ rank }}
+              {% endif %}
+            </td>
+
+            <!-- Name + badge -->
+            <td>
+              <div class="name-cell">
+                <span>{{ s.full_name }}</span>
+                {% if s.badge and s.badge not in ('', 'none') %}
+                <span class="badge-chip"
+                      data-badge="{{ s.badge }}">{{ s.badge }}</span>
+                {% endif %}
+              </div>
+            </td>
+
+            <!-- Student Code -->
+            <td class="student-code">{{ s.student_code | default('—') }}</td>
+
+            <!-- Avg Grade -->
+            <td data-sort="{{ s.avg_grade if s.avg_grade is not none else -1 }}">
+              {% if s.avg_grade is not none %}
+                <span class="score-num">{{ "%.1f" | format(s.avg_grade) }}</span>
+              {% else %}
+                <span class="score-dash">—</span>
+              {% endif %}
+            </td>
+
+            <!-- Letter Grade chip -->
+            <td>
+              {% if s.letter_grade and s.letter_grade != 'N/A' %}
+              <span class="chip
+                {%- if s.letter_grade.startswith('A') %} grade-chip-A
+                {%- elif s.letter_grade.startswith('B') %} grade-chip-B
+                {%- elif s.letter_grade.startswith('C') %} grade-chip-C
+                {%- elif s.letter_grade.startswith('D') %} grade-chip-D
+                {%- elif s.letter_grade.startswith('F') %} grade-chip-F
+                {%- endif %}">{{ s.letter_grade }}</span>
+              {% else %}
+                <span class="score-dash">—</span>
+              {% endif %}
+            </td>
+
+            <!-- Attendance rate chip -->
+            {% set att_rate_raw = s.attendance.rate | default(0) %}
+            {% set att_rate_pct = att_rate_raw * 100 %}
+            <td data-sort="{{ att_rate_pct }}">
+              {% if s.attendance %}
+              <span class="chip
+                {%- if att_rate_pct >= 80 %} att-chip-good
+                {%- elif att_rate_pct >= 60 %} att-chip-ok
+                {%- else %} att-chip-bad{% endif %}">
+                {{ "%.0f" | format(att_rate_pct) }}%
+              </span>
+              {% else %}
+              <span class="score-dash">—</span>
+              {% endif %}
+            </td>
+
+            <!-- Per-category grades -->
+            {% for cat in categories %}
+            <td class="score-num">
+              {% set cat_data = s.grades_by_category.get(cat.id | string) if s.grades_by_category else none %}
+              {% if cat_data and cat_data.avg is not none %}
+                {{ "%.1f" | format(cat_data.avg) }}
+              {% else %}
+                <span class="score-dash">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:48px 24px;color:var(--text-tertiary);">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true" style="margin:0 auto 12px;">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      <p data-i18n="noData">Chưa có dữ liệu</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- ── Attendance Breakdown ───────────────────────────── -->
+  {% if students %}
+  <section aria-labelledby="attHeading" style="margin-top:32px;">
+    <div class="section-header">
+      <h2 id="attHeading" class="section-title" data-i18n="attendanceBreakdown">Chi tiết điểm danh</h2>
+    </div>
+
+    {% set ns = namespace(present=0, late=0, absent=0, excused=0) %}
+    {% for s in students %}
+      {% if s.attendance %}
+        {% set ns.present = ns.present + (s.attendance.present | default(0)) %}
+        {% set ns.late    = ns.late    + (s.attendance.late    | default(0)) %}
+        {% set ns.absent  = ns.absent  + (s.attendance.absent  | default(0)) %}
+        {% set ns.excused = ns.excused + (s.attendance.excused | default(0)) %}
+      {% endif %}
+    {% endfor %}
+    {% set att_total = ns.present + ns.late + ns.absent + ns.excused %}
+
+    <div class="att-breakdown">
+
+      <div class="att-stat att-present">
+        <div class="att-stat-dot" aria-hidden="true"></div>
+        <div class="att-stat-info">
+          <div class="att-stat-label" data-i18n="present">Có mặt</div>
+          <div class="att-stat-value">{{ ns.present }}</div>
+        </div>
+      </div>
+
+      <div class="att-stat att-late">
+        <div class="att-stat-dot" aria-hidden="true"></div>
+        <div class="att-stat-info">
+          <div class="att-stat-label" data-i18n="late">Đi muộn</div>
+          <div class="att-stat-value">{{ ns.late }}</div>
+        </div>
+      </div>
+
+      <div class="att-stat att-absent">
+        <div class="att-stat-dot" aria-hidden="true"></div>
+        <div class="att-stat-info">
+          <div class="att-stat-label" data-i18n="absent">Vắng</div>
+          <div class="att-stat-value">{{ ns.absent }}</div>
+        </div>
+      </div>
+
+      <div class="att-stat att-excused">
+        <div class="att-stat-dot" aria-hidden="true"></div>
+        <div class="att-stat-info">
+          <div class="att-stat-label" data-i18n="excused">Có phép</div>
+          <div class="att-stat-value">{{ ns.excused }}</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ── Report Footer ──────────────────────────────────── -->
+  <p class="report-footer-line">
+    <span data-i18n="generatedAt">Tạo lúc</span>
+    {{ generated_at }}
+    &nbsp;·&nbsp; ClassPro
+  </p>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Mark the rankings table as already sorted by rank ascending
+  document.addEventListener('DOMContentLoaded', () => {
+    const th = document.querySelector('#rankingsTable th[data-col="0"]');
+    if (th) th.classList.add('sort-asc');
+  });
+</script>
+{% endblock %}
