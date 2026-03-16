@@ -1,5 +1,5 @@
 /* ============================================================
-   ClassPro Web — app.js
+   FastScores Web — app.js
    Bootstrap 5.3 theme system (data-bs-theme), language
    switching (EN/VI), table sorting.
    ============================================================ */
@@ -57,6 +57,14 @@ const STRINGS = {
     step2:               'Parent opens link — no login needed',
     step3:               'View full report instantly',
     linkNote:            'Links expire after 7 days · Read-only · No account needed',
+
+    // iOS Download section
+    downloadEyebrow:     'iOS App',
+    downloadTitle:       'Get FastScores on iPhone',
+    downloadDesc:        'Manage classes, record grades & attendance, generate reports — all from your iPhone.',
+    downloadFeature1:    'Grade & attendance tracking',
+    downloadFeature2:    'One-tap share links for parents',
+    downloadFeature3:    'Export PDF, CSV & Excel',
 
     // Report page
     summary:             'Summary',
@@ -128,6 +136,14 @@ const STRINGS = {
     step2:               'Phụ huynh mở link — không cần đăng nhập',
     step3:               'Xem báo cáo đầy đủ ngay lập tức',
     linkNote:            'Link hết hạn sau 7 ngày · Chỉ xem · Không cần tài khoản',
+
+    // iOS Download section
+    downloadEyebrow:     'Ứng dụng iOS',
+    downloadTitle:       'Tải FastScores trên iPhone',
+    downloadDesc:        'Quản lý lớp học, ghi điểm & điểm danh, tạo báo cáo — ngay trên iPhone.',
+    downloadFeature1:    'Theo dõi điểm số & điểm danh',
+    downloadFeature2:    'Chia sẻ link cho phụ huynh chỉ một chạm',
+    downloadFeature3:    'Xuất PDF, CSV & Excel',
 
     summary:             'Tổng quan',
     totalStudents:       'Tổng học sinh',

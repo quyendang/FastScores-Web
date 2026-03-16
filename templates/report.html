@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}{{ classroom.name }} — ClassPro{% endblock %}
+{% block title %}{{ classroom.name }} — FastScores{% endblock %}
 {% block description %}Báo cáo lớp {{ classroom.name }} · {{ classroom.subject }}{% endblock %}
 {% block og_title %}{{ classroom.name }} — Class Report{% endblock %}
-{% block og_description %}{{ students | length }} students · Avg {{ "%.1f" | format(class_avg) if class_avg is not none else "N/A" }} · ClassPro{% endblock %}
+{% block og_description %}{{ students | length }} students · Avg {{ "%.1f" | format(class_avg) if class_avg is not none else "N/A" }} · FastScores{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -403,7 +403,7 @@
   <p class="text-center text-muted small mt-4">
     <span data-i18n="generatedAt">Tạo lúc</span>
     {{ generated_at }}
-    &nbsp;·&nbsp; ClassPro
+    &nbsp;·&nbsp; FastScores
   </p>
 
 </div>

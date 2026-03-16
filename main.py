@@ -10,7 +10,7 @@ from routers import report, student
 
 load_dotenv()
 
-app = FastAPI(title="ClassPro Web", version="1.0.0")
+app = FastAPI(title="FastScores Web", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

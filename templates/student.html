@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}{{ student.full_name }} — {{ classroom.name }} · ClassPro{% endblock %}
+{% block title %}{{ student.full_name }} — {{ classroom.name }} · FastScores{% endblock %}
 {% block description %}Student report for {{ student.full_name }} · {{ classroom.name }} · {{ classroom.subject }}{% endblock %}
-{% block og_title %}{{ student.full_name }} — Student Report · ClassPro{% endblock %}
+{% block og_title %}{{ student.full_name }} — Student Report · FastScores{% endblock %}
 {% block og_description %}{{ classroom.name }} · Avg {{ "%.1f" | format(avg_grade) if avg_grade is not none else "N/A" }} · {{ letter_grade | default("") }}{% endblock %}
 
 {% block content %}
@@ -424,7 +424,7 @@
   <p class="text-center text-muted small mt-4 mb-4">
     <span data-i18n="generatedAt">Generated at</span>
     {{ generated_at }}
-    &nbsp;·&nbsp; ClassPro
+    &nbsp;·&nbsp; FastScores
   </p>
 
 </div>
