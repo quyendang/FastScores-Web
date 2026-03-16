@@ -297,21 +297,24 @@ function attChipClass(rate) {
 }
 
 /* ── Init ───────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
+// Script is at end of <body> so DOM is ready — no DOMContentLoaded needed.
+(function init() {
   // Theme
-  const savedTheme = localStorage.getItem('cp-theme') || 'auto';
+  const savedTheme = localStorage.getItem('cp-theme') || 'light';
   applyTheme(savedTheme);
 
   // Language
   applyLang(currentLang);
 
-  // Table sort (attach to all sortable tables on page)
+  // Table sort
   initTableSort('rankingsTable');
-  initTableSort(null); // also attach to any other tables with .sortable headers
+  initTableSort(null);
 
   // Button event listeners
-  document.getElementById('langToggle')?.addEventListener('click', toggleLang);
-  document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+  const langBtn  = document.getElementById('langToggle');
+  const themeBtn = document.getElementById('themeToggle');
+  if (langBtn)  langBtn.addEventListener('click',  toggleLang);
+  if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
   // Footer year
   const yearEl = document.getElementById('footerYear');
@@ -321,4 +324,4 @@ document.addEventListener('DOMContentLoaded', () => {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (localStorage.getItem('cp-theme') === 'auto') applyTheme('auto');
   });
-});
+}());
