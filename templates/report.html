@@ -6,15 +6,6 @@
 {% block og_description %}{{ students | length }} students · Avg {{ "%.1f" | format(class_avg) if class_avg is not none else "N/A" }} · ClassPro{% endblock %}
 
 {% block head_extra %}
-<!-- Bootstrap 5.3 CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-      crossorigin="anonymous" />
-<!-- Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-
 <style>
   /* ── Sortable table headers ───────────────────────── */
   th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
@@ -85,9 +76,12 @@
         </span>
         {% endif %}
       </div>
-      {% if classroom.schedule %}
+      {% if classroom.schedule and classroom.schedule | length > 0 %}
       <p class="text-muted small mb-0 mt-1">
-        <i class="bi bi-calendar3 me-1"></i>{{ classroom.schedule }}
+        <i class="bi bi-calendar3 me-1"></i>
+        {% for slot in classroom.schedule %}
+          {{ slot.day }} {{ slot.start_time }}–{{ slot.end_time }}{% if not loop.last %} · {% endif %}
+        {% endfor %}
       </p>
       {% endif %}
     </div>
