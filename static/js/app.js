@@ -36,6 +36,7 @@ const STRINGS = {
     toggleDark:    'Dark',
     toggleLight:   'Light',
     madeFor:       'Made with ❤️ for teachers',
+    reportSubtitle:'Individual Student Report',
 
     // Index
     heroTagline:         'Easy class report sharing',
