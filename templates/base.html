@@ -13,7 +13,7 @@
   <meta property="og:type"        content="website" />
 
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', path='favicon.svg') if url_for is defined else '/static/favicon.svg' }}" />
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 
   <!-- Custom overrides -->
-  <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') if url_for is defined else '/static/css/style.css' }}?v=4" />
+  <link rel="stylesheet" href="/static/css/style.css?v=5" />
 
   {% block head_extra %}{% endblock %}
 </head>
@@ -88,13 +88,13 @@
   </footer>
 
   <!-- Bootstrap 5.3.3 JS Bundle (Popper included) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmrmWBhLYYj9R6KoDDqDHTlb0bik" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
   <!-- Chart.js 4 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <!-- App JS -->
-  <script src="{{ url_for('static', path='js/app.js') if url_for is defined else '/static/js/app.js' }}?v=4"></script>
+  <script src="/static/js/app.js?v=5"></script>
 
   {% block scripts %}{% endblock %}
 </body>
