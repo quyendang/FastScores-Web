@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy — FastScores{% endblock %}
+{% block description %}FastScores Privacy Policy — learn how we collect, use, and protect your data.{% endblock %}
+{% block og_title %}FastScores Privacy Policy{% endblock %}
+{% block og_description %}Read the FastScores privacy policy to understand how your data is handled.{% endblock %}
+
+{% block head_extra %}
+<meta name="robots" content="index, follow" />
+<style>
+  .privacy-hero {
+    background: linear-gradient(135deg, #4F6EF7 0%, #6C47FF 100%);
+    color: #fff;
+    padding: 3.5rem 1rem 3rem;
+    text-align: center;
+  }
+  .privacy-hero .icon-wrap {
+    width: 64px; height: 64px;
+    background: rgba(255,255,255,.18);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.25rem;
+    font-size: 1.75rem;
+  }
+  .policy-section h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-top: 2rem;
+    margin-bottom: .6rem;
+  }
+  .policy-section p, .policy-section li {
+    color: var(--bs-secondary-color);
+    line-height: 1.75;
+  }
+  .policy-section ul {
+    padding-left: 1.25rem;
+  }
+  .last-updated {
+    font-size: .85rem;
+    opacity: .75;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero ────────────────────────────────────────────────── -->
+<section class="privacy-hero">
+  <div class="icon-wrap"><i class="bi bi-shield-lock-fill"></i></div>
+  <h1 class="fw-bold mb-2" style="font-size:2rem;">
+    <span data-lang="en">Privacy Policy</span>
+    <span data-lang="vi">Chính sách Bảo mật</span>
+  </h1>
+  <p class="mb-1 opacity-75" style="max-width:520px;margin:0 auto;">
+    <span data-lang="en">Your privacy is important to us. This policy explains how FastScores handles your data.</span>
+    <span data-lang="vi">Quyền riêng tư của bạn rất quan trọng với chúng tôi. Chính sách này giải thích cách FastScores xử lý dữ liệu của bạn.</span>
+  </p>
+  <p class="mt-2 last-updated">
+    <span data-lang="en">Last updated: March 17, 2026</span>
+    <span data-lang="vi">Cập nhật lần cuối: 17 tháng 3, 2026</span>
+  </p>
+</section>
+
+<div class="container policy-section" style="max-width:760px;">
+
+  <!-- ── 1. Introduction ────────────────────────────────────── -->
+  <h2>
+    <span data-lang="en">1. Introduction</span>
+    <span data-lang="vi">1. Giới thiệu</span>
+  </h2>
+  <p>
+    <span data-lang="en">FastScores ("we", "our", or "us") is a classroom management app developed by FastEng.
+      This Privacy Policy describes how we collect, use, and protect information when you use
+      the FastScores iOS application and related web services (collectively, the "Service").</span>
+    <span data-lang="vi">FastScores ("chúng tôi") là ứng dụng quản lý lớp học được phát triển bởi FastEng.
+      Chính sách Bảo mật này mô tả cách chúng tôi thu thập, sử dụng và bảo vệ thông tin
+      khi bạn sử dụng ứng dụng iOS FastScores và các dịch vụ web liên quan (gọi chung là "Dịch vụ").</span>
+  </p>
+  <p>
+    <span data-lang="en">By using the Service, you agree to the collection and use of information in
+      accordance with this policy.</span>
+    <span data-lang="vi">Bằng cách sử dụng Dịch vụ, bạn đồng ý với việc thu thập và sử dụng thông tin
+      theo chính sách này.</span>
+  </p>
+
+  <!-- ── 2. Information We Collect ─────────────────────────── -->
+  <h2>
+    <span data-lang="en">2. Information We Collect</span>
+    <span data-lang="vi">2. Thông tin chúng tôi thu thập</span>
+  </h2>
+  <p><strong><span data-lang="en">Account Information</span><span data-lang="vi">Thông tin tài khoản</span></strong></p>
+  <p>
+    <span data-lang="en">When you register, we collect your email address and create a teacher profile.
+      This information is stored securely via Supabase and is used solely to provide the Service.</span>
+    <span data-lang="vi">Khi đăng ký, chúng tôi thu thập địa chỉ email và tạo hồ sơ giáo viên của bạn.
+      Thông tin này được lưu trữ bảo mật qua Supabase và chỉ được sử dụng để cung cấp Dịch vụ.</span>
+  </p>
+  <p><strong><span data-lang="en">Classroom Data</span><span data-lang="vi">Dữ liệu lớp học</span></strong></p>
+  <p>
+    <span data-lang="en">Information you enter into the app — such as student names, grade scores, attendance
+      records, and class schedules — is stored on our servers and associated with your account.
+      You remain the owner of this data at all times.</span>
+    <span data-lang="vi">Thông tin bạn nhập vào ứng dụng — như tên học sinh, điểm số, bản ghi điểm danh
+      và lịch học — được lưu trữ trên máy chủ của chúng tôi và liên kết với tài khoản của bạn.
+      Bạn luôn là chủ sở hữu dữ liệu này.</span>
+  </p>
+  <p><strong><span data-lang="en">Usage Data</span><span data-lang="vi">Dữ liệu sử dụng</span></strong></p>
+  <p>
+    <span data-lang="en">We may collect anonymous usage information (e.g., feature usage frequency) to
+      improve the Service. This data does not identify individual users.</span>
+    <span data-lang="vi">Chúng tôi có thể thu thập thông tin sử dụng ẩn danh (ví dụ: tần suất sử dụng tính năng)
+      để cải thiện Dịch vụ. Dữ liệu này không xác định cá nhân người dùng.</span>
+  </p>
+
+  <!-- ── 3. How We Use Information ─────────────────────────── -->
+  <h2>
+    <span data-lang="en">3. How We Use Your Information</span>
+    <span data-lang="vi">3. Cách chúng tôi sử dụng thông tin</span>
+  </h2>
+  <ul>
+    <li>
+      <span data-lang="en">To provide, operate, and maintain the Service</span>
+      <span data-lang="vi">Để cung cấp, vận hành và duy trì Dịch vụ</span>
+    </li>
+    <li>
+      <span data-lang="en">To authenticate your account and protect against unauthorized access</span>
+      <span data-lang="vi">Để xác thực tài khoản và bảo vệ khỏi truy cập trái phép</span>
+    </li>
+    <li>
+      <span data-lang="en">To generate and display report share links you explicitly create</span>
+      <span data-lang="vi">Để tạo và hiển thị các link báo cáo chia sẻ mà bạn tạo ra</span>
+    </li>
+    <li>
+      <span data-lang="en">To respond to your support requests</span>
+      <span data-lang="vi">Để phản hồi các yêu cầu hỗ trợ của bạn</span>
+    </li>
+    <li>
+      <span data-lang="en">To improve the app based on anonymous usage patterns</span>
+      <span data-lang="vi">Để cải thiện ứng dụng dựa trên các mẫu sử dụng ẩn danh</span>
+    </li>
+  </ul>
+
+  <!-- ── 4. Data Sharing ────────────────────────────────────── -->
+  <h2>
+    <span data-lang="en">4. Data Sharing and Disclosure</span>
+    <span data-lang="vi">4. Chia sẻ và tiết lộ dữ liệu</span>
+  </h2>
+  <p>
+    <span data-lang="en">We do <strong>not</strong> sell, trade, or rent your personal information to third parties.
+      Data may be shared only in the following limited circumstances:</span>
+    <span data-lang="vi">Chúng tôi <strong>không</strong> bán, trao đổi hay cho thuê thông tin cá nhân của bạn cho bên thứ ba.
+      Dữ liệu chỉ có thể được chia sẻ trong các trường hợp hạn chế sau:</span>
+  </p>
+  <ul>
+    <li>
+      <span data-lang="en"><strong>Service providers:</strong> We use Supabase as our database and authentication provider.
+        Data is processed under Supabase's privacy policy.</span>
+      <span data-lang="vi"><strong>Nhà cung cấp dịch vụ:</strong> Chúng tôi sử dụng Supabase làm nhà cung cấp cơ sở dữ liệu và xác thực.
+        Dữ liệu được xử lý theo chính sách bảo mật của Supabase.</span>
+    </li>
+    <li>
+      <span data-lang="en"><strong>Share links you create:</strong> When you generate a share link, the report data
+        is accessible to anyone with that link for 7 days. You control what is shared.</span>
+      <span data-lang="vi"><strong>Link chia sẻ bạn tạo:</strong> Khi bạn tạo link chia sẻ, dữ liệu báo cáo
+        có thể được truy cập bởi bất kỳ ai có link đó trong 7 ngày. Bạn kiểm soát nội dung được chia sẻ.</span>
+    </li>
+    <li>
+      <span data-lang="en"><strong>Legal requirements:</strong> We may disclose data if required by law or
+        to protect the rights and safety of our users.</span>
+      <span data-lang="vi"><strong>Yêu cầu pháp lý:</strong> Chúng tôi có thể tiết lộ dữ liệu nếu pháp luật yêu cầu
+        hoặc để bảo vệ quyền và sự an toàn của người dùng.</span>
+    </li>
+  </ul>
+
+  <!-- ── 5. Data Retention ──────────────────────────────────── -->
+  <h2>
+    <span data-lang="en">5. Data Retention</span>
+    <span data-lang="vi">5. Lưu giữ dữ liệu</span>
+  </h2>
+  <p>
+    <span data-lang="en">Your data is retained as long as your account is active. Share tokens expire
+      automatically after 7 days. If you request account deletion, we will permanently
+      delete your data within 30 days of receiving your request.</span>
+    <span data-lang="vi">Dữ liệu của bạn được lưu giữ miễn là tài khoản còn hoạt động. Các token chia sẻ
+      tự động hết hạn sau 7 ngày. Nếu bạn yêu cầu xóa tài khoản, chúng tôi sẽ xóa vĩnh viễn
+      dữ liệu của bạn trong vòng 30 ngày kể từ khi nhận được yêu cầu.</span>
+  </p>
+
+  <!-- ── 6. Security ────────────────────────────────────────── -->
+  <h2>
+    <span data-lang="en">6. Security</span>
+    <span data-lang="vi">6. Bảo mật</span>
+  </h2>
+  <p>
+    <span data-lang="en">We implement industry-standard security measures, including encrypted connections
+      (HTTPS/TLS), row-level security (RLS) on our database, and secure authentication
+      via Supabase Auth. However, no method of transmission over the internet is 100% secure.</span>
+    <span data-lang="vi">Chúng tôi áp dụng các biện pháp bảo mật tiêu chuẩn ngành, bao gồm kết nối mã hóa
+      (HTTPS/TLS), bảo mật cấp hàng (RLS) trên cơ sở dữ liệu và xác thực bảo mật qua
+      Supabase Auth. Tuy nhiên, không có phương thức truyền tải nào qua internet là an toàn 100%.</span>
+  </p>
+
+  <!-- ── 7. Children's Privacy ──────────────────────────────── -->
+  <h2>
+    <span data-lang="en">7. Children's Privacy</span>
+    <span data-lang="vi">7. Quyền riêng tư của trẻ em</span>
+  </h2>
+  <p>
+    <span data-lang="en">FastScores is intended for use by teachers and educational institutions.
+      Student data (names, grades, attendance) entered by teachers may include minors.
+      We do not collect data directly from students or children, and this information
+      is managed solely by the teacher account holder.</span>
+    <span data-lang="vi">FastScores được thiết kế để sử dụng bởi giáo viên và các tổ chức giáo dục.
+      Dữ liệu học sinh (tên, điểm số, điểm danh) do giáo viên nhập vào có thể bao gồm người chưa thành niên.
+      Chúng tôi không thu thập dữ liệu trực tiếp từ học sinh hay trẻ em, và thông tin này
+      chỉ được quản lý bởi tài khoản giáo viên.</span>
+  </p>
+
+  <!-- ── 8. Your Rights ─────────────────────────────────────── -->
+  <h2>
+    <span data-lang="en">8. Your Rights</span>
+    <span data-lang="vi">8. Quyền của bạn</span>
+  </h2>
+  <p>
+    <span data-lang="en">You have the right to:</span>
+    <span data-lang="vi">Bạn có quyền:</span>
+  </p>
+  <ul>
+    <li>
+      <span data-lang="en">Access and export your data at any time from within the app</span>
+      <span data-lang="vi">Truy cập và xuất dữ liệu của bạn bất cứ lúc nào từ trong ứng dụng</span>
+    </li>
+    <li>
+      <span data-lang="en">Request correction of inaccurate data</span>
+      <span data-lang="vi">Yêu cầu sửa dữ liệu không chính xác</span>
+    </li>
+    <li>
+      <span data-lang="en">Request deletion of your account and all associated data</span>
+      <span data-lang="vi">Yêu cầu xóa tài khoản và toàn bộ dữ liệu liên quan</span>
+    </li>
+  </ul>
+  <p>
+    <span data-lang="en">To exercise these rights, contact us at
+      <a href="mailto:hello@fasteng.app">hello@fasteng.app</a>.</span>
+    <span data-lang="vi">Để thực hiện các quyền này, hãy liên hệ với chúng tôi tại
+      <a href="mailto:hello@fasteng.app">hello@fasteng.app</a>.</span>
+  </p>
+
+  <!-- ── 9. Changes ─────────────────────────────────────────── -->
+  <h2>
+    <span data-lang="en">9. Changes to This Policy</span>
+    <span data-lang="vi">9. Thay đổi chính sách</span>
+  </h2>
+  <p>
+    <span data-lang="en">We may update this Privacy Policy from time to time. Any changes will be posted
+      on this page with an updated "Last updated" date. Continued use of the Service after
+      changes constitutes acceptance of the revised policy.</span>
+    <span data-lang="vi">Chúng tôi có thể cập nhật Chính sách Bảo mật này theo thời gian. Mọi thay đổi
+      sẽ được đăng trên trang này với ngày "Cập nhật lần cuối" mới. Tiếp tục sử dụng Dịch vụ
+      sau khi thay đổi đồng nghĩa với việc chấp nhận chính sách đã sửa đổi.</span>
+  </p>
+
+  <!-- ── 10. Contact ────────────────────────────────────────── -->
+  <h2>
+    <span data-lang="en">10. Contact Us</span>
+    <span data-lang="vi">10. Liên hệ</span>
+  </h2>
+  <p>
+    <span data-lang="en">If you have any questions or concerns about this Privacy Policy, please contact us:</span>
+    <span data-lang="vi">Nếu bạn có bất kỳ câu hỏi hay thắc mắc nào về Chính sách Bảo mật này, vui lòng liên hệ:</span>
+  </p>
+  <p>
+    <strong>FastEng</strong><br>
+    <a href="mailto:hello@fasteng.app">hello@fasteng.app</a>
+  </p>
+
+  <hr class="my-5">
+  <p class="text-center text-muted small mb-5">
+    <span data-lang="en">© <span id="footerYear2"></span> FastEng. All rights reserved.</span>
+    <span data-lang="vi">© <span id="footerYear2"></span> FastEng. Đã đăng ký bản quyền.</span>
+  </p>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const el = document.getElementById('footerYear2');
+if (el) el.textContent = new Date().getFullYear();
+</script>
+{% endblock %}

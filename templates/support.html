@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Support — FastScores{% endblock %}
+{% block description %}Get help with FastScores. Contact our support team at hello@fasteng.app{% endblock %}
+{% block og_title %}FastScores Support{% endblock %}
+{% block og_description %}Need help? Contact the FastScores support team.{% endblock %}
+
+{% block head_extra %}
+<meta name="robots" content="index, follow" />
+<style>
+  .support-hero {
+    background: linear-gradient(135deg, #4F6EF7 0%, #6C47FF 100%);
+    color: #fff;
+    padding: 3.5rem 1rem 3rem;
+    text-align: center;
+  }
+  .support-hero .icon-wrap {
+    width: 64px; height: 64px;
+    background: rgba(255,255,255,.18);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.25rem;
+    font-size: 1.75rem;
+  }
+  .faq-item .faq-question {
+    font-weight: 600;
+    cursor: pointer;
+    padding: .875rem 1rem;
+    border-radius: .5rem;
+    transition: background .15s;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .5rem;
+  }
+  .faq-item .faq-question:hover { background: var(--bs-secondary-bg); }
+  .faq-item .faq-answer {
+    padding: 0 1rem .875rem 1rem;
+    color: var(--bs-secondary-color);
+    display: none;
+    line-height: 1.65;
+  }
+  .faq-item.open .faq-answer { display: block; }
+  .faq-item.open .faq-question { background: var(--bs-secondary-bg); }
+  .faq-item.open .chevron { transform: rotate(180deg); }
+  .chevron { transition: transform .2s; flex-shrink: 0; }
+  .contact-card {
+    border: 2px solid var(--bs-primary);
+    border-radius: 1rem;
+    padding: 2rem;
+    text-align: center;
+  }
+  .topic-chip {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    border-radius: 999px;
+    padding: .3rem .85rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero ────────────────────────────────────────────────── -->
+<section class="support-hero">
+  <div class="icon-wrap"><i class="bi bi-headset"></i></div>
+  <h1 class="fw-bold mb-2" style="font-size:2rem;">
+    <span data-lang="en">Support Center</span>
+    <span data-lang="vi">Trung tâm Hỗ trợ</span>
+  </h1>
+  <p class="mb-0 opacity-75" style="max-width:480px;margin:0 auto;">
+    <span data-lang="en">We're here to help you get the most out of FastScores.</span>
+    <span data-lang="vi">Chúng tôi ở đây để giúp bạn tận dụng tối đa FastScores.</span>
+  </p>
+</section>
+
+<div class="container" style="max-width:760px;">
+
+  <!-- ── Contact card ───────────────────────────────────────── -->
+  <div class="contact-card my-5">
+    <div class="mb-3" style="font-size:2.5rem;">✉️</div>
+    <h2 class="fw-bold mb-1 fs-4">
+      <span data-lang="en">Contact Support</span>
+      <span data-lang="vi">Liên hệ Hỗ trợ</span>
+    </h2>
+    <p class="text-muted mb-3">
+      <span data-lang="en">Send us an email and we'll get back to you within <strong>1–2 business days</strong>.</span>
+      <span data-lang="vi">Gửi email cho chúng tôi và chúng tôi sẽ phản hồi trong vòng <strong>1–2 ngày làm việc</strong>.</span>
+    </p>
+    <a href="mailto:hello@fasteng.app"
+       class="btn btn-primary btn-lg rounded-pill px-4 fw-semibold">
+      <i class="bi bi-envelope-fill me-2"></i>hello@fasteng.app
+    </a>
+    <div class="mt-3 d-flex flex-wrap justify-content-center gap-2">
+      <span class="topic-chip"><i class="bi bi-bug-fill"></i>
+        <span data-lang="en">Bug reports</span>
+        <span data-lang="vi">Báo cáo lỗi</span>
+      </span>
+      <span class="topic-chip"><i class="bi bi-question-circle-fill"></i>
+        <span data-lang="en">How-to questions</span>
+        <span data-lang="vi">Câu hỏi sử dụng</span>
+      </span>
+      <span class="topic-chip"><i class="bi bi-lightbulb-fill"></i>
+        <span data-lang="en">Feature requests</span>
+        <span data-lang="vi">Đề xuất tính năng</span>
+      </span>
+      <span class="topic-chip"><i class="bi bi-person-fill"></i>
+        <span data-lang="en">Account issues</span>
+        <span data-lang="vi">Vấn đề tài khoản</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── FAQ ───────────────────────────────────────────────── -->
+  <h2 class="fw-bold mb-3 fs-5">
+    <span data-lang="en">Frequently Asked Questions</span>
+    <span data-lang="vi">Câu hỏi thường gặp</span>
+  </h2>
+
+  <div id="faqList" class="card border-0 shadow-sm mb-5">
+
+    <div class="faq-item border-bottom">
+      <div class="faq-question">
+        <span>
+          <span data-lang="en">How do I create a shared report link?</span>
+          <span data-lang="vi">Làm thế nào để tạo link báo cáo chia sẻ?</span>
+        </span>
+        <i class="bi bi-chevron-down chevron"></i>
+      </div>
+      <div class="faq-answer">
+        <span data-lang="en">Open a classroom in the FastScores app, go to <strong>Reports</strong>, then tap
+          <strong>Share</strong>. The app generates a secure link you can send to parents or
+          students. Links expire after 7 days.</span>
+        <span data-lang="vi">Mở một lớp học trong ứng dụng FastScores, vào mục <strong>Báo cáo</strong>, sau đó nhấn
+          <strong>Chia sẻ</strong>. Ứng dụng sẽ tạo một link bảo mật để bạn gửi cho phụ huynh hoặc học sinh. Link hết hạn sau 7 ngày.</span>
+      </div>
+    </div>
+
+    <div class="faq-item border-bottom">
+      <div class="faq-question">
+        <span>
+          <span data-lang="en">Can parents see other students' data?</span>
+          <span data-lang="vi">Phụ huynh có thể xem dữ liệu của học sinh khác không?</span>
+        </span>
+        <i class="bi bi-chevron-down chevron"></i>
+      </div>
+      <div class="faq-answer">
+        <span data-lang="en">No. Each share link is scoped to either a single student report or a full class
+          ranking view (without personal contact details). Sensitive information like phone
+          numbers and parent emails is never exposed via share links.</span>
+        <span data-lang="vi">Không. Mỗi link chia sẻ chỉ giới hạn cho một báo cáo học sinh cụ thể hoặc bảng xếp hạng toàn lớp (không có thông tin liên lạc cá nhân). Thông tin nhạy cảm như số điện thoại và email phụ huynh không bao giờ bị lộ qua link chia sẻ.</span>
+      </div>
+    </div>
+
+    <div class="faq-item border-bottom">
+      <div class="faq-question">
+        <span>
+          <span data-lang="en">How long do share links stay active?</span>
+          <span data-lang="vi">Link chia sẻ có hiệu lực trong bao lâu?</span>
+        </span>
+        <i class="bi bi-chevron-down chevron"></i>
+      </div>
+      <div class="faq-answer">
+        <span data-lang="en">Share links are valid for <strong>7 days</strong> from creation. After expiry,
+          the link shows a "Link Expired" page. You can generate a new link at any time
+          from the app.</span>
+        <span data-lang="vi">Link chia sẻ có hiệu lực trong <strong>7 ngày</strong> kể từ khi tạo. Sau khi hết hạn, link sẽ hiển thị trang "Link đã hết hạn". Bạn có thể tạo link mới bất cứ lúc nào trong ứng dụng.</span>
+      </div>
+    </div>
+
+    <div class="faq-item border-bottom">
+      <div class="faq-question">
+        <span>
+          <span data-lang="en">How do I delete my account and data?</span>
+          <span data-lang="vi">Làm thế nào để xóa tài khoản và dữ liệu của tôi?</span>
+        </span>
+        <i class="bi bi-chevron-down chevron"></i>
+      </div>
+      <div class="faq-answer">
+        <span data-lang="en">To permanently delete your account and all associated data, email us at
+          <a href="mailto:hello@fasteng.app">hello@fasteng.app</a> with the subject
+          <em>"Account Deletion Request"</em>. We will process your request within 30 days.</span>
+        <span data-lang="vi">Để xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan, hãy gửi email đến
+          <a href="mailto:hello@fasteng.app">hello@fasteng.app</a> với tiêu đề
+          <em>"Account Deletion Request"</em>. Chúng tôi sẽ xử lý yêu cầu trong vòng 30 ngày.</span>
+      </div>
+    </div>
+
+    <div class="faq-item border-bottom">
+      <div class="faq-question">
+        <span>
+          <span data-lang="en">Does FastScores work offline?</span>
+          <span data-lang="vi">FastScores có hoạt động offline không?</span>
+        </span>
+        <i class="bi bi-chevron-down chevron"></i>
+      </div>
+      <div class="faq-answer">
+        <span data-lang="en">An internet connection is required to sync data with the server. You can view
+          previously loaded data while offline, but saving changes or sharing reports
+          requires connectivity.</span>
+        <span data-lang="vi">Cần có kết nối internet để đồng bộ dữ liệu với máy chủ. Bạn có thể xem dữ liệu đã tải trước đó khi offline, nhưng lưu thay đổi hoặc chia sẻ báo cáo cần có kết nối mạng.</span>
+      </div>
+    </div>
+
+    <div class="faq-item border-bottom">
+      <div class="faq-question">
+        <span>
+          <span data-lang="en">How is the weighted average grade calculated?</span>
+          <span data-lang="vi">Điểm trung bình có trọng số được tính như thế nào?</span>
+        </span>
+        <i class="bi bi-chevron-down chevron"></i>
+      </div>
+      <div class="faq-answer">
+        <span data-lang="en">FastScores normalises each category score to the class grading scale, then
+          computes <strong>Σ(score × weight) / Σ(weight)</strong>. If "missing grade"
+          behavior is set to <em>Ignore</em>, ungraded categories are skipped;
+          if set to <em>Zero</em>, they count as 0 with full weight.</span>
+        <span data-lang="vi">FastScores chuẩn hóa điểm của từng danh mục về thang điểm của lớp, sau đó tính
+          <strong>Σ(điểm × hệ số) / Σ(hệ số)</strong>. Nếu hành vi "điểm thiếu" được đặt là
+          <em>Bỏ qua</em>, các danh mục chưa chấm điểm sẽ bị bỏ qua; nếu đặt là <em>Tính 0</em>, chúng được tính là 0 với hệ số đầy đủ.</span>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">
+        <span>
+          <span data-lang="en">What iOS version is required?</span>
+          <span data-lang="vi">Yêu cầu phiên bản iOS tối thiểu là bao nhiêu?</span>
+        </span>
+        <i class="bi bi-chevron-down chevron"></i>
+      </div>
+      <div class="faq-answer">
+        <span data-lang="en">FastScores requires <strong>iOS 17.0</strong> or later.</span>
+        <span data-lang="vi">FastScores yêu cầu <strong>iOS 17.0</strong> trở lên.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── App Store link ─────────────────────────────────────── -->
+  <div class="text-center mb-5">
+    <p class="text-muted small mb-3">
+      <span data-lang="en">Download FastScores on the App Store</span>
+      <span data-lang="vi">Tải FastScores trên App Store</span>
+    </p>
+    <a href="https://apps.apple.com/us/app/fastscores-student-manager/id6760573525"
+       target="_blank" rel="noopener">
+      <img src="/static/img/app-store-badge.svg"
+           alt="Download on the App Store"
+           height="44"
+           onerror="this.style.display='none'">
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('#faqList .faq-question').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.closest('.faq-item');
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('#faqList .faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  });
+});
+</script>
+{% endblock %}

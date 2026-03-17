@@ -237,6 +237,11 @@ function applyLang(lang) {
     }
   });
 
+  // Show/hide [data-lang] blocks (used by support & privacy pages)
+  document.querySelectorAll('[data-lang]').forEach(el => {
+    el.style.display = el.dataset.lang === lang ? '' : 'none';
+  });
+
   // Update lang toggle label (shows the OTHER language)
   const btn = document.getElementById('langToggle');
   if (btn) {

@@ -31,6 +31,16 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/support", response_class=HTMLResponse)
+async def support(request: Request):
+    return templates.TemplateResponse("support.html", {"request": request})
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
