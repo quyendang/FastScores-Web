@@ -238,9 +238,9 @@ function applyLang(lang) {
   });
 
   // Show/hide [data-lang] blocks (used by support & privacy pages).
-  // Explicit 'inline' overrides the CSS [data-lang]{display:none} default.
+  // setProperty with 'important' guarantees override over any CSS rule.
   document.querySelectorAll('[data-lang]').forEach(el => {
-    el.style.display = el.dataset.lang === lang ? 'inline' : 'none';
+    el.style.setProperty('display', el.dataset.lang === lang ? 'inline' : 'none', 'important');
   });
 
   // Update lang toggle label (shows the OTHER language)
