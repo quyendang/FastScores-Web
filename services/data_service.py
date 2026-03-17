@@ -174,6 +174,24 @@ def fetch_class_report_data(token_row: dict) -> dict:
             .data
         ) or []
 
+    # Fetch per-student share tokens so the template can link to /student/{token}
+    now_iso = datetime.now(timezone.utc).isoformat()
+    student_tokens: list[dict] = []
+    if student_ids:
+        student_tokens = (
+            sb.table("share_tokens")
+            .select("student_id,token")
+            .eq("classroom_id", classroom_id)
+            .eq("scope", "student_report")
+            .gt("expires_at", now_iso)
+            .in_("student_id", student_ids)
+            .execute()
+            .data
+        ) or []
+    student_token_map: dict[str, str] = {
+        str(t["student_id"]): t["token"] for t in student_tokens
+    }
+
     att_by_student: dict[str, list[dict]] = {}
     for rec in attendance_records:
         sid = str(rec["student_id"])
@@ -233,6 +251,7 @@ def fetch_class_report_data(token_row: dict) -> dict:
         "classroom": classroom_row,
         "categories": categories,
         "students": student_list,
+        "student_token_map": student_token_map,
         "class_avg": class_avg,
         "class_attendance_rate": class_attendance_rate,
         "total_sessions": total_sessions,

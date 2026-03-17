@@ -219,6 +219,7 @@
                   {% for cat in categories %}
                   <th>{{ cat.name }}</th>
                   {% endfor %}
+                  <th data-i18n="detail"></th>
                 </tr>
               </thead>
               <tbody>
@@ -318,6 +319,21 @@
                     {% endif %}
                   </td>
                   {% endfor %}
+
+                  <!-- View Detail button -->
+                  <td class="text-center">
+                    {% set stu_token = student_token_map.get(s.id) if student_token_map else none %}
+                    {% if stu_token %}
+                    <a href="/student/{{ stu_token }}"
+                       class="btn btn-outline-primary btn-sm py-0 px-2"
+                       style="font-size:.75rem; white-space:nowrap;"
+                       target="_blank">
+                      <i class="bi bi-person-lines-fill me-1"></i>Chi tiết
+                    </a>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
+                  </td>
 
                 </tr>
                 {% endfor %}
