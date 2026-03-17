@@ -91,6 +91,7 @@ const STRINGS = {
     generatedAt:         'Generated at',
     exportCSV:           'Export CSV',
     exportExcel:         'Export Excel',
+    detail:              'Details',
 
     // Student page
     classRank:       'Class Rank',
@@ -169,6 +170,7 @@ const STRINGS = {
     generatedAt:         'Tạo lúc',
     exportCSV:           'Xuất CSV',
     exportExcel:         'Xuất Excel',
+    detail:              'Chi tiết',
 
     classRank:       'Thứ hạng',
     gradeCategories: 'Điểm theo môn',
