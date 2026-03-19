@@ -17,7 +17,7 @@ from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from services.supabase_client import get_supabase
+from services.supabase_client import get_bot_supabase as get_supabase
 from services import bot_indicators as ind
 from services.bot_service import (
     RSI_PERIOD,

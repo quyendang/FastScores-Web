@@ -68,12 +68,12 @@ async def health():
 # ── Background scheduler (crypto bot) ────────────────────────────────────────
 @app.on_event("startup")
 def start_bot_scheduler():
-    from services.supabase_client import get_supabase
+    from services.supabase_client import get_bot_supabase
     from services.bot_service import symbols_tracker_job
 
     def _job():
         try:
-            symbols_tracker_job(get_supabase())
+            symbols_tracker_job(get_bot_supabase())
         except Exception as e:
             logging.error(f"[SCHEDULER] symbols_tracker_job error: {e}")
 
