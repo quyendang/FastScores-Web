@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ symbol }} Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --accent: #2563eb;
+      --green: #22c55e;
+      --red: #ef4444;
+      --muted: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+    }
+    .page { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
+    .header {
+      display: flex; flex-wrap: wrap; align-items: center;
+      justify-content: space-between; gap: 12px; margin-bottom: 16px;
+    }
+    .header-title { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.02em; }
+    .badge-symbol {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(37, 99, 235, 0.08); color: var(--accent);
+      font-size: 0.85rem; font-weight: 600;
+    }
+    .badge-state {
+      display: inline-block; padding: 4px 10px; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 600; margin-left: 8px;
+    }
+    .state-buy  { background-color: var(--green); color: #fff; }
+    .state-sell { background-color: var(--red);   color: #fff; }
+    .state-hold { background-color: #6b7280;      color: #fff; }
+    .header-sub { font-size: 0.9rem; color: var(--text-sub); }
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card-bg); border-radius: 14px; padding: 12px 14px;
+      border: 1px solid var(--border); box-shadow: 0 4px 10px rgba(15,23,42,0.04);
+    }
+    .card-label {
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-sub); margin-bottom: 4px;
+    }
+    .card-main { font-size: 1.1rem; font-weight: 600; display: flex; align-items: baseline; gap: 6px; }
+    .card-sub { font-size: 0.82rem; color: var(--text-sub); margin-top: 2px; }
+    .change-badge {
+      padding: 2px 8px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 600; color: #fff;
+    }
+    .change-pos { background-color: var(--green); }
+    .change-neg { background-color: var(--red); }
+    .panel {
+      background: var(--card-bg); border-radius: 16px; padding: 16px 16px 20px;
+      border: 1px solid var(--border); box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+      margin-bottom: 16px;
+    }
+    .panel-title {
+      font-size: 0.96rem; font-weight: 600; margin-bottom: 10px;
+      color: var(--text-main); display: flex; justify-content: space-between; align-items: center;
+    }
+    .panel-title span.sub { font-size: 0.8rem; color: var(--text-sub); font-weight: 400; }
+    canvas { max-width: 100%; }
+    .zone-legend {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 0.8rem; color: var(--text-sub);
+    }
+    .legend-box { width: 14px; height: 8px; border-radius: 999px; }
+    .legend-buy     { background: rgba(34, 197, 94, 0.12); }
+    .legend-sell    { background: rgba(239, 68, 68, 0.12); }
+    .legend-db-buy  { background: rgba(5, 150, 105, 0.85); border-radius: 2px; }
+    .legend-db-sell { background: rgba(220, 38, 38, 0.85); border-radius: 2px; }
+    .sub-btn {
+      border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+      padding: 6px 12px; border-radius: 999px;
+    }
+    .tf-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tf-btn {
+      padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: #1e293b; color: #cbd5e1; font-size: 0.83rem; font-weight: 600;
+      cursor: pointer; text-decoration: none; transition: background 0.15s, color 0.15s;
+    }
+    .tf-btn:hover { background: #334155; color: #fff; }
+    .tf-btn.active { background: #fff; color: #0f172a; border-color: #94a3b8; }
+    .d1-badge {
+      display: inline-block; padding: 5px 12px; border-radius: 999px;
+      font-size: 0.83rem; font-weight: 700; letter-spacing: 0.04em;
+    }
+    .d1-bull { background: rgba(34,197,94,0.15); color: #16a34a; border: 1px solid rgba(34,197,94,0.3); }
+    .d1-bear { background: rgba(239,68,68,0.15); color: #dc2626; border: 1px solid rgba(239,68,68,0.3); }
+    .d1-neutral { background: rgba(107,114,128,0.12); color: #6b7280; border: 1px solid rgba(107,114,128,0.25); }
+    .ai-panel {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-color: rgba(99,102,241,0.3);
+    }
+    .ai-panel .panel-title {
+      color: #e2e8f0; border-bottom: 1px solid rgba(99,102,241,0.2);
+      padding-bottom: 10px; margin-bottom: 14px;
+    }
+    .ai-panel .panel-title .sub { color: #94a3b8; }
+    .ai-badge {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+      font-size: 0.7rem; font-weight: 700; padding: 3px 9px;
+      border-radius: 999px; letter-spacing: 0.08em;
+    }
+    .ai-body { color: #cbd5e1; font-size: 0.92rem; line-height: 1.75; }
+    .ai-body h3 {
+      color: #f1f5f9; font-size: 0.97rem; font-weight: 700;
+      margin: 16px 0 6px; display: flex; align-items: center; gap: 6px;
+    }
+    .ai-body h3:first-child { margin-top: 0; }
+    .ai-body p  { margin: 0 0 10px; }
+    .ai-body ul { margin: 0 0 10px; padding-left: 20px; }
+    .ai-body li { margin-bottom: 4px; }
+    .ai-body strong { color: #f8fafc; font-weight: 600; }
+    .ai-body table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.88rem; }
+    .ai-body th { background: rgba(99,102,241,0.15); color: #a5b4fc; padding: 6px 10px; text-align: left; font-weight: 600; }
+    .ai-body td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .ai-body tr:last-child td { border-bottom: none; }
+    @media (max-width: 640px) { .header { align-items: flex-start; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- HEADER -->
+    <header class="header">
+      <div>
+        <div class="header-title">
+          {{ symbol }} Dashboard
+          <span class="badge-symbol">
+            <span style="width:8px;height:8px;border-radius:999px;background:#22c55e;"></span>
+            Spot Tracker
+          </span>
+          <span id="lastStateBadge" class="badge-state state-hold">HOLD</span>
+        </div>
+        <div class="header-sub">
+          Auto-tracking Price, RSI, zones &amp; BUY/SELL signals ({{ tf }} data)
+          <br />
+          <small>
+            Server tracker: <strong>{{ tracker_action }}</strong>
+            {% if tracker_reason %} &ndash; {{ tracker_reason }}{% endif %}
+          </small>
+        </div>
+      </div>
+      <div>
+        {% if is_subscribed %}
+        <form method="post" action="/bot/unsubscribe">
+          <input type="hidden" name="symbol" value="{{ symbol }}">
+          <button type="submit" class="sub-btn state-sell">UNSUBSCRIBE</button>
+        </form>
+        {% else %}
+        <form method="post" action="/bot/subscribe">
+          <input type="hidden" name="symbol" value="{{ symbol }}">
+          <button type="submit" class="sub-btn state-buy">SUBSCRIBE</button>
+        </form>
+        {% endif %}
+      </div>
+    </header>
+
+    <!-- TIMEFRAME SELECTOR + D1 BIAS -->
+    <div class="tf-bar">
+      <a href="?symbol={{ symbol }}&tf=15m" class="tf-btn {% if tf == '15m' %}active{% endif %}">M15</a>
+      <a href="?symbol={{ symbol }}&tf=1h"  class="tf-btn {% if tf == '1h'  %}active{% endif %}">H1</a>
+      <a href="?symbol={{ symbol }}&tf=4h"  class="tf-btn {% if tf == '4h'  %}active{% endif %}">H4</a>
+      <a href="?symbol={{ symbol }}&tf=1d"  class="tf-btn {% if tf == '1d'  %}active{% endif %}">D1</a>
+      {% if d1_bullish %}
+        <span class="d1-badge d1-bull">D1: BULL</span>
+      {% elif d1_bearish %}
+        <span class="d1-badge d1-bear">D1: BEAR</span>
+      {% else %}
+        <span class="d1-badge d1-neutral">D1: NEUTRAL</span>
+      {% endif %}
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <section class="cards">
+      <div class="card">
+        <div class="card-label">Current Price</div>
+        <div class="card-main">
+          <span>${{ "%.2f"|format(last_price) if last_price is not none else "…" }}</span>
+          {% if change_24h is not none %}
+          <span class="change-badge {{ 'change-pos' if change_24h >= 0 else 'change-neg' }}">
+            {{ "%+.2f"|format(change_24h) }}%
+          </span>
+          {% endif %}
+        </div>
+        <div class="card-sub">Last candle close ({{ tf }})</div>
+      </div>
+      <div class="card">
+        <div class="card-label">RSI ({{ tf }})</div>
+        <div class="card-main">
+          <span>{{ "%.2f"|format(last_rsi) if last_rsi is not none else "…" }}</span>
+        </div>
+        <div class="card-sub">Momentum oscillator (0–100)</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Buy Zone</div>
+        <div class="card-main">
+          {% if buy_low is not none and buy_high is not none %}
+          <span>${{ "%.0f"|format(buy_low) }} – {{ "%.0f"|format(buy_high) }}</span>
+          {% else %}<span>Auto-calculating…</span>{% endif %}
+        </div>
+        <div class="card-sub">Only BUY signals inside this zone</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Sell Zone</div>
+        <div class="card-main">
+          {% if sell_low is not none and sell_high is not none %}
+          <span>${{ "%.0f"|format(sell_low) }} – {{ "%.0f"|format(sell_high) }}</span>
+          {% else %}<span>Auto-calculating…</span>{% endif %}
+        </div>
+        <div class="card-sub">Only SELL signals inside this zone</div>
+      </div>
+    </section>
+
+    <!-- PRICE CHART -->
+    <section class="panel">
+      <div class="panel-title">
+        <div>{{ symbol }} Price + EMA + BB <span class="sub">{{ tf }} candles</span></div>
+        <div class="zone-legend">
+          <span class="legend-box legend-buy"></span> Buy zone
+          <span class="legend-box legend-sell"></span> Sell zone
+          <span class="legend-box legend-db-buy"></span> Bot BUY
+          <span class="legend-box legend-db-sell"></span> Bot SELL
+        </div>
+      </div>
+      <canvas id="priceChart" height="260"></canvas>
+    </section>
+
+    <!-- RSI CHART -->
+    <section class="panel">
+      <div class="panel-title">RSI <span class="sub">{{ tf }} — period 14</span></div>
+      <canvas id="rsiChart" height="120"></canvas>
+    </section>
+
+    <!-- MACD CHART -->
+    <section class="panel">
+      <div class="panel-title">MACD Histogram <span class="sub">{{ tf }}</span></div>
+      <canvas id="macdChart" height="120"></canvas>
+    </section>
+
+    <!-- VOLUME CHART -->
+    <section class="panel">
+      <div class="panel-title">Volume <span class="sub">{{ tf }}</span></div>
+      <canvas id="volumeChart" height="100"></canvas>
+    </section>
+
+    <!-- AI ANALYSIS -->
+    {% if ai_analysis %}
+    <section class="panel ai-panel">
+      <div class="panel-title">
+        <div>🤖 Phân tích thị trường AI <span class="sub">{{ symbol }} · {{ tf }} · OpenRouter</span></div>
+        <span class="ai-badge">AI</span>
+      </div>
+      <div class="ai-body" id="aiBody"></div>
+    </section>
+    {% endif %}
+  </div>
+
+  {% if ai_analysis %}
+  <script id="ai-analysis-raw" type="text/plain">{{ ai_analysis | e }}</script>
+  {% endif %}
+  <script id="rows-data" type="application/json">{{ rows_json_str | safe }}</script>
+  <script id="db-signals-data" type="application/json">{{ db_signals_json | safe }}</script>
+
+  <script>
+    const rows      = JSON.parse(document.getElementById('rows-data').textContent);
+    const dbSignals = JSON.parse(document.getElementById('db-signals-data').textContent);
+    const symbol    = "{{ symbol }}";
+    const tf        = "{{ tf }}";
+
+    const labels    = rows.map(r => r.time_str);
+    const prices    = rows.map(r => r.price);
+    const rsiValues = rows.map(r => r.rsi_h4);
+    const macdHist  = rows.map(r => r.macd_hist);
+    const ema34     = rows.map(r => r.ema34);
+    const ema50     = rows.map(r => r.ema50);
+    const ema89     = rows.map(r => r.ema89);
+    const ema200    = rows.map(r => r.ema200);
+    const sma50     = rows.map(r => r.sma_50);
+    const sma150    = rows.map(r => r.sma_150);
+    const volumes   = rows.map(r => r.volume);
+    const bbMiddle  = rows.map(r => r.bb_middle);
+    const bbUpper   = rows.map(r => r.bb_upper);
+    const bbLower   = rows.map(r => r.bb_lower);
+    const stochK    = rows.map(r => r.stoch_k);
+
+    const buyLow   = {{ buy_low   if buy_low   is not none else 'null' }};
+    const buyHigh  = {{ buy_high  if buy_high  is not none else 'null' }};
+    const sellLow  = {{ sell_low  if sell_low  is not none else 'null' }};
+    const sellHigh = {{ sell_high if sell_high is not none else 'null' }};
+
+    const rsiOversold   = (tf === "15m" || tf === "1h") ? 35 : 30;
+    const rsiOverbought = (tf === "15m" || tf === "1h") ? 65 : 70;
+
+    // Last state badge
+    let lastState = "HOLD";
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (rows[i].is_buy_signal)  { lastState = "BUY";  break; }
+      if (rows[i].is_sell_signal) { lastState = "SELL"; break; }
+    }
+    const stateEl = document.getElementById("lastStateBadge");
+    if (stateEl) {
+      stateEl.textContent = lastState;
+      stateEl.className = "badge-state state-" + lastState.toLowerCase();
+    }
+
+    // ── Plugin: Zone shading ────────────────────────────────────────────────
+    const priceZonesPlugin = {
+      id: 'priceZones',
+      beforeDraw(chart) {
+        if (chart.canvas.id !== "priceChart") return;
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const { left, right } = chartArea;
+        const yScale = scales['y'];
+        if (!yScale) return;
+        ctx.save();
+
+        // Danger zone stripes
+        const meta0 = chart.getDatasetMeta(0);
+        if (meta0 && meta0.data) {
+          for (let i = 0; i < rows.length && i < meta0.data.length; i++) {
+            if (rows[i].is_danger_zone) {
+              const pt = meta0.data[i];
+              const hw = (meta0.data.length > 1 && i > 0) ? Math.abs(pt.x - meta0.data[i-1].x)/2 : 4;
+              ctx.fillStyle = "rgba(239,68,68,0.08)";
+              ctx.fillRect(pt.x - hw, chartArea.top, hw*2, chartArea.bottom - chartArea.top);
+            }
+          }
+        }
+        if (buyHigh != null && sellLow != null) {
+          const a = yScale.getPixelForValue(buyHigh), b = yScale.getPixelForValue(sellLow);
+          ctx.fillStyle = "rgba(107,114,128,0.03)";
+          ctx.fillRect(left, Math.min(a,b), right-left, Math.abs(b-a));
+        }
+        if (buyLow != null && buyHigh != null) {
+          const a = yScale.getPixelForValue(buyLow), b = yScale.getPixelForValue(buyHigh);
+          ctx.fillStyle = "rgba(34,197,94,0.12)";
+          ctx.fillRect(left, Math.min(a,b), right-left, Math.abs(b-a));
+        }
+        if (sellLow != null && sellHigh != null) {
+          const a = yScale.getPixelForValue(sellLow), b = yScale.getPixelForValue(sellHigh);
+          ctx.fillStyle = "rgba(239,68,68,0.12)";
+          ctx.fillRect(left, Math.min(a,b), right-left, Math.abs(b-a));
+        }
+        ctx.restore();
+      }
+    };
+
+    // ── Plugin: Signal arrows ───────────────────────────────────────────────
+    const signalArrowPlugin = {
+      id: 'signalArrows',
+      afterDraw(chart) {
+        if (chart.canvas.id !== "priceChart") return;
+        const { ctx, scales } = chart;
+        if (!scales || !scales.y) return;
+        const meta0 = chart.getDatasetMeta(0);
+        if (!meta0 || !meta0.data) return;
+        ctx.save();
+        for (let i = 0; i < rows.length && i < meta0.data.length; i++) {
+          const row = rows[i];
+          const pt  = meta0.data[i];
+          if (row.is_buy_signal) {
+            const str = row.signal_strength || 1;
+            const size = str === 3 ? 12 : (str === 2 ? 9 : 6);
+            const yTip = scales.y.getPixelForValue(row.low) + size * 0.6;
+            ctx.beginPath();
+            ctx.moveTo(pt.x, yTip + size*1.6);
+            ctx.lineTo(pt.x - size, yTip + size*1.6);
+            ctx.lineTo(pt.x, yTip);
+            ctx.lineTo(pt.x + size, yTip + size*1.6);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(22,163,74,0.95)";
+            ctx.strokeStyle = "rgba(255,255,255,0.8)";
+            ctx.lineWidth = 1.2;
+            ctx.fill(); ctx.stroke();
+            ctx.font = `bold ${size*0.85}px system-ui`;
+            ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("B"+str, pt.x, yTip + size*0.85);
+          }
+          if (row.is_sell_signal) {
+            const str = row.signal_strength || 1;
+            const size = str === 3 ? 12 : (str === 2 ? 9 : 6);
+            const yTip = scales.y.getPixelForValue(row.high) - size * 0.6;
+            ctx.beginPath();
+            ctx.moveTo(pt.x, yTip - size*1.6);
+            ctx.lineTo(pt.x - size, yTip - size*1.6);
+            ctx.lineTo(pt.x, yTip);
+            ctx.lineTo(pt.x + size, yTip - size*1.6);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(239,68,68,0.95)";
+            ctx.strokeStyle = "rgba(255,255,255,0.8)";
+            ctx.lineWidth = 1.2;
+            ctx.fill(); ctx.stroke();
+            ctx.font = `bold ${size*0.85}px system-ui`;
+            ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("S"+str, pt.x, yTip - size*0.85);
+          }
+        }
+        ctx.restore();
+      }
+    };
+
+    // ── Plugin: RSI reference lines ─────────────────────────────────────────
+    const rsiLinesPlugin = {
+      id: 'rsiLines',
+      afterDraw(chart) {
+        if (chart.canvas.id !== "rsiChart") return;
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.y) return;
+        const { left, right } = chartArea;
+        ctx.save();
+        ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(22,163,74,0.6)";
+        ctx.beginPath(); ctx.moveTo(left, scales.y.getPixelForValue(rsiOversold)); ctx.lineTo(right, scales.y.getPixelForValue(rsiOversold)); ctx.stroke();
+        ctx.strokeStyle = "rgba(239,68,68,0.6)";
+        ctx.beginPath(); ctx.moveTo(left, scales.y.getPixelForValue(rsiOverbought)); ctx.lineTo(right, scales.y.getPixelForValue(rsiOverbought)); ctx.stroke();
+        ctx.strokeStyle = "rgba(100,116,139,0.3)"; ctx.setLineDash([2, 6]);
+        ctx.beginPath(); ctx.moveTo(left, scales.y.getPixelForValue(50)); ctx.lineTo(right, scales.y.getPixelForValue(50)); ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    // ── Plugin: DB historical signals ───────────────────────────────────────
+    const dbSignalsByIndex = {};
+    if (dbSignals && dbSignals.length > 0 && labels.length > 0) {
+      const labelMs = labels.map(l => new Date(l.replace(" ","T")+"Z").getTime());
+      dbSignals.forEach(sig => {
+        const sigMs = new Date(sig.created_at).getTime();
+        if (isNaN(sigMs)) return;
+        let bestIdx = 0, bestDist = Infinity;
+        for (let i = 0; i < labelMs.length; i++) {
+          const dist = Math.abs(labelMs[i] - sigMs);
+          if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+        }
+        if (!dbSignalsByIndex[bestIdx]) dbSignalsByIndex[bestIdx] = [];
+        dbSignalsByIndex[bestIdx].push(sig);
+      });
+    }
+    const dbSignalPlugin = {
+      id: 'dbSignals',
+      afterDraw(chart) {
+        if (chart.canvas.id !== "priceChart") return;
+        const { ctx, scales } = chart;
+        if (!scales || !scales.y) return;
+        const meta0 = chart.getDatasetMeta(0);
+        if (!meta0 || !meta0.data) return;
+        ctx.save();
+        Object.entries(dbSignalsByIndex).forEach(([idxStr, sigs]) => {
+          const i = parseInt(idxStr, 10);
+          if (i >= meta0.data.length) return;
+          const pt = meta0.data[i];
+          sigs.forEach(sig => {
+            const isBuy = sig.signal_type === "BUY";
+            const str = sig.signal_strength || 1;
+            const size = 10 + str * 2;
+            const row = rows[i];
+            const refPrice = isBuy ? (row ? row.low : sig.price) : (row ? row.high : sig.price);
+            const yCenter = scales.y.getPixelForValue(refPrice) + (isBuy ? size*2.2 : -size*2.2);
+            const half = size / 2;
+            ctx.beginPath();
+            ctx.moveTo(pt.x, yCenter - half); ctx.lineTo(pt.x + half, yCenter);
+            ctx.lineTo(pt.x, yCenter + half); ctx.lineTo(pt.x - half, yCenter);
+            ctx.closePath();
+            ctx.fillStyle = isBuy ? "rgba(5,150,105,0.92)" : "rgba(220,38,38,0.92)";
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+            ctx.fill(); ctx.stroke();
+            ctx.font = `bold ${Math.round(size*0.6)}px system-ui`;
+            ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(isBuy ? "B" : "S", pt.x, yCenter);
+          });
+        });
+        ctx.restore();
+      }
+    };
+
+    Chart.register(priceZonesPlugin, signalArrowPlugin, rsiLinesPlugin, dbSignalPlugin);
+
+    // MACD colors
+    const macdHistColors = macdHist.map((v, i) => {
+      const prev = i > 0 ? macdHist[i-1] : v;
+      if (v >= 0) return v >= prev ? "rgba(22,163,74,0.8)" : "rgba(134,239,172,0.8)";
+      return v <= prev ? "rgba(239,68,68,0.8)" : "rgba(252,165,165,0.8)";
+    });
+
+    // Price chart
+    new Chart(document.getElementById("priceChart").getContext("2d"), {
+      type: "line",
+      data: { labels, datasets: [
+        { label: symbol+" Price", data: prices, borderColor: "rgba(37,99,235,1)", backgroundColor: "rgba(37,99,235,0.05)", yAxisID:"y", tension:0.2, pointRadius:0, order:1 },
+        { label: "EMA 34",  data: ema34,  borderColor: "rgba(16,185,129,0.9)",  backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1.4, order:2 },
+        { label: "EMA 50",  data: ema50,  borderColor: "rgba(245,158,11,0.9)",  backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1.4, order:3 },
+        { label: "EMA 89",  data: ema89,  borderColor: "rgba(239,68,68,0.85)",  backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1.6, order:4 },
+        { label: "EMA 200", data: ema200, borderColor: "rgba(139,92,246,0.85)", backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:2,   order:5 },
+        { label: "SMA 150", data: sma150, borderColor: "rgba(249,115,22,0.7)",  backgroundColor:"transparent", yAxisID:"y", tension:0,   pointRadius:0, borderWidth:1.5, borderDash:[8,4], order:6 },
+        { label: "BB Mid",  data: bbMiddle, borderColor:"rgba(100,116,139,0.4)",backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1, borderDash:[2,4], order:7 },
+        { label: "BB Upper",data: bbUpper,  borderColor:"rgba(148,163,184,0.4)",backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1, order:8 },
+        { label: "BB Lower",data: bbLower,  borderColor:"rgba(148,163,184,0.4)",backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1, order:9 },
+        { label: "Stoch %K",data: stochK,   borderColor:"rgba(139,92,246,0.75)",backgroundColor:"transparent", yAxisID:"yStoch", tension:0.2, pointRadius:0, borderWidth:1.2, borderDash:[3,2], order:10 },
+      ]},
+      options: {
+        responsive: true,
+        interaction: { mode:"index", intersect:false },
+        plugins: {
+          legend: { position:"top" },
+          tooltip: {
+            mode:"index", intersect:false,
+            callbacks: {
+              label: ctx => ctx.dataset.yAxisID === "yStoch"
+                ? "Stoch %K: "+(ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) : "—")
+                : ctx.dataset.label+": "+(ctx.parsed.y != null ? ctx.parsed.y.toLocaleString() : "—"),
+              afterBody: items => {
+                const i = items[0] ? items[0].dataIndex : null;
+                if (i === null) return [];
+                const row = rows[i];
+                const lines = [];
+                if (row.is_danger_zone) lines.push("DANGER ZONE");
+                if (row.is_buy_signal)  lines.push("BUY SIGNAL (str="+row.signal_strength+")");
+                if (row.is_sell_signal) lines.push("SELL SIGNAL (str="+row.signal_strength+")");
+                if (row.signal_detail)  lines.push(row.signal_detail);
+                return lines;
+              }
+            }
+          }
+        },
+        scales: {
+          y: { type:"linear", position:"left", title:{display:true,text:"Price"} },
+          yStoch: { type:"linear", position:"right", min:0, max:100, title:{display:true,text:"Stoch %K"}, grid:{drawOnChartArea:false}, ticks:{stepSize:20,color:"rgba(139,92,246,0.8)"} },
+          x: { ticks:{ maxRotation:60, minRotation:45 } }
+        }
+      }
+    });
+
+    // RSI chart
+    new Chart(document.getElementById("rsiChart").getContext("2d"), {
+      type: "line",
+      data: { labels, datasets: [{ label:"RSI ("+tf+")", data:rsiValues, borderColor:"rgba(16,185,129,1)", backgroundColor:"rgba(16,185,129,0.05)", tension:0.2, pointRadius:0, borderWidth:1.5 }] },
+      options: { responsive:true, interaction:{mode:"index",intersect:false}, plugins:{legend:{position:"top"}}, scales:{ y:{min:0,max:100,title:{display:true,text:"RSI"}}, x:{ticks:{maxRotation:60,minRotation:45}} } }
+    });
+
+    // MACD chart
+    new Chart(document.getElementById("macdChart").getContext("2d"), {
+      type: "bar",
+      data: { labels, datasets: [{ label:"MACD Histogram", data:macdHist, backgroundColor:macdHistColors, borderWidth:0, barPercentage:0.9, categoryPercentage:0.9 }] },
+      options: { responsive:true, interaction:{mode:"index",intersect:false}, plugins:{legend:{position:"top"}}, scales:{ y:{title:{display:true,text:"Histogram"}}, x:{ticks:{maxRotation:60,minRotation:45}} } }
+    });
+
+    // Volume chart
+    const volColors = volumes.map((v,i) => prices[i] >= (i>0?prices[i-1]:prices[i]) ? "rgba(34,197,94,0.6)" : "rgba(239,68,68,0.6)");
+    new Chart(document.getElementById("volumeChart").getContext("2d"), {
+      type: "bar",
+      data: { labels, datasets: [{ label:"Volume", data:volumes, backgroundColor:volColors, borderWidth:0, barPercentage:0.9, categoryPercentage:0.9 }] },
+      options: {
+        responsive:true, interaction:{mode:"index",intersect:false}, plugins:{legend:{position:"top"},
+          tooltip:{mode:"index",intersect:false,callbacks:{label:ctx=>{ const v=ctx.parsed.y; return v>=1e6?"Volume:"+(v/1e6).toFixed(2)+"M":v>=1e3?"Volume:"+(v/1e3).toFixed(1)+"K":"Volume:"+v.toFixed(2); }}}},
+        scales:{ y:{title:{display:true,text:"Volume"},ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":v}}, x:{ticks:{maxRotation:60,minRotation:45}} }
+      }
+    });
+
+    // AI analysis markdown
+    const aiRaw  = document.getElementById('ai-analysis-raw');
+    const aiBody = document.getElementById('aiBody');
+    if (aiRaw && aiBody && typeof marked !== 'undefined') {
+      marked.setOptions({ breaks:true, gfm:true });
+      aiBody.innerHTML = marked.parse(aiRaw.textContent.trim());
+    }
+  </script>
+</body>
+</html>

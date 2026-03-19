@@ -1,4 +1,8 @@
+import logging
 import os
+from datetime import datetime
+
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -7,25 +11,40 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 
 from routers import report, student
+from routers import bot as bot_router
 
 load_dotenv()
 
-app = FastAPI(title="FastScores Web", version="1.0.0")
+logging.basicConfig(level=logging.INFO)
+
+app = FastAPI(title="FastScores Web", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# ── Jinja2 custom filter ──────────────────────────────────────────────────────
+def comma_format(value):
+    try:
+        return f"{float(value):,.0f}"
+    except Exception:
+        return value
+
+templates.env.filters["comma"] = comma_format
+
+# ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(report.router)
 app.include_router(student.router)
+app.include_router(bot_router.router)
 
 
+# ── Static pages ──────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -44,3 +63,28 @@ async def privacy(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Background scheduler (crypto bot) ────────────────────────────────────────
+@app.on_event("startup")
+def start_bot_scheduler():
+    from services.supabase_client import get_supabase
+    from services.bot_service import symbols_tracker_job
+
+    def _job():
+        try:
+            symbols_tracker_job(get_supabase())
+        except Exception as e:
+            logging.error(f"[SCHEDULER] symbols_tracker_job error: {e}")
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        _job,
+        "interval",
+        minutes=10,
+        id="symbols_tracker_job",
+        replace_existing=True,
+        next_run_time=datetime.utcnow(),
+    )
+    scheduler.start()
+    logging.info("[SCHEDULER] Bot scheduler started (every 10 min)")
