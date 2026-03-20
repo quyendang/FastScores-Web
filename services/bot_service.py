@@ -495,6 +495,8 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
             if ai_brief:
                 msg_lines.append(f"\n🤖 <i>{ai_brief}</i>")
 
+            msg_lines.append(f"\n🔗 <a href=\"https://fs.fasteng.app/bot?symbol={symbol}\">Xem chart {symbol}</a>")
+
             telegram_notify(title, "\n".join(msg_lines))
         except Exception as e:
             logging.error(f"[TRACKER_NOTIFY] Error: {e}")
