@@ -47,6 +47,10 @@ _rsi_last_state: Dict[str, Dict[str, str]] = {
 }
 _notify_last_sent: Dict[str, float] = {}
 
+# Cache chat IDs lấy từ getUpdates (TTL 5 phút)
+_chat_ids_cache: Dict[str, Any] = {"ids": [], "fetched_at": 0.0}
+CHAT_IDS_CACHE_TTL = 300  # 5 minutes
+
 
 # ── Notification helpers ──────────────────────────────────────────────────────
 
@@ -61,12 +65,84 @@ def _mark_notified(symbol: str, action: str) -> None:
     _notify_last_sent.pop(f"{symbol}_{opposite}", None)
 
 
+def get_dynamic_chat_ids() -> List[str]:
+    """
+    Lấy toàn bộ chat IDs từ Telegram getUpdates API (phân trang).
+    Cache kết quả 5 phút. Fallback về TELEGRAM_CHAT_IDS nếu lỗi.
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        return TELEGRAM_CHAT_IDS
+
+    now = time.time()
+    if now - _chat_ids_cache["fetched_at"] < CHAT_IDS_CACHE_TTL and _chat_ids_cache["ids"]:
+        return _chat_ids_cache["ids"]
+
+    try:
+        base_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+        chat_ids: set = set()
+        offset = 0
+
+        while True:
+            params: Dict[str, Any] = {"limit": 100, "timeout": 0}
+            if offset:
+                params["offset"] = offset
+
+            resp = requests.get(base_url, params=params, timeout=10)
+            data = resp.json()
+
+            if not data.get("ok"):
+                logging.warning(f"[TELEGRAM] getUpdates failed: {data.get('description')}")
+                break
+
+            results = data.get("result", [])
+            if not results:
+                break
+
+            for update in results:
+                # Hỗ trợ nhiều loại update: message, callback_query, channel_post, ...
+                for key in ("message", "edited_message", "channel_post", "edited_channel_post"):
+                    msg = update.get(key)
+                    if msg:
+                        chat = msg.get("chat")
+                        if chat and chat.get("id"):
+                            chat_ids.add(str(chat["id"]))
+
+                cb = update.get("callback_query")
+                if cb:
+                    msg = cb.get("message") or {}
+                    chat = msg.get("chat")
+                    if chat and chat.get("id"):
+                        chat_ids.add(str(chat["id"]))
+
+            # Phân trang: offset = update_id của bản cuối + 1
+            last_update_id = results[-1].get("update_id")
+            if last_update_id is None or len(results) < 100:
+                break
+            offset = last_update_id + 1
+
+        if chat_ids:
+            ids_list = list(chat_ids)
+            _chat_ids_cache["ids"] = ids_list
+            _chat_ids_cache["fetched_at"] = now
+            logging.info(f"[TELEGRAM] Dynamic chat IDs: {ids_list}")
+            return ids_list
+
+    except Exception as e:
+        logging.warning(f"[TELEGRAM] getUpdates error: {e}")
+
+    # Fallback
+    return TELEGRAM_CHAT_IDS
+
+
 def telegram_notify(title: str, message: str):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_IDS:
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    chat_ids = get_dynamic_chat_ids()
+    if not chat_ids:
         return
     text = f"<b>{title}</b>\n{message}"
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    for chat_id in TELEGRAM_CHAT_IDS:
+    for chat_id in chat_ids:
         try:
             requests.post(
                 url,
