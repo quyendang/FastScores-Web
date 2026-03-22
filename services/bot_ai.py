@@ -315,6 +315,14 @@ def expert_panel_verdict(
     sup_str = ", ".join(f"{v:,.2f}" for v in (sr_supports or [])[:3]) or "N/A"
     res_str = ", ".join(f"{v:,.2f}" for v in (sr_resistances or [])[:3]) or "N/A"
     zone_str = f"BUY {buy_low:,.2f}–{buy_high:,.2f}" if action == "BUY" else f"SELL {sell_low:,.2f}–{sell_high:,.2f}"
+    # Example SL/TP dựa trên giá thực để model hiểu đây là mức giá tuyệt đối
+    _ex_atr = price * atr_pct / 100
+    if action == "BUY":
+        ex_sl = round(price - 2 * _ex_atr, 2)
+        ex_tp = round(price + 4 * _ex_atr, 2)
+    else:
+        ex_sl = round(price + 2 * _ex_atr, 2)
+        ex_tp = round(price - 4 * _ex_atr, 2)
 
     prompt = f"""Bạn là hội đồng 4 chuyên gia phân tích kỹ thuật crypto. Bot đang xét tín hiệu {direction} cho {symbol} tại {price:,.4f} USDT (khung {interval}).
 
@@ -338,9 +346,10 @@ EXPERT:Chuyên gia Xu hướng|VOTE:CONFIRM|REASON:lý do ngắn gọn 1 câu ti
 EXPERT:Chuyên gia Đà giá|VOTE:REJECT|REASON:lý do ngắn gọn 1 câu tiếng Việt
 EXPERT:Chuyên gia Vùng giá|VOTE:CONFIRM|REASON:lý do ngắn gọn 1 câu tiếng Việt
 EXPERT:Chuyên gia Rủi ro|VOTE:CONFIRM|REASON:lý do ngắn gọn 1 câu tiếng Việt
-VERDICT:GO|ENTRY:{price:.2f}|SL:84.50|TP:92.00|SUMMARY:tóm tắt 1 câu tiếng Việt
+VERDICT:GO|ENTRY:{price:.2f}|SL:{ex_sl:.2f}|TP:{ex_tp:.2f}|SUMMARY:tóm tắt 1 câu tiếng Việt
 
-Thay các giá trị mẫu bằng đánh giá thực của bạn. VERDICT=GO nếu >=3 CONFIRM, VERDICT=NO nếu <=2 CONFIRM. SL/TP là số thực (ví dụ: 84.50) tính từ ATR={atr_pct:.2f}%."""
+Thay các giá trị mẫu bằng đánh giá thực của bạn. VERDICT=GO nếu >=3 CONFIRM, VERDICT=NO nếu <=2 CONFIRM.
+QUAN TRỌNG: SL và TP phải là MỨC GIÁ TUYỆT ĐỐI (ví dụ nếu giá={price:.2f} thì SL={ex_sl:.2f}, TP={ex_tp:.2f}), KHÔNG phải khoảng cách hay delta."""
 
     try:
         resp = requests.post(

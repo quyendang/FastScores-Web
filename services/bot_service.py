@@ -571,16 +571,31 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 sr_lines.append(f"🟡 HT ({interval}): {_fmt_levels(sr_near['supports'])}")
                 sr_lines.append(f"🟠 KT ({interval}): {_fmt_levels(sr_near['resistances'])}")
 
-            def _sl_tp_lines(p_sl, p_tp):
+            # ── Canonical SL/TP: validate panel values, fallback to ATR ─────────
+            def _is_valid_level(val, ref):
+                """SL/TP phải là mức giá thực (trong khoảng 50%–200% của giá hiện tại)."""
+                return val and val > 0 and 0.5 < val / ref < 2.0
+
+            raw_sl = panel.get("sl", 0.0)
+            raw_tp = panel.get("tp", 0.0)
+            if _is_valid_level(raw_sl, price) and _is_valid_level(raw_tp, price):
+                canonical_sl, canonical_tp = raw_sl, raw_tp
+                sl_tp_source = "panel"
+            elif atr_val:
+                mult = 2.0
+                risk = mult * atr_val
+                canonical_sl = round(price - risk if action == "BUY" else price + risk, 4)
+                canonical_tp = round(price + 2 * risk if action == "BUY" else price - 2 * risk, 4)
+                sl_tp_source = "atr"
+            else:
+                canonical_sl = canonical_tp = 0.0
+                sl_tp_source = "none"
+
+            def _sl_tp_lines(use_sl, use_tp):
                 lines = []
-                if p_sl and p_tp:
-                    lines.append(f"\n🛑 SL: <b>{p_sl:,.4f}</b> | 🎯 TP: <b>{p_tp:,.4f}</b>")
-                elif atr_val:
-                    mult = 2.0
-                    risk = mult * atr_val
-                    sl_a = price - risk if action == "BUY" else price + risk
-                    tp_a = price + 2 * risk if action == "BUY" else price - 2 * risk
-                    lines.append(f"\n🛑 SL: <b>{sl_a:,.4f}</b> | 🎯 TP: <b>{tp_a:,.4f}</b> (ATR×{mult})")
+                if use_sl and use_tp:
+                    suffix = "" if sl_tp_source == "panel" else f" (ATR×2)"
+                    lines.append(f"\n🛑 SL: <b>{use_sl:,.4f}</b> | 🎯 TP: <b>{use_tp:,.4f}</b>{suffix}")
                 if atr_val:
                     lines.append(f"📐 ATR: {atr_val:.4f} ({atr_pct_val:.2f}%)")
                 return lines
@@ -595,7 +610,7 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                     f"📊 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.6f}",
                     f"📅 D1 Bias: {d1_label} {d1_align}",
                     f"🎯 Zone: BUY[{buy_low:.1f}–{buy_high:.1f}] SELL[{sell_low:.1f}–{sell_high:.1f}]",
-                ] + sr_lines + _sl_tp_lines(0, 0) + [
+                ] + sr_lines + _sl_tp_lines(canonical_sl, canonical_tp) + [
                     f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.6f}",
                     f"⏰ {now_utc}",
                 ]
@@ -613,7 +628,7 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                     f"📅 D1 Bias: {d1_label}",
                     "",
                     f"👥 <b>Hội đồng chuyên gia ({confirmed}/{total} đồng thuận):</b>",
-                ] + vote_lines + _sl_tp_lines(panel.get("sl", 0), panel.get("tp", 0))
+                ] + vote_lines + _sl_tp_lines(canonical_sl, canonical_tp)
                 if sr_lines:
                     msg_lines += [""] + sr_lines
                 msg_lines += [
@@ -626,9 +641,6 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
             # ── 3 AI calls song song: macro corr, macro risk, investment guide ──
             import threading as _thr
             ai_results = {"m1": "", "m2": "", "guide": ""}
-
-            p_sl = panel.get("sl", 0.0)
-            p_tp = panel.get("tp", 0.0)
 
             def _fetch_m1():
                 if macro_data and OPENROUTER_MODEL:
@@ -650,7 +662,7 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 if OPENROUTER_MODEL:
                     ai_results["guide"] = ai_investment_guide(
                         symbol=symbol, action=action, price=price,
-                        sl=p_sl, tp=p_tp,
+                        sl=canonical_sl, tp=canonical_tp,
                         atr=atr_val or 0.0, atr_pct=atr_pct_val,
                         rsi=rsi_h4, macd_hist=macd_hist,
                         d1_bullish=d1_bull, d1_bearish=d1_bear,
