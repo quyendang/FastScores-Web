@@ -306,7 +306,7 @@ def expert_panel_verdict(
     Trả về dict với go=True nếu >= 3/4 chuyên gia CONFIRM.
     Nếu không có API key, mặc định go=True (pass-through).
     """
-    _no_gate = {"go": True, "confirmed": 4, "total": 4, "votes": [], "summary": "", "entry": price, "sl": 0.0, "tp": 0.0}
+    _no_gate = {"go": True, "bypass": True, "confirmed": 0, "total": 0, "votes": [], "summary": "", "entry": price, "sl": 0.0, "tp": 0.0}
     if not OPENROUTER_API_KEY:
         return _no_gate
 
@@ -332,14 +332,15 @@ Mỗi chuyên gia đánh giá độc lập theo chuyên môn riêng:
 3. Chuyên gia Vùng giá: Cấu trúc giá (giá có breakout rõ khỏi S/R chưa? Vào đúng zone không?)
 4. Chuyên gia Rủi ro: Quản lý rủi ro (ATR có bình thường? R:R có đủ >= 2? Điều kiện thị trường an toàn?)
 
-Trả lời ĐÚNG format sau, KHÔNG thêm bất kỳ text nào khác ngoài 5 dòng này:
-EXPERT:Chuyên gia Xu hướng|VOTE:CONFIRM_HOẶC_REJECT|REASON:lý_do_ngắn_gọn_1_câu_tiếng_việt
-EXPERT:Chuyên gia Đà giá|VOTE:CONFIRM_HOẶC_REJECT|REASON:lý_do_ngắn_gọn_1_câu_tiếng_việt
-EXPERT:Chuyên gia Vùng giá|VOTE:CONFIRM_HOẶC_REJECT|REASON:lý_do_ngắn_gọn_1_câu_tiếng_việt
-EXPERT:Chuyên gia Rủi ro|VOTE:CONFIRM_HOẶC_REJECT|REASON:lý_do_ngắn_gọn_1_câu_tiếng_việt
-VERDICT:GO_HOẶC_NO|ENTRY:{price:.4f}|SL:số_thực|TP:số_thực|SUMMARY:tóm_tắt_1_câu_tiếng_việt
+Trả lời ĐÚNG 5 dòng theo format mẫu dưới đây. VOTE chỉ được là CONFIRM hoặc REJECT. VERDICT chỉ được là GO hoặc NO. Không thêm bất kỳ chữ nào khác.
 
-Quy tắc VERDICT: GO nếu >= 3 CONFIRM, NO nếu <= 2 CONFIRM. SL và TP phải là số thực dựa trên ATR ({atr_pct:.2f}% của {price:,.4f})."""
+EXPERT:Chuyên gia Xu hướng|VOTE:CONFIRM|REASON:lý do ngắn gọn 1 câu tiếng Việt
+EXPERT:Chuyên gia Đà giá|VOTE:REJECT|REASON:lý do ngắn gọn 1 câu tiếng Việt
+EXPERT:Chuyên gia Vùng giá|VOTE:CONFIRM|REASON:lý do ngắn gọn 1 câu tiếng Việt
+EXPERT:Chuyên gia Rủi ro|VOTE:CONFIRM|REASON:lý do ngắn gọn 1 câu tiếng Việt
+VERDICT:GO|ENTRY:{price:.2f}|SL:84.50|TP:92.00|SUMMARY:tóm tắt 1 câu tiếng Việt
+
+Thay các giá trị mẫu bằng đánh giá thực của bạn. VERDICT=GO nếu >=3 CONFIRM, VERDICT=NO nếu <=2 CONFIRM. SL/TP là số thực (ví dụ: 84.50) tính từ ATR={atr_pct:.2f}%."""
 
     try:
         resp = requests.post(
@@ -363,9 +364,8 @@ Quy tắc VERDICT: GO nếu >= 3 CONFIRM, NO nếu <= 2 CONFIRM. SL và TP phả
         logging.info(f"[EXPERT_PANEL] {symbol} raw:\n{text}")
         return _parse_expert_panel(text, price)
     except Exception as e:
-        logging.warning(f"[EXPERT_PANEL] Error: {e}")
-        # Lỗi API → không chặn, để bot gửi bình thường
-        return _no_gate
+        logging.warning(f"[EXPERT_PANEL] API error for {symbol}: {e}")
+        return _no_gate  # bypass=True → bot_service sẽ dùng format đơn giản
 
 
 def ai_brief_for_telegram(

@@ -536,6 +536,7 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 sr_resistances=sr_d1.get("resistances", []),
             )
 
+            is_bypass = panel.get("bypass", False)
             confirmed = panel["confirmed"]
             total = panel.get("total", 4) or 4
 
@@ -546,25 +547,15 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 # Không mark notified → bot thử lại chu kỳ tiếp theo
                 return payload
 
-            # Panel đồng ý → gửi thông báo
             _mark_notified(symbol, action)
 
-            # ── Build Telegram message ────────────────────────────────────────
-            vote_icon = "✅" if confirmed == total else ("⚠️" if confirmed == 3 else "❌")
-            title = f"🎯 [{action} {vote_icon} {confirmed}/{total}] {symbol}"
-
+            # ── Shared helpers ────────────────────────────────────────────────
             d1_label = "🟢 Bullish" if d1_bull else ("🔴 Bearish" if d1_bear else "⚪ Neutral")
+            d1_align = "✅ đồng thuận" if signal_quality == "D1_CONFIRMED" else "➡ trung lập"
 
             def _fmt_levels(levels: list) -> str:
                 return " · ".join(f"{v:,.2f}" for v in levels) if levels else "—"
 
-            # Expert votes block
-            vote_lines = []
-            for v in panel.get("votes", []):
-                icon = "✅" if v["confirmed"] else "❌"
-                vote_lines.append(f"  {icon} <b>{v['expert']}</b>: <i>{v['reason']}</i>")
-
-            # S/R lines
             sr_lines = []
             if sr_d1.get("supports") or sr_d1.get("resistances"):
                 sr_lines.append(f"🟢 HT (D1): <b>{_fmt_levels(sr_d1['supports'])}</b>")
@@ -573,42 +564,59 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 sr_lines.append(f"🟡 HT ({interval}): {_fmt_levels(sr_near['supports'])}")
                 sr_lines.append(f"🟠 KT ({interval}): {_fmt_levels(sr_near['resistances'])}")
 
-            msg_lines = [
-                f"💰 Giá: <b>{price:,.4f}</b> USDT",
-                f"📊 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.6f}",
-                f"📅 D1 Bias: {d1_label}",
-                "",
-                f"👥 <b>Hội đồng chuyên gia ({confirmed}/{total} đồng thuận):</b>",
-            ] + vote_lines
+            def _sl_tp_lines(p_sl, p_tp):
+                lines = []
+                if p_sl and p_tp:
+                    lines.append(f"\n🛑 SL: <b>{p_sl:,.4f}</b> | 🎯 TP: <b>{p_tp:,.4f}</b>")
+                elif atr_val:
+                    mult = 2.0
+                    risk = mult * atr_val
+                    sl_a = price - risk if action == "BUY" else price + risk
+                    tp_a = price + 2 * risk if action == "BUY" else price - 2 * risk
+                    lines.append(f"\n🛑 SL: <b>{sl_a:,.4f}</b> | 🎯 TP: <b>{tp_a:,.4f}</b> (ATR×{mult})")
+                if atr_val:
+                    lines.append(f"📐 ATR: {atr_val:.4f} ({atr_pct_val:.2f}%)")
+                return lines
 
-            # Panel SL/TP (ưu tiên từ panel, fallback ATR)
-            p_sl, p_tp = panel.get("sl", 0.0), panel.get("tp", 0.0)
-            if p_sl and p_tp:
-                msg_lines.append(f"\n🛑 SL: <b>{p_sl:,.4f}</b> | 🎯 TP: <b>{p_tp:,.4f}</b>")
-            elif atr_val:
-                mult = 2.0
-                risk = mult * atr_val
-                sl_atr = price - risk if action == "BUY" else price + risk
-                tp_atr = price + 2 * risk if action == "BUY" else price - 2 * risk
-                msg_lines.append(f"\n🛑 SL: <b>{sl_atr:,.4f}</b> | 🎯 TP: <b>{tp_atr:,.4f}</b> (ATR×{mult})")
-
-            if atr_val:
-                msg_lines.append(f"📐 ATR: {atr_val:.4f} ({atr_pct_val:.2f}%)")
-
-            if sr_lines:
-                msg_lines.append("")
-                msg_lines.extend(sr_lines)
-
-            msg_lines += [
-                f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.6f}",
-                f"⏰ {now_utc}",
-            ]
-
-            if panel.get("summary"):
-                msg_lines.append(f"\n💬 <i>{panel['summary']}</i>")
+            # ── Build message ─────────────────────────────────────────────────
+            if is_bypass:
+                # API không khả dụng → format đơn giản (không có expert panel)
+                d1_tag = " ✅D1" if signal_quality == "D1_CONFIRMED" else ""
+                title = f"[{action}{d1_tag}] {symbol}"
+                msg_lines = [
+                    f"💰 Giá: <b>{price:,.4f}</b> USDT",
+                    f"📊 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.6f}",
+                    f"📅 D1 Bias: {d1_label} {d1_align}",
+                    f"🎯 Zone: BUY[{buy_low:.1f}–{buy_high:.1f}] SELL[{sell_low:.1f}–{sell_high:.1f}]",
+                ] + sr_lines + _sl_tp_lines(0, 0) + [
+                    f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.6f}",
+                    f"⏰ {now_utc}",
+                ]
+            else:
+                # Expert panel có votes thật
+                vote_icon = "✅" if confirmed == total else "⚠️"
+                title = f"🎯 [{action} {vote_icon} {confirmed}/{total}] {symbol}"
+                vote_lines = [
+                    f"  {'✅' if v['confirmed'] else '❌'} <b>{v['expert']}</b>: <i>{v['reason']}</i>"
+                    for v in panel.get("votes", [])
+                ]
+                msg_lines = [
+                    f"💰 Giá: <b>{price:,.4f}</b> USDT",
+                    f"📊 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.6f}",
+                    f"📅 D1 Bias: {d1_label}",
+                    "",
+                    f"👥 <b>Hội đồng chuyên gia ({confirmed}/{total} đồng thuận):</b>",
+                ] + vote_lines + _sl_tp_lines(panel.get("sl", 0), panel.get("tp", 0))
+                if sr_lines:
+                    msg_lines += [""] + sr_lines
+                msg_lines += [
+                    f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.6f}",
+                    f"⏰ {now_utc}",
+                ]
+                if panel.get("summary"):
+                    msg_lines.append(f"\n💬 <i>{panel['summary']}</i>")
 
             msg_lines.append(f"\n🔗 <a href=\"https://fs.fasteng.app/bot?symbol={symbol}\">Xem chart {symbol}</a>")
-
             telegram_notify(title, "\n".join(msg_lines))
         except Exception as e:
             logging.error(f"[TRACKER_NOTIFY] Error: {e}")
