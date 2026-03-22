@@ -98,12 +98,30 @@ async def bot_dashboard(
             logging.error(f"[BOT_DASH] btc context: {e}")
             return None, None
 
-    klines, d1_result, btc_result, fng_data, funding_data = await asyncio.gather(
+    def _safe_sr_d1():
+        try:
+            return ind.find_support_resistance(symbol, interval="1d", limit=120)
+        except Exception as e:
+            logging.error(f"[BOT_DASH] sr_d1 {symbol}: {e}")
+            return {"supports": [], "resistances": []}
+
+    def _safe_sr_near():
+        if interval == "1d":
+            return {"supports": [], "resistances": []}
+        try:
+            return ind.find_support_resistance(symbol, interval=interval, limit=100, pivot_strength=2)
+        except Exception as e:
+            logging.error(f"[BOT_DASH] sr_near {symbol}: {e}")
+            return {"supports": [], "resistances": []}
+
+    klines, d1_result, btc_result, fng_data, funding_data, sr_d1, sr_near = await asyncio.gather(
         asyncio.to_thread(_safe_klines),
         asyncio.to_thread(_safe_d1_bias),
         asyncio.to_thread(_safe_btc_context),
         asyncio.to_thread(ind.fetch_fear_greed),
         asyncio.to_thread(ind.fetch_funding_rate, symbol),
+        asyncio.to_thread(_safe_sr_d1),
+        asyncio.to_thread(_safe_sr_near),
     )
     d1_bullish, d1_bearish = d1_result
     btc_rsi_h4, btc_macd_hist_val = btc_result
@@ -134,6 +152,8 @@ async def bot_dashboard(
         "tracker_action": "HOLD", "tracker_reason": "No data",
         "d1_bullish": False, "d1_bearish": False, "ai_analysis": "", "ai_analysis2": "",
         "db_signals_json": "[]", "fng_value": 50, "funding_rate_pct": 0.0,
+        "sr_d1_json": '{"supports":[],"resistances":[]}',
+        "sr_near_json": '{"supports":[],"resistances":[]}',
     }
     if not closes:
         return templates.TemplateResponse("bot_dashboard.html", _empty_ctx)
@@ -339,4 +359,6 @@ async def bot_dashboard(
         "db_signals_json": json.dumps(db_signals),
         "fng_value": fng_data.get("value", 50),
         "funding_rate_pct": funding_data.get("funding_rate_pct", 0.0),
+        "sr_d1_json": json.dumps(sr_d1),
+        "sr_near_json": json.dumps(sr_near),
     })

@@ -238,9 +238,13 @@
           <span class="legend-box legend-sell"></span> Sell zone
           <span class="legend-box legend-db-buy"></span> Bot BUY
           <span class="legend-box legend-db-sell"></span> Bot SELL
+          <span class="legend-box" style="background:rgba(34,197,94,0.8)"></span> Hỗ trợ
+          <span class="legend-box" style="background:rgba(239,68,68,0.8)"></span> Kháng cự
         </div>
       </div>
       <canvas id="priceChart" height="260"></canvas>
+      <!-- S/R level tags -->
+      <div id="srLevelTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;font-size:0.78rem;"></div>
     </section>
 
     <!-- RSI CHART -->
@@ -292,10 +296,14 @@
   {% endif %}
   <script id="rows-data" type="application/json">{{ rows_json_str | safe }}</script>
   <script id="db-signals-data" type="application/json">{{ db_signals_json | safe }}</script>
+  <script id="sr-d1-data" type="application/json">{{ sr_d1_json | safe }}</script>
+  <script id="sr-near-data" type="application/json">{{ sr_near_json | safe }}</script>
 
   <script>
     const rows      = JSON.parse(document.getElementById('rows-data').textContent);
     const dbSignals = JSON.parse(document.getElementById('db-signals-data').textContent);
+    const srD1      = JSON.parse(document.getElementById('sr-d1-data').textContent);
+    const srNear    = JSON.parse(document.getElementById('sr-near-data').textContent);
     const symbol    = "{{ symbol }}";
     const tf        = "{{ tf }}";
 
@@ -322,6 +330,23 @@
 
     const rsiOversold   = (tf === "15m" || tf === "1h") ? 35 : 30;
     const rsiOverbought = (tf === "15m" || tf === "1h") ? 65 : 70;
+
+    // ── S/R level tags ──────────────────────────────────────────────────────
+    (function() {
+      const container = document.getElementById('srLevelTags');
+      if (!container) return;
+      const fmt = v => v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      const makeTag = (label, price, bgColor, textColor) => {
+        const s = document.createElement('span');
+        s.style.cssText = `background:${bgColor};color:${textColor};padding:2px 8px;border-radius:999px;font-weight:600;white-space:nowrap`;
+        s.textContent = `${label} $${fmt(price)}`;
+        return s;
+      };
+      (srD1.resistances || []).forEach(p => container.appendChild(makeTag('KT D1', p, 'rgba(239,68,68,0.15)', '#dc2626')));
+      (srD1.supports    || []).forEach(p => container.appendChild(makeTag('HT D1', p, 'rgba(34,197,94,0.15)',  '#16a34a')));
+      (srNear.resistances || []).forEach(p => container.appendChild(makeTag('KT', p, 'rgba(239,68,68,0.08)', '#ef4444')));
+      (srNear.supports    || []).forEach(p => container.appendChild(makeTag('HT', p, 'rgba(34,197,94,0.08)',  '#22c55e')));
+    })();
 
     // Last state badge
     let lastState = "HOLD";
@@ -505,7 +530,61 @@
       }
     };
 
-    Chart.register(priceZonesPlugin, signalArrowPlugin, rsiLinesPlugin, dbSignalPlugin);
+    // ── Plugin: Support & Resistance lines ──────────────────────────────────
+    const srLinesPlugin = {
+      id: 'srLines',
+      afterDraw(chart) {
+        if (chart.canvas.id !== "priceChart") return;
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.y) return;
+        const { left, right } = chartArea;
+        ctx.save();
+
+        const drawSR = (price, color, dash, lineWidth, labelText) => {
+          const y = scales.y.getPixelForValue(price);
+          if (y < chartArea.top - 1 || y > chartArea.bottom + 1) return;
+          // Line
+          ctx.beginPath();
+          ctx.setLineDash(dash);
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = color;
+          ctx.moveTo(left, y);
+          ctx.lineTo(right, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Label pill on right edge
+          const lbl = labelText + "  " + price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+          ctx.font = "bold 9px system-ui";
+          const tw = ctx.measureText(lbl).width;
+          const pad = 3, ph = 13;
+          const rx = right - tw - pad * 2 - 2;
+          const ry = y - ph / 2;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(rx, ry, tw + pad * 2, ph, 3);
+          } else {
+            ctx.rect(rx, ry, tw + pad * 2, ph);
+          }
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(lbl, rx + pad, y);
+        };
+
+        // D1 levels — prominent
+        (srD1.resistances || []).forEach(p => drawSR(p, "rgba(239,68,68,0.85)",  [6,3], 1.5, "KT D1"));
+        (srD1.supports    || []).forEach(p => drawSR(p, "rgba(34,197,94,0.85)",  [6,3], 1.5, "HT D1"));
+        // Near-term levels — lighter
+        (srNear.resistances || []).forEach(p => drawSR(p, "rgba(239,68,68,0.45)", [3,4], 1,   "KT"));
+        (srNear.supports    || []).forEach(p => drawSR(p, "rgba(34,197,94,0.45)", [3,4], 1,   "HT"));
+
+        ctx.restore();
+      }
+    };
+
+    Chart.register(priceZonesPlugin, signalArrowPlugin, rsiLinesPlugin, dbSignalPlugin, srLinesPlugin);
 
     // MACD colors
     const macdHistColors = macdHist.map((v, i) => {
