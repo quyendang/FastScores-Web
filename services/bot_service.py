@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from services import bot_indicators as ind
-from services.bot_ai import ai_brief_for_telegram
+from services.bot_ai import ai_brief_for_telegram, ai_brief_for_telegram_model2
 
 # ── Config ───────────────────────────────────────────────────────────────────
 
@@ -350,6 +350,7 @@ def _decide_action(
     price, rsi_h4, macd_hist, prev_macd_hist, zones,
     btc_rsi_h4, btc_macd_hist, btc_prev_macd_hist,
     rsi_buy_threshold=None, rsi_sell_threshold=None,
+    d1_bullish=False, d1_bearish=False,
 ) -> Dict[str, str]:
     rsi_buy_thr = rsi_buy_threshold if rsi_buy_threshold is not None else ETH_RSI_BUY
     rsi_sell_thr = rsi_sell_threshold if rsi_sell_threshold is not None else ETH_RSI_SELL
@@ -362,27 +363,49 @@ def _decide_action(
     ]
     action = "HOLD"
 
+    # D1 bias — khi D1 đồng thuận, nới lỏng ngưỡng RSI một chút để bắt được tín hiệu sớm hơn
+    rsi_buy_thr_effective = rsi_buy_thr + 3 if d1_bullish else rsi_buy_thr
+    rsi_sell_thr_effective = rsi_sell_thr - 3 if d1_bearish else rsi_sell_thr
+
     macd_weakening = macd_hist > 0 and prev_macd_hist is not None and macd_hist < prev_macd_hist
 
-    if sell_low <= price <= sell_high and rsi_h4 >= rsi_sell_thr and macd_weakening:
+    if sell_low <= price <= sell_high and rsi_h4 >= rsi_sell_thr_effective and macd_weakening:
         action = "SELL"
-        reasons.append(f"Price in SELL zone & RSI_H4 {rsi_h4:.1f} >= {rsi_sell_thr:.1f}")
+        reasons.append(f"Price in SELL zone & RSI_H4 {rsi_h4:.1f} >= {rsi_sell_thr_effective:.1f}")
         reasons.append(f"MACD hist weakening: {macd_hist:.4f} < {prev_macd_hist:.4f}")
-    elif buy_low <= price <= buy_high and rsi_h4 <= rsi_buy_thr:
+    elif buy_low <= price <= buy_high and rsi_h4 <= rsi_buy_thr_effective:
         action = "BUY"
-        reasons.append(f"Price in BUY zone & RSI_H4 {rsi_h4:.1f} <= {rsi_buy_thr:.1f}")
+        reasons.append(f"Price in BUY zone & RSI_H4 {rsi_h4:.1f} <= {rsi_buy_thr_effective:.1f}")
     else:
         reasons.append("No buy/sell condition matched (HOLD).")
 
     btc_bull_rsi = btc_rsi_h4 >= 65
     btc_macd_stronger = btc_macd_hist > 0 and btc_prev_macd_hist is not None and btc_macd_hist >= btc_prev_macd_hist
 
-    if action == "SELL" and (btc_bull_rsi or btc_macd_stronger):
-        reasons.append(
-            f"Cancel SELL: BTC still bullish (RSI_H4={btc_rsi_h4:.1f}, "
-            f"MACD hist {btc_macd_hist:.4f} >= prev {btc_prev_macd_hist:.4f})"
-        )
+    # Huỷ SELL nếu BTC vẫn tăng hoặc D1 bullish
+    if action == "SELL" and (btc_bull_rsi or btc_macd_stronger or d1_bullish):
+        cancel_reason = []
+        if btc_bull_rsi or btc_macd_stronger:
+            cancel_reason.append(f"BTC bullish (RSI_H4={btc_rsi_h4:.1f}, MACD {btc_macd_hist:.4f})")
+        if d1_bullish:
+            cancel_reason.append("D1 Bullish (ngược chiều)")
+        reasons.append(f"Cancel SELL: {' & '.join(cancel_reason)}")
         action = "HOLD"
+
+    # Huỷ BUY nếu D1 bearish — tín hiệu ngược xu hướng ngày, bỏ qua
+    if action == "BUY" and d1_bearish:
+        reasons.append("Cancel BUY: D1 Bearish (ngược chiều xu hướng ngày)")
+        action = "HOLD"
+
+    # Gán signal quality dựa trên D1 alignment
+    if action == "BUY":
+        signal_quality = "D1_CONFIRMED" if d1_bullish else "D1_NEUTRAL"
+        reasons.append(f"D1 bias: {'Bullish ✅ đồng thuận' if d1_bullish else 'Neutral ➡'}")
+    elif action == "SELL":
+        signal_quality = "D1_CONFIRMED" if d1_bearish else "D1_NEUTRAL"
+        reasons.append(f"D1 bias: {'Bearish ✅ đồng thuận' if d1_bearish else 'Neutral ➡'}")
+    else:
+        signal_quality = "HOLD"
 
     if abs(macd_hist) < 0.5:
         reasons.append("MACD hist ~0 → momentum weak / sideway.")
@@ -391,7 +414,7 @@ def _decide_action(
     else:
         reasons.append("MACD hist < 0 → bearish momentum.")
 
-    return {"action": action, "reason": " | ".join(reasons)}
+    return {"action": action, "reason": " | ".join(reasons), "signal_quality": signal_quality}
 
 
 def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str, Any]:
@@ -405,6 +428,13 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
     _, _, btc_macd_hist, btc_prev_macd_hist = ind.macd_latest_with_prev("BTCUSDT", interval)
     zones = ind.compute_zones(symbol, interval, lookback=60)
     sell_low, sell_high, buy_low, buy_high, recent_low, recent_high = zones
+
+    # D1 bias — tính TRƯỚC khi quyết định để dùng làm bộ lọc xu hướng
+    d1_bull = d1_bear = False
+    try:
+        d1_bull, d1_bear = compute_d1_bias(symbol)
+    except Exception as e:
+        logging.warning(f"[D1_BIAS] {symbol}: {e}")
 
     rsi_buy_thr = rsi_sell_thr = None
     try:
@@ -420,9 +450,11 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
         zones=zones, btc_rsi_h4=btc_rsi_h4, btc_macd_hist=btc_macd_hist,
         btc_prev_macd_hist=btc_prev_macd_hist,
         rsi_buy_threshold=rsi_buy_thr, rsi_sell_threshold=rsi_sell_thr,
+        d1_bullish=d1_bull, d1_bearish=d1_bear,
     )
     action = decision["action"]
     reason = decision["reason"]
+    signal_quality = decision.get("signal_quality", "HOLD")
     now_utc = datetime.utcnow().isoformat() + "Z"
 
     payload: Dict[str, Any] = {
@@ -436,6 +468,9 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
         "macd_hist": macd_hist,
         "action": action,
         "reason": reason,
+        "signal_quality": signal_quality,
+        "d1_bullish": d1_bull,
+        "d1_bearish": d1_bear,
         "zones": {
             "sell_low": sell_low, "sell_high": sell_high,
             "buy_low": buy_low, "buy_high": buy_high,
@@ -450,7 +485,10 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
     if send_notify and action != "HOLD" and _can_notify(symbol, action):
         _mark_notified(symbol, action)
         try:
-            title = f"[{action}] {symbol}"
+            # Title phân biệt tín hiệu xác nhận D1 vs trung lập
+            d1_tag = " ✅D1" if signal_quality == "D1_CONFIRMED" else ""
+            title = f"[{action}{d1_tag}] {symbol}"
+
             atr_val = None
             try:
                 kl_atr = ind.fetch_klines(symbol, interval, limit=50)
@@ -462,10 +500,15 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
             except Exception:
                 pass
 
+            # D1 bias label
+            d1_label = "🟢 Bullish" if d1_bull else ("🔴 Bearish" if d1_bear else "⚪ Neutral")
+            d1_align = "✅ đồng thuận" if signal_quality == "D1_CONFIRMED" else "➡ trung lập"
+
             msg_lines = [
                 f"💰 Giá: <b>{price:,.2f}</b> USDT",
-                f"📊 RSI H4: {rsi_h4:.1f} | MACD Hist: {macd_hist:.4f}",
-                f"🎯 Zone: BUY[{buy_low:.1f}-{buy_high:.1f}] SELL[{sell_low:.1f}-{sell_high:.1f}]",
+                f"📊 H4 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.4f}",
+                f"📅 D1 Bias: {d1_label} {d1_align}",
+                f"🎯 Zone: BUY[{buy_low:.1f}–{buy_high:.1f}] SELL[{sell_low:.1f}–{sell_high:.1f}]",
                 f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.4f}",
             ]
             atr_pct_val = 0.0
@@ -481,12 +524,7 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 msg_lines.append(f"📐 ATR: {atr_val:.2f} ({atr_pct_val:.2f}%)")
             msg_lines.append(f"⏰ {now_utc}")
 
-            d1_bull = d1_bear = False
-            try:
-                d1_bull, d1_bear = compute_d1_bias(symbol)
-            except Exception:
-                pass
-
+            # AI brief — Model 1
             ai_brief = ai_brief_for_telegram(
                 symbol=symbol, action=action, price=price, rsi=rsi_h4,
                 macd_hist=macd_hist, d1_bullish=d1_bull, d1_bearish=d1_bear,
@@ -494,6 +532,15 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
             )
             if ai_brief:
                 msg_lines.append(f"\n🤖 <i>{ai_brief}</i>")
+
+            # AI brief — Model 2 (nếu được cấu hình)
+            ai_brief2 = ai_brief_for_telegram_model2(
+                symbol=symbol, action=action, price=price, rsi=rsi_h4,
+                macd_hist=macd_hist, d1_bullish=d1_bull, d1_bearish=d1_bear,
+                btc_rsi=btc_rsi_h4, atr_pct=atr_pct_val, interval=interval,
+            )
+            if ai_brief2:
+                msg_lines.append(f"\n🧠 <i>{ai_brief2}</i>")
 
             msg_lines.append(f"\n🔗 <a href=\"https://fs.fasteng.app/bot?symbol={symbol}\">Xem chart {symbol}</a>")
 

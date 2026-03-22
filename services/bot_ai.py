@@ -91,6 +91,64 @@ Không nhắc lại số liệu thô. Tối đa 250 từ."""
         return ""
 
 
+def ai_brief_for_telegram_model2(
+    symbol: str,
+    action: str,
+    price: float,
+    rsi: float,
+    macd_hist: float,
+    d1_bullish: bool,
+    d1_bearish: bool,
+    btc_rsi: float,
+    atr_pct: float,
+    interval: str,
+) -> str:
+    """
+    2-3 sentence second AI opinion for Telegram using OPENROUTER_MODEL2.
+    Returns plain text or "" if MODEL2 not configured.
+    """
+    if not OPENROUTER_API_KEY or not OPENROUTER_MODEL2:
+        return ""
+
+    d1_label = "Bullish" if d1_bullish else ("Bearish" if d1_bearish else "Neutral")
+    d1_alignment = (
+        "đồng thuận với tín hiệu" if (
+            (action == "BUY" and d1_bullish) or (action == "SELL" and d1_bearish)
+        ) else "trung lập" if not d1_bullish and not d1_bearish
+        else "ngược chiều tín hiệu — rủi ro cao hơn"
+    )
+    prompt = (
+        f"Crypto signal: {symbol} — {action} tại {price:,.2f} USDT (khung {interval}).\n"
+        f"H4 RSI: {rsi:.1f} | MACD hist: {macd_hist:.4f} | D1 bias: {d1_label} ({d1_alignment}) | "
+        f"BTC RSI: {btc_rsi:.1f} | ATR: {atr_pct:.2f}%\n\n"
+        f"Viết đúng 2–3 câu bằng tiếng Việt: đánh giá độc lập về tín hiệu — "
+        f"D1 bias ảnh hưởng thế nào đến độ tin cậy, và điều kiện cần thiết để vào lệnh. "
+        f"Không dùng markdown, không bullet point, chỉ văn xuôi."
+    )
+    try:
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://qapi.app",
+                "X-Title": "QAPI Crypto Bot",
+            },
+            json={
+                "model": OPENROUTER_MODEL2,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 200,
+                "temperature": 0.4,
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        logging.warning(f"[AI_BRIEF2] Error: {e}")
+        return ""
+
+
 def call_openrouter_analysis_model2(symbol: str, tf: str, snap: dict) -> str:
     """
     Second AI opinion using OPENROUTER_MODEL2 — cross-check perspective.
