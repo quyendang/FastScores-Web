@@ -382,6 +382,117 @@ def _macro_str(macro: dict) -> str:
     return " | ".join(lines) if lines else "Không có dữ liệu vĩ mô"
 
 
+def ai_investment_guide(
+    symbol: str,
+    action: str,
+    price: float,
+    sl: float,
+    tp: float,
+    atr: float,
+    atr_pct: float,
+    rsi: float,
+    macd_hist: float,
+    d1_bullish: bool,
+    d1_bearish: bool,
+    btc_rsi: float,
+    sr_d1_supports: List[float],
+    sr_d1_resistances: List[float],
+    sr_near_supports: List[float],
+    sr_near_resistances: List[float],
+    panel_confirmed: int,
+    panel_total: int,
+    buy_zone: tuple,
+    sell_zone: tuple,
+    macro: dict,
+    interval: str,
+) -> str:
+    """
+    Tổng hợp toàn bộ data → phương hướng đầu tư cụ thể cho Spot & Futures.
+    Trả về HTML-safe plain text, không markdown.
+    """
+    if not OPENROUTER_API_KEY:
+        return ""
+
+    direction = "MUA (LONG)" if action == "BUY" else "BÁN (SHORT)"
+    d1_label = "Bullish" if d1_bullish else ("Bearish" if d1_bearish else "Neutral")
+    macro_line = _macro_str(macro) if macro else "Không có dữ liệu"
+
+    def _fmtsr(lst): return " · ".join(f"{v:,.2f}" for v in lst[:4]) if lst else "N/A"
+
+    # SL/TP tham chiếu
+    sl_ref  = sl if sl > 0 else round(price - 2 * atr if action == "BUY" else price + 2 * atr, 2)
+    tp1_ref = tp if tp > 0 else round(price + 2 * atr * 2 if action == "BUY" else price - 2 * atr * 2, 2)
+    risk    = abs(price - sl_ref)
+    tp2_ref = round(price + risk * 3 if action == "BUY" else price - risk * 3, 2)
+
+    # DCA levels từ S/R gần nhất
+    dca_levels = []
+    if action == "BUY":
+        candidates = sorted(sr_near_supports + sr_d1_supports)
+        dca_levels = [v for v in candidates if v < price][:3]
+    else:
+        candidates = sorted(sr_near_resistances + sr_d1_resistances, reverse=True)
+        dca_levels = [v for v in candidates if v > price][:3]
+
+    dca_str = " → ".join(f"{v:,.2f}" for v in dca_levels) if dca_levels else "theo pullback"
+
+    buy_low, buy_high = buy_zone
+    sell_low, sell_high = sell_zone
+
+    prompt = f"""Bạn là chuyên gia tư vấn đầu tư crypto thực chiến. Tổng hợp toàn bộ dữ liệu dưới đây để đưa ra phương hướng đầu tư CHI TIẾT cho nhà đầu tư cá nhân.
+
+TỔNG HỢP TÍN HIỆU:
+- {symbol}: tín hiệu {direction} tại {price:,.4f} USDT (khung {interval})
+- Hội đồng chuyên gia: {panel_confirmed}/{panel_total} đồng thuận
+- RSI: {rsi:.1f} | MACD hist: {macd_hist:.4f} | ATR: {atr:.4f} ({atr_pct:.2f}%)
+- D1 Bias: {d1_label} | BTC RSI: {btc_rsi:.1f}
+- Zone BUY: {buy_low:,.2f}–{buy_high:,.2f} | Zone SELL: {sell_low:,.2f}–{sell_high:,.2f}
+- Hỗ trợ D1: {_fmtsr(sr_d1_supports)} | Kháng cự D1: {_fmtsr(sr_d1_resistances)}
+- Hỗ trợ {interval}: {_fmtsr(sr_near_supports)} | Kháng cự {interval}: {_fmtsr(sr_near_resistances)}
+- SL tham chiếu: {sl_ref:,.4f} | TP1: {tp1_ref:,.4f} | TP2: {tp2_ref:,.4f}
+- DCA levels tiềm năng: {dca_str}
+- Macro: {macro_line}
+
+Viết phương hướng đầu tư bằng tiếng Việt theo đúng 4 mục sau. Dùng số liệu cụ thể từ dữ liệu trên. KHÔNG dùng markdown (*,#), chỉ dùng emoji + text thuần.
+
+💎 SPOT — Phân bổ vốn:
+Nêu rõ: vào bao nhiêu % vốn ngay bây giờ, DCA thêm ở mức giá nào (nếu có), TP từng phần ở đâu, cắt lỗ toàn bộ khi nào.
+
+⚡ FUTURES — Thận trọng:
+Nêu rõ: đòn bẩy khuyến nghị (bảo thủ & tối đa), % tài khoản mỗi lệnh, giá entry chính xác, SL/TP cụ thể.
+
+⏰ Thời điểm vào lệnh:
+Vào ngay hay chờ điều kiện gì? Nêu 1–2 điều kiện xác nhận thêm nếu chưa chắc.
+
+⚠️ Vô hiệu tín hiệu khi:
+Nêu 1–2 mức giá hoặc sự kiện cụ thể sẽ làm tín hiệu này mất hiệu lực.
+
+Tối đa 200 từ. Số liệu cụ thể, không nói chung chung."""
+
+    try:
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://qapi.app",
+                "X-Title": "QAPI Investment Guide",
+            },
+            json={
+                "model": OPENROUTER_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "temperature": 0.3,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        logging.warning(f"[INVEST_GUIDE] Error: {e}")
+        return ""
+
+
 def ai_macro_brief(
     symbol: str,
     action: str,

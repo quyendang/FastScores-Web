@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from services import bot_indicators as ind
-from services.bot_ai import expert_panel_verdict, ai_macro_brief, OPENROUTER_MODEL, OPENROUTER_MODEL2
+from services.bot_ai import expert_panel_verdict, ai_macro_brief, ai_investment_guide, OPENROUTER_MODEL, OPENROUTER_MODEL2
 
 # ── Config ───────────────────────────────────────────────────────────────────
 
@@ -623,38 +623,64 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 if panel.get("summary"):
                     msg_lines.append(f"\n💬 <i>{panel['summary']}</i>")
 
-            # ── 2 AI macro briefs (song song) ─────────────────────────────────
-            if macro_data and OPENROUTER_MODEL2:
-                import threading as _thr
-                macro_results = [None, None]
-                def _fetch_m1():
-                    macro_results[0] = ai_macro_brief(
+            # ── 3 AI calls song song: macro corr, macro risk, investment guide ──
+            import threading as _thr
+            ai_results = {"m1": "", "m2": "", "guide": ""}
+
+            p_sl = panel.get("sl", 0.0)
+            p_tp = panel.get("tp", 0.0)
+
+            def _fetch_m1():
+                if macro_data and OPENROUTER_MODEL:
+                    ai_results["m1"] = ai_macro_brief(
                         symbol=symbol, action=action, price=price,
                         macro=macro_data, interval=interval,
                         model=OPENROUTER_MODEL, style="correlation",
                     )
-                def _fetch_m2():
-                    macro_results[1] = ai_macro_brief(
+
+            def _fetch_m2():
+                if macro_data and OPENROUTER_MODEL2:
+                    ai_results["m2"] = ai_macro_brief(
                         symbol=symbol, action=action, price=price,
                         macro=macro_data, interval=interval,
                         model=OPENROUTER_MODEL2, style="risk",
                     )
-                t1 = _thr.Thread(target=_fetch_m1, daemon=True)
-                t2 = _thr.Thread(target=_fetch_m2, daemon=True)
-                t1.start(); t2.start()
-                t1.join(timeout=22); t2.join(timeout=22)
-                if macro_results[0]:
-                    msg_lines.append(f"\n🌐 <i>{macro_results[0]}</i>")
-                if macro_results[1]:
-                    msg_lines.append(f"\n⚡ <i>{macro_results[1]}</i>")
-            elif macro_data and OPENROUTER_MODEL:
-                brief = ai_macro_brief(
-                    symbol=symbol, action=action, price=price,
-                    macro=macro_data, interval=interval,
-                    model=OPENROUTER_MODEL, style="correlation",
-                )
-                if brief:
-                    msg_lines.append(f"\n🌐 <i>{brief}</i>")
+
+            def _fetch_guide():
+                if OPENROUTER_MODEL:
+                    ai_results["guide"] = ai_investment_guide(
+                        symbol=symbol, action=action, price=price,
+                        sl=p_sl, tp=p_tp,
+                        atr=atr_val or 0.0, atr_pct=atr_pct_val,
+                        rsi=rsi_h4, macd_hist=macd_hist,
+                        d1_bullish=d1_bull, d1_bearish=d1_bear,
+                        btc_rsi=btc_rsi_h4,
+                        sr_d1_supports=sr_d1.get("supports", []),
+                        sr_d1_resistances=sr_d1.get("resistances", []),
+                        sr_near_supports=sr_near.get("supports", []),
+                        sr_near_resistances=sr_near.get("resistances", []),
+                        panel_confirmed=confirmed,
+                        panel_total=total,
+                        buy_zone=(buy_low, buy_high),
+                        sell_zone=(sell_low, sell_high),
+                        macro=macro_data,
+                        interval=interval,
+                    )
+
+            threads = [
+                _thr.Thread(target=_fetch_m1, daemon=True),
+                _thr.Thread(target=_fetch_m2, daemon=True),
+                _thr.Thread(target=_fetch_guide, daemon=True),
+            ]
+            for t in threads: t.start()
+            for t in threads: t.join(timeout=32)
+
+            if ai_results["m1"]:
+                msg_lines.append(f"\n🌐 <i>{ai_results['m1']}</i>")
+            if ai_results["m2"]:
+                msg_lines.append(f"\n⚡ <i>{ai_results['m2']}</i>")
+            if ai_results["guide"]:
+                msg_lines.append(f"\n─────────────────────\n{ai_results['guide']}")
 
             msg_lines.append(f"\n🔗 <a href=\"https://fs.fasteng.app/bot?symbol={symbol}\">Xem chart {symbol}</a>")
             telegram_notify(title, "\n".join(msg_lines))
