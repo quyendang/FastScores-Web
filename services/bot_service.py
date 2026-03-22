@@ -429,6 +429,19 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
     zones = ind.compute_zones(symbol, interval, lookback=60)
     sell_low, sell_high, buy_low, buy_high, recent_low, recent_high = zones
 
+    # S/R từ D1 (key levels) và interval hiện tại (near-term levels)
+    sr_d1: dict = {"supports": [], "resistances": []}
+    sr_near: dict = {"supports": [], "resistances": []}
+    try:
+        sr_d1 = ind.find_support_resistance(symbol, interval="1d", limit=120)
+    except Exception as e:
+        logging.warning(f"[SR_D1] {symbol}: {e}")
+    if interval != "1d":
+        try:
+            sr_near = ind.find_support_resistance(symbol, interval=interval, limit=100, pivot_strength=2)
+        except Exception as e:
+            logging.warning(f"[SR_NEAR] {symbol}: {e}")
+
     # D1 bias — tính TRƯỚC khi quyết định để dùng làm bộ lọc xu hướng
     d1_bull = d1_bear = False
     try:
@@ -471,6 +484,8 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
         "signal_quality": signal_quality,
         "d1_bullish": d1_bull,
         "d1_bearish": d1_bear,
+        "sr_d1": sr_d1,
+        "sr_near": sr_near,
         "zones": {
             "sell_low": sell_low, "sell_high": sell_high,
             "buy_low": buy_low, "buy_high": buy_high,
@@ -504,11 +519,32 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
             d1_label = "🟢 Bullish" if d1_bull else ("🔴 Bearish" if d1_bear else "⚪ Neutral")
             d1_align = "✅ đồng thuận" if signal_quality == "D1_CONFIRMED" else "➡ trung lập"
 
+            def _fmt_levels(levels: list) -> str:
+                return " · ".join(f"{v:,.2f}" for v in levels) if levels else "—"
+
+            # S/R lines
+            sr_lines = []
+            if sr_d1.get("supports") or sr_d1.get("resistances"):
+                sr_lines.append(
+                    f"🟢 HT (D1): <b>{_fmt_levels(sr_d1['supports'])}</b>"
+                )
+                sr_lines.append(
+                    f"🔴 KT (D1): <b>{_fmt_levels(sr_d1['resistances'])}</b>"
+                )
+            if sr_near.get("supports") or sr_near.get("resistances"):
+                sr_lines.append(
+                    f"🟡 HT ({interval}): {_fmt_levels(sr_near['supports'])}"
+                )
+                sr_lines.append(
+                    f"🟠 KT ({interval}): {_fmt_levels(sr_near['resistances'])}"
+                )
+
             msg_lines = [
                 f"💰 Giá: <b>{price:,.2f}</b> USDT",
                 f"📊 H4 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.4f}",
                 f"📅 D1 Bias: {d1_label} {d1_align}",
                 f"🎯 Zone: BUY[{buy_low:.1f}–{buy_high:.1f}] SELL[{sell_low:.1f}–{sell_high:.1f}]",
+            ] + sr_lines + [
                 f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.4f}",
             ]
             atr_pct_val = 0.0

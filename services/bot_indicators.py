@@ -327,6 +327,66 @@ def compute_obv_signals(closes, volumes, lookback: int = 8) -> dict:
     }
 
 
+# ── Support / Resistance ──────────────────────────────────────────────────────
+
+def find_support_resistance(
+    symbol: str,
+    interval: str = "1d",
+    limit: int = 120,
+    pivot_strength: int = 3,
+    cluster_pct: float = 0.008,
+    max_levels: int = 3,
+) -> dict:
+    """
+    Find key S/R levels from pivot highs/lows.
+    Returns {"supports": [...], "resistances": [...]} sorted by proximity to current price.
+    pivot_strength: number of candles on each side that must be lower/higher.
+    cluster_pct: merge levels within this % of each other (default 0.8%).
+    """
+    try:
+        kl = fetch_klines(symbol, interval, limit=limit)
+    except Exception:
+        return {"supports": [], "resistances": []}
+
+    if len(kl) < pivot_strength * 2 + 5:
+        return {"supports": [], "resistances": []}
+
+    highs = [float(k[2]) for k in kl]
+    lows = [float(k[3]) for k in kl]
+    closes = [float(k[4]) for k in kl]
+    price = closes[-1]
+    n = len(kl)
+
+    pivot_highs: List[float] = []
+    pivot_lows: List[float] = []
+    for i in range(pivot_strength, n - pivot_strength):
+        if all(highs[i] >= highs[i - j] for j in range(1, pivot_strength + 1)) and \
+           all(highs[i] >= highs[i + j] for j in range(1, pivot_strength + 1)):
+            pivot_highs.append(highs[i])
+        if all(lows[i] <= lows[i - j] for j in range(1, pivot_strength + 1)) and \
+           all(lows[i] <= lows[i + j] for j in range(1, pivot_strength + 1)):
+            pivot_lows.append(lows[i])
+
+    def _cluster(levels: List[float]) -> List[float]:
+        if not levels:
+            return []
+        grouped: List[List[float]] = [[sorted(levels)[0]]]
+        for v in sorted(levels)[1:]:
+            if abs(v - grouped[-1][-1]) / grouped[-1][-1] < cluster_pct:
+                grouped[-1].append(v)
+            else:
+                grouped.append([v])
+        return [sum(g) / len(g) for g in grouped]
+
+    resistances = sorted([v for v in _cluster(pivot_highs) if v > price])
+    supports = sorted([v for v in _cluster(pivot_lows) if v < price], reverse=True)
+
+    return {
+        "supports": [round(v, 2) for v in supports[:max_levels]],
+        "resistances": [round(v, 2) for v in resistances[:max_levels]],
+    }
+
+
 # ── Market sentiment ─────────────────────────────────────────────────────────
 
 def fetch_fear_greed() -> dict:
