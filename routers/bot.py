@@ -27,7 +27,7 @@ from services.bot_service import (
     compute_candle_signals,
     run_symbol_tracker_once,
 )
-from services.bot_ai import call_openrouter_analysis
+from services.bot_ai import call_openrouter_analysis, call_openrouter_analysis_model2
 
 router = APIRouter(prefix="/bot", tags=["bot"])
 templates = Jinja2Templates(directory="templates")
@@ -132,7 +132,7 @@ async def bot_dashboard(
         "change_24h": None, "buy_low": None, "buy_high": None,
         "sell_low": None, "sell_high": None, "is_subscribed": False,
         "tracker_action": "HOLD", "tracker_reason": "No data",
-        "d1_bullish": False, "d1_bearish": False, "ai_analysis": "",
+        "d1_bullish": False, "d1_bearish": False, "ai_analysis": "", "ai_analysis2": "",
         "db_signals_json": "[]", "fng_value": 50, "funding_rate_pct": 0.0,
     }
     if not closes:
@@ -312,7 +312,10 @@ async def bot_dashboard(
         "buy_score": last_signal.get("buy_score", 0),
         "sell_score": last_signal.get("sell_score", 0),
     }
-    ai_analysis = call_openrouter_analysis(symbol, tf, ai_snap)
+    ai_analysis, ai_analysis2 = await asyncio.gather(
+        asyncio.to_thread(call_openrouter_analysis, symbol, tf, ai_snap),
+        asyncio.to_thread(call_openrouter_analysis_model2, symbol, tf, ai_snap),
+    )
 
     return templates.TemplateResponse("bot_dashboard.html", {
         "request": request,
@@ -332,6 +335,7 @@ async def bot_dashboard(
         "d1_bullish": d1_bullish,
         "d1_bearish": d1_bearish,
         "ai_analysis": ai_analysis,
+        "ai_analysis2": ai_analysis2,
         "db_signals_json": json.dumps(db_signals),
         "fng_value": fng_data.get("value", 50),
         "funding_rate_pct": funding_data.get("funding_rate_pct", 0.0),

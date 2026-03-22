@@ -261,20 +261,34 @@
       <canvas id="volumeChart" height="100"></canvas>
     </section>
 
-    <!-- AI ANALYSIS -->
+    <!-- AI ANALYSIS MODEL 1 -->
     {% if ai_analysis %}
     <section class="panel ai-panel">
       <div class="panel-title">
-        <div>🤖 Phân tích thị trường AI <span class="sub">{{ symbol }} · {{ tf }} · OpenRouter</span></div>
+        <div>🤖 Phân tích AI <span class="sub">{{ symbol }} · {{ tf }} · Model 1</span></div>
         <span class="ai-badge">AI</span>
       </div>
       <div class="ai-body" id="aiBody"></div>
+    </section>
+    {% endif %}
+
+    <!-- AI ANALYSIS MODEL 2 -->
+    {% if ai_analysis2 %}
+    <section class="panel ai-panel">
+      <div class="panel-title">
+        <div>🧠 Nhận định thứ hai <span class="sub">{{ symbol }} · {{ tf }} · Model 2</span></div>
+        <span class="ai-badge" style="background:#6c5ce7">AI²</span>
+      </div>
+      <div class="ai-body" id="aiBody2"></div>
     </section>
     {% endif %}
   </div>
 
   {% if ai_analysis %}
   <script id="ai-analysis-raw" type="text/plain">{{ ai_analysis | e }}</script>
+  {% endif %}
+  {% if ai_analysis2 %}
+  <script id="ai-analysis2-raw" type="text/plain">{{ ai_analysis2 | e }}</script>
   {% endif %}
   <script id="rows-data" type="application/json">{{ rows_json_str | safe }}</script>
   <script id="db-signals-data" type="application/json">{{ db_signals_json | safe }}</script>
@@ -575,11 +589,16 @@
     });
 
     // AI analysis markdown
+    marked.setOptions({ breaks:true, gfm:true });
     const aiRaw  = document.getElementById('ai-analysis-raw');
     const aiBody = document.getElementById('aiBody');
     if (aiRaw && aiBody && typeof marked !== 'undefined') {
-      marked.setOptions({ breaks:true, gfm:true });
       aiBody.innerHTML = marked.parse(aiRaw.textContent.trim());
+    }
+    const aiRaw2  = document.getElementById('ai-analysis2-raw');
+    const aiBody2 = document.getElementById('aiBody2');
+    if (aiRaw2 && aiBody2 && typeof marked !== 'undefined') {
+      aiBody2.innerHTML = marked.parse(aiRaw2.textContent.trim());
     }
   </script>
 </body>
