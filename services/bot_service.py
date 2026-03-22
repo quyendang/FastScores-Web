@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from services import bot_indicators as ind
-from services.bot_ai import expert_panel_verdict
+from services.bot_ai import expert_panel_verdict, ai_macro_brief, OPENROUTER_MODEL, OPENROUTER_MODEL2
 
 # ── Config ───────────────────────────────────────────────────────────────────
 
@@ -514,6 +514,13 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
             except Exception:
                 pass
 
+            # ── Macro snapshot (cached 15 min) ───────────────────────────────
+            macro_data = {}
+            try:
+                macro_data = ind.fetch_macro_snapshot()
+            except Exception:
+                pass
+
             # ── Hội đồng 4 chuyên gia (Selective Breakout Sniper) ────────────
             panel = expert_panel_verdict(
                 symbol=symbol,
@@ -615,6 +622,39 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 ]
                 if panel.get("summary"):
                     msg_lines.append(f"\n💬 <i>{panel['summary']}</i>")
+
+            # ── 2 AI macro briefs (song song) ─────────────────────────────────
+            if macro_data and OPENROUTER_MODEL2:
+                import threading as _thr
+                macro_results = [None, None]
+                def _fetch_m1():
+                    macro_results[0] = ai_macro_brief(
+                        symbol=symbol, action=action, price=price,
+                        macro=macro_data, interval=interval,
+                        model=OPENROUTER_MODEL, style="correlation",
+                    )
+                def _fetch_m2():
+                    macro_results[1] = ai_macro_brief(
+                        symbol=symbol, action=action, price=price,
+                        macro=macro_data, interval=interval,
+                        model=OPENROUTER_MODEL2, style="risk",
+                    )
+                t1 = _thr.Thread(target=_fetch_m1, daemon=True)
+                t2 = _thr.Thread(target=_fetch_m2, daemon=True)
+                t1.start(); t2.start()
+                t1.join(timeout=22); t2.join(timeout=22)
+                if macro_results[0]:
+                    msg_lines.append(f"\n🌐 <i>{macro_results[0]}</i>")
+                if macro_results[1]:
+                    msg_lines.append(f"\n⚡ <i>{macro_results[1]}</i>")
+            elif macro_data and OPENROUTER_MODEL:
+                brief = ai_macro_brief(
+                    symbol=symbol, action=action, price=price,
+                    macro=macro_data, interval=interval,
+                    model=OPENROUTER_MODEL, style="correlation",
+                )
+                if brief:
+                    msg_lines.append(f"\n🌐 <i>{brief}</i>")
 
             msg_lines.append(f"\n🔗 <a href=\"https://fs.fasteng.app/bot?symbol={symbol}\">Xem chart {symbol}</a>")
             telegram_notify(title, "\n".join(msg_lines))

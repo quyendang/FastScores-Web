@@ -450,3 +450,62 @@ def compute_zones(symbol: str, interval: str, lookback: int = 60):
     sell_high = recent_high
     sell_low = recent_high - zone_pct * price_range
     return sell_low, sell_high, buy_low, buy_high, recent_low, recent_high
+
+
+# ── Macro snapshot (Yahoo Finance) ───────────────────────────────────────────
+
+_macro_cache: Dict[str, object] = {"data": {}, "fetched_at": 0.0}
+MACRO_CACHE_TTL = 900  # 15 minutes
+
+_MACRO_TICKERS = {
+    "gold":   "GC=F",
+    "oil":    "CL=F",
+    "sp500":  "%5EGSPC",
+    "nasdaq": "%5EIXIC",
+    "dxy":    "DX-Y.NYB",
+    "nvda":   "NVDA",
+    "aapl":   "AAPL",
+    "msft":   "MSFT",
+}
+
+
+def fetch_macro_snapshot() -> dict:
+    """
+    Fetch macro snapshot: Gold, Oil, S&P500, NASDAQ, DXY, NVDA, AAPL, MSFT.
+    Cached for 15 minutes. Returns dict[key] = {price, change_pct, name}.
+    """
+    now = time.time()
+    if now - _macro_cache["fetched_at"] < MACRO_CACHE_TTL and _macro_cache["data"]:
+        return _macro_cache["data"]
+
+    _NAMES = {
+        "gold": "Vàng (XAU/USD)", "oil": "Dầu WTI", "sp500": "S&P 500",
+        "nasdaq": "NASDAQ", "dxy": "DXY (USD)", "nvda": "NVDA",
+        "aapl": "AAPL", "msft": "MSFT",
+    }
+    result = {}
+    for key, ticker in _MACRO_TICKERS.items():
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d"
+            resp = requests.get(
+                url, timeout=8,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; MacroBot/1.0)"},
+            )
+            resp.raise_for_status()
+            closes = resp.json()["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+            closes = [c for c in closes if c is not None]
+            if len(closes) >= 2:
+                price = closes[-1]
+                prev = closes[-2]
+                result[key] = {
+                    "name": _NAMES.get(key, key),
+                    "price": round(price, 2),
+                    "change_pct": round((price - prev) / prev * 100, 2),
+                }
+        except Exception as e:
+            logging.warning(f"[MACRO] {key} ({ticker}): {e}")
+
+    if result:
+        _macro_cache["data"] = result
+        _macro_cache["fetched_at"] = now
+    return result
