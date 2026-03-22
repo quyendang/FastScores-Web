@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from services import bot_indicators as ind
-from services.bot_ai import ai_brief_for_telegram, ai_brief_for_telegram_model2
+from services.bot_ai import expert_panel_verdict
 
 # ── Config ───────────────────────────────────────────────────────────────────
 
@@ -498,13 +498,10 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
     }
 
     if send_notify and action != "HOLD" and _can_notify(symbol, action):
-        _mark_notified(symbol, action)
         try:
-            # Title phân biệt tín hiệu xác nhận D1 vs trung lập
-            d1_tag = " ✅D1" if signal_quality == "D1_CONFIRMED" else ""
-            title = f"[{action}{d1_tag}] {symbol}"
-
+            # ── ATR ──────────────────────────────────────────────────────────
             atr_val = None
+            atr_pct_val = 0.0
             try:
                 kl_atr = ind.fetch_klines(symbol, interval, limit=50)
                 h_atr = [float(k[2]) for k in kl_atr]
@@ -512,71 +509,103 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str,
                 c_atr = [float(k[4]) for k in kl_atr]
                 atr_s = ind.atr_series(h_atr, l_atr, c_atr)
                 atr_val = next((v for v in reversed(atr_s) if v is not None), None)
+                if atr_val:
+                    atr_pct_val = atr_val / price * 100
             except Exception:
                 pass
 
-            # D1 bias label
+            # ── Hội đồng 4 chuyên gia (Selective Breakout Sniper) ────────────
+            panel = expert_panel_verdict(
+                symbol=symbol,
+                action=action,
+                price=price,
+                rsi=rsi_h4,
+                macd_hist=macd_hist,
+                macd_hist_rising=(prev_macd_hist is not None and macd_hist > prev_macd_hist),
+                d1_bullish=d1_bull,
+                d1_bearish=d1_bear,
+                btc_rsi=btc_rsi_h4,
+                btc_macd_hist=btc_macd_hist,
+                atr_pct=atr_pct_val,
+                interval=interval,
+                buy_low=buy_low,
+                buy_high=buy_high,
+                sell_low=sell_low,
+                sell_high=sell_high,
+                sr_supports=sr_d1.get("supports", []),
+                sr_resistances=sr_d1.get("resistances", []),
+            )
+
+            confirmed = panel["confirmed"]
+            total = panel.get("total", 4) or 4
+
+            if not panel["go"]:
+                logging.info(
+                    f"[EXPERT_PANEL] {symbol} {action}: {confirmed}/{total} CONFIRM — bị chặn, bỏ qua chu kỳ này."
+                )
+                # Không mark notified → bot thử lại chu kỳ tiếp theo
+                return payload
+
+            # Panel đồng ý → gửi thông báo
+            _mark_notified(symbol, action)
+
+            # ── Build Telegram message ────────────────────────────────────────
+            vote_icon = "✅" if confirmed == total else ("⚠️" if confirmed == 3 else "❌")
+            title = f"🎯 [{action} {vote_icon} {confirmed}/{total}] {symbol}"
+
             d1_label = "🟢 Bullish" if d1_bull else ("🔴 Bearish" if d1_bear else "⚪ Neutral")
-            d1_align = "✅ đồng thuận" if signal_quality == "D1_CONFIRMED" else "➡ trung lập"
 
             def _fmt_levels(levels: list) -> str:
                 return " · ".join(f"{v:,.2f}" for v in levels) if levels else "—"
 
+            # Expert votes block
+            vote_lines = []
+            for v in panel.get("votes", []):
+                icon = "✅" if v["confirmed"] else "❌"
+                vote_lines.append(f"  {icon} <b>{v['expert']}</b>: <i>{v['reason']}</i>")
+
             # S/R lines
             sr_lines = []
             if sr_d1.get("supports") or sr_d1.get("resistances"):
-                sr_lines.append(
-                    f"🟢 HT (D1): <b>{_fmt_levels(sr_d1['supports'])}</b>"
-                )
-                sr_lines.append(
-                    f"🔴 KT (D1): <b>{_fmt_levels(sr_d1['resistances'])}</b>"
-                )
+                sr_lines.append(f"🟢 HT (D1): <b>{_fmt_levels(sr_d1['supports'])}</b>")
+                sr_lines.append(f"🔴 KT (D1): <b>{_fmt_levels(sr_d1['resistances'])}</b>")
             if sr_near.get("supports") or sr_near.get("resistances"):
-                sr_lines.append(
-                    f"🟡 HT ({interval}): {_fmt_levels(sr_near['supports'])}"
-                )
-                sr_lines.append(
-                    f"🟠 KT ({interval}): {_fmt_levels(sr_near['resistances'])}"
-                )
+                sr_lines.append(f"🟡 HT ({interval}): {_fmt_levels(sr_near['supports'])}")
+                sr_lines.append(f"🟠 KT ({interval}): {_fmt_levels(sr_near['resistances'])}")
 
             msg_lines = [
-                f"💰 Giá: <b>{price:,.2f}</b> USDT",
-                f"📊 H4 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.4f}",
-                f"📅 D1 Bias: {d1_label} {d1_align}",
-                f"🎯 Zone: BUY[{buy_low:.1f}–{buy_high:.1f}] SELL[{sell_low:.1f}–{sell_high:.1f}]",
-            ] + sr_lines + [
-                f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.4f}",
-            ]
-            atr_pct_val = 0.0
-            if atr_val:
+                f"💰 Giá: <b>{price:,.4f}</b> USDT",
+                f"📊 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.6f}",
+                f"📅 D1 Bias: {d1_label}",
+                "",
+                f"👥 <b>Hội đồng chuyên gia ({confirmed}/{total} đồng thuận):</b>",
+            ] + vote_lines
+
+            # Panel SL/TP (ưu tiên từ panel, fallback ATR)
+            p_sl, p_tp = panel.get("sl", 0.0), panel.get("tp", 0.0)
+            if p_sl and p_tp:
+                msg_lines.append(f"\n🛑 SL: <b>{p_sl:,.4f}</b> | 🎯 TP: <b>{p_tp:,.4f}</b>")
+            elif atr_val:
                 mult = 2.0
                 risk = mult * atr_val
-                atr_pct_val = atr_val / price * 100
-                if action == "BUY":
-                    sl, tp = price - risk, price + 2 * risk
-                else:
-                    sl, tp = price + risk, price - 2 * risk
-                msg_lines.append(f"🛑 SL: {sl:,.2f} | 🎯 TP: {tp:,.2f} (ATR×{mult})")
-                msg_lines.append(f"📐 ATR: {atr_val:.2f} ({atr_pct_val:.2f}%)")
-            msg_lines.append(f"⏰ {now_utc}")
+                sl_atr = price - risk if action == "BUY" else price + risk
+                tp_atr = price + 2 * risk if action == "BUY" else price - 2 * risk
+                msg_lines.append(f"\n🛑 SL: <b>{sl_atr:,.4f}</b> | 🎯 TP: <b>{tp_atr:,.4f}</b> (ATR×{mult})")
 
-            # AI brief — Model 1
-            ai_brief = ai_brief_for_telegram(
-                symbol=symbol, action=action, price=price, rsi=rsi_h4,
-                macd_hist=macd_hist, d1_bullish=d1_bull, d1_bearish=d1_bear,
-                btc_rsi=btc_rsi_h4, atr_pct=atr_pct_val, interval=interval,
-            )
-            if ai_brief:
-                msg_lines.append(f"\n🤖 <i>{ai_brief}</i>")
+            if atr_val:
+                msg_lines.append(f"📐 ATR: {atr_val:.4f} ({atr_pct_val:.2f}%)")
 
-            # AI brief — Model 2 (nếu được cấu hình)
-            ai_brief2 = ai_brief_for_telegram_model2(
-                symbol=symbol, action=action, price=price, rsi=rsi_h4,
-                macd_hist=macd_hist, d1_bullish=d1_bull, d1_bearish=d1_bear,
-                btc_rsi=btc_rsi_h4, atr_pct=atr_pct_val, interval=interval,
-            )
-            if ai_brief2:
-                msg_lines.append(f"\n🧠 <i>{ai_brief2}</i>")
+            if sr_lines:
+                msg_lines.append("")
+                msg_lines.extend(sr_lines)
+
+            msg_lines += [
+                f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.6f}",
+                f"⏰ {now_utc}",
+            ]
+
+            if panel.get("summary"):
+                msg_lines.append(f"\n💬 <i>{panel['summary']}</i>")
 
             msg_lines.append(f"\n🔗 <a href=\"https://fs.fasteng.app/bot?symbol={symbol}\">Xem chart {symbol}</a>")
 
