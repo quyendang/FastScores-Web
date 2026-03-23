@@ -1,12 +1,13 @@
 """
 bot.py — Crypto bot dashboard endpoints.
 """
-import asyncio, json, logging
+import asyncio, json, logging, io
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 
-from fastapi import APIRouter, Form, Query, Request
+import pandas as pd
+from fastapi import APIRouter, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -241,4 +242,66 @@ async def backtest_page(
         "available":  available,
         "result":     result,
         "result_json": json.dumps(result) if result else "null",
+        "upload_mode": False,
+    })
+
+
+@router.post("/backtest", response_class=HTMLResponse)
+async def backtest_upload(
+    request:     Request,
+    symbol:      str         = Form("BTCUSDT"),
+    interval:    str         = Form("4h"),
+    mode:        str         = Form(BOT_MODE),
+    capital:     float       = Form(10000),
+    file_main:   UploadFile  = File(...),
+    file_1d:     Optional[UploadFile] = File(None),
+):
+    symbol   = symbol.upper()
+    interval = interval if interval in {"1d", "4h", "1h"} else "4h"
+    mode     = mode if mode in {"default", "optimized"} else BOT_MODE
+    capital  = max(100.0, min(capital, 10_000_000))
+
+    # Danh sách file có sẵn (cho sidebar)
+    available = []
+    data_dir  = Path("data")
+    if data_dir.exists():
+        for f in sorted(data_dir.glob("*_10y.csv")):
+            parts = f.stem.split("_")
+            if len(parts) >= 2:
+                available.append({"symbol": parts[0], "interval": parts[1]})
+
+    result = None
+    try:
+        content_main = await file_main.read()
+        if not content_main:
+            result = {"error": "File CSV chính trống."}
+        else:
+            df_main = pd.read_csv(io.BytesIO(content_main))
+
+            df_1d_parsed = None
+            if file_1d and file_1d.filename:
+                content_1d = await file_1d.read()
+                if content_1d:
+                    df_1d_parsed = pd.read_csv(io.BytesIO(content_1d))
+
+            def _run():
+                from services.bot_backtest import run_backtest_from_df
+                return run_backtest_from_df(df_main, df_1d_parsed, symbol, interval, mode, capital)
+
+            result = await asyncio.to_thread(_run)
+    except Exception as e:
+        logging.error(f"[BACKTEST UPLOAD] {e}")
+        result = {"error": f"Lỗi khi xử lý file: {e}"}
+
+    return templates.TemplateResponse("bot_backtest.html", {
+        "request":    request,
+        "symbol":     symbol,
+        "interval":   interval,
+        "mode":       mode,
+        "capital":    capital,
+        "bot_mode":   BOT_MODE,
+        "available":  available,
+        "result":     result,
+        "result_json": json.dumps(result) if result else "null",
+        "upload_mode": True,
     })

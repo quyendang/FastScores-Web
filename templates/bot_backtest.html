@@ -35,6 +35,22 @@ a{color:#58a6ff;text-decoration:none}
 .file-pill{padding:4px 10px;border-radius:20px;font-size:.78rem;background:#21262d;border:1px solid #30363d;color:#8b949e;cursor:pointer;transition:.15s}
 .file-pill:hover{border-color:#58a6ff;color:#58a6ff}
 
+/* ── Source tabs ── */
+.src-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid #30363d}
+.src-tab{padding:8px 18px;font-size:.85rem;cursor:pointer;color:#8b949e;border-bottom:2px solid transparent;transition:.15s;background:none;border-top:none;border-left:none;border-right:none}
+.src-tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.src-panel{display:none}.src-panel.active{display:block}
+
+/* ── Upload zone ── */
+.upload-zone{border:2px dashed #30363d;border-radius:8px;padding:24px 20px;text-align:center;transition:.2s;cursor:pointer;background:#0d1117;position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:#58a6ff;background:rgba(56,139,253,.06)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-zone .uz-icon{font-size:2rem;margin-bottom:8px}
+.upload-zone .uz-label{font-size:.9rem;color:#8b949e}
+.upload-zone .uz-label b{color:#58a6ff}
+.upload-zone .uz-name{margin-top:6px;font-size:.82rem;color:#3fb950;font-weight:600}
+.upload-hint{font-size:.75rem;color:#6e7681;margin-top:8px;line-height:1.5}
+
 /* ── Error / empty ── */
 .alert{padding:14px 18px;border-radius:8px;margin-bottom:16px;font-size:.9rem}
 .alert-error{background:#2d1117;border:1px solid #6e1a1a;color:#ff7b72}
@@ -119,61 +135,123 @@ a{color:#58a6ff;text-decoration:none}
   <!-- ── Config form ── -->
   <div class="form-card">
     <div class="form-title">🔬 Backtest Configuration</div>
-    <form method="get" action="/bot/backtest">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Symbol</label>
-          <select name="symbol">
-            {% for sym in ["BTCUSDT","ETHUSDT"] %}
-            <option value="{{ sym }}" {% if sym == symbol %}selected{% endif %}>{{ sym }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Timeframe</label>
-          <select name="interval">
-            {% for iv in ["1d","4h","1h"] %}
-            <option value="{{ iv }}" {% if iv == interval %}selected{% endif %}>{{ iv }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Mode</label>
-          <select name="mode">
-            <option value="default"    {% if mode == "default"    %}selected{% endif %}>Default (pos=70%, sl=2.0×ATR)</option>
-            <option value="optimized"  {% if mode == "optimized"  %}selected{% endif %}>Optimized (pos=50%, sl=1.5×ATR)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Vốn ban đầu ($)</label>
-          <input type="number" name="capital" value="{{ capital|int }}" min="100" step="1000" style="width:120px">
-        </div>
-        <input type="hidden" name="run" value="1">
-        <button type="submit" class="btn-run">▶ Chạy Backtest</button>
-      </div>
-    </form>
 
-    {% if available %}
-    <div style="margin-top:12px">
-      <span style="font-size:.78rem;color:#8b949e">Data có sẵn:</span>
-      <div class="file-pills">
-        {% for f in available %}
-        <span class="file-pill" onclick="setForm('{{ f.symbol }}','{{ f.interval }}')">
-          {{ f.symbol }} {{ f.interval }}
-        </span>
-        {% endfor %}
+    <!-- Source tabs -->
+    <div class="src-tabs">
+      <button class="src-tab {% if not upload_mode %}active{% endif %}" onclick="switchTab('preset')">📂 File có sẵn</button>
+      <button class="src-tab {% if upload_mode %}active{% endif %}"  onclick="switchTab('upload')">⬆️ Upload CSV</button>
+    </div>
+
+    <!-- Common params (shared by both forms) -->
+    <div class="form-row" style="margin-bottom:16px" id="commonParams">
+      <div class="form-group">
+        <label>Symbol</label>
+        <select id="cmSymbol" name="symbol">
+          {% for sym in ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"] %}
+          <option value="{{ sym }}" {% if sym == symbol %}selected{% endif %}>{{ sym }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Timeframe</label>
+        <select id="cmInterval" name="interval">
+          {% for iv in ["1d","4h","1h"] %}
+          <option value="{{ iv }}" {% if iv == interval %}selected{% endif %}>{{ iv }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Mode</label>
+        <select id="cmMode" name="mode">
+          <option value="default"   {% if mode == "default"   %}selected{% endif %}>Default (pos=70%, sl=2.0×ATR)</option>
+          <option value="optimized" {% if mode == "optimized" %}selected{% endif %}>Optimized (pos=50%, sl=1.5×ATR)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Vốn ban đầu ($)</label>
+        <input id="cmCapital" type="number" value="{{ capital|int }}" min="100" step="1000" style="width:120px">
       </div>
     </div>
-    {% endif %}
+
+    <!-- Panel: preset files -->
+    <div class="src-panel {% if not upload_mode %}active{% endif %}" id="panelPreset">
+      <form method="get" action="/bot/backtest" id="formPreset">
+        <input type="hidden" name="symbol"   id="p_symbol"   value="{{ symbol }}">
+        <input type="hidden" name="interval" id="p_interval" value="{{ interval }}">
+        <input type="hidden" name="mode"     id="p_mode"     value="{{ mode }}">
+        <input type="hidden" name="capital"  id="p_capital"  value="{{ capital|int }}">
+        <input type="hidden" name="run"      value="1">
+        {% if available %}
+        <div style="margin-bottom:12px">
+          <span style="font-size:.78rem;color:#8b949e">Data có sẵn:</span>
+          <div class="file-pills">
+            {% for f in available %}
+            <span class="file-pill" onclick="setForm('{{ f.symbol }}','{{ f.interval }}')">
+              {{ f.symbol }} {{ f.interval }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <p style="font-size:.82rem;color:#8b949e;margin-bottom:12px">Chưa có file CSV trong <code>./data/</code>. Chạy <code>data.py</code> hoặc dùng tab Upload.</p>
+        {% endif %}
+        <button type="submit" class="btn-run">▶ Chạy Backtest</button>
+      </form>
+    </div>
+
+    <!-- Panel: upload CSV -->
+    <div class="src-panel {% if upload_mode %}active{% endif %}" id="panelUpload">
+      <form method="post" action="/bot/backtest" enctype="multipart/form-data" id="formUpload">
+        <input type="hidden" name="symbol"   id="u_symbol"   value="{{ symbol }}">
+        <input type="hidden" name="interval" id="u_interval" value="{{ interval }}">
+        <input type="hidden" name="mode"     id="u_mode"     value="{{ mode }}">
+        <input type="hidden" name="capital"  id="u_capital"  value="{{ capital|int }}">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <!-- Main CSV -->
+          <div>
+            <div style="font-size:.78rem;color:#8b949e;margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.05em">
+              CSV chính <span style="color:#f85149">*</span>
+              <span style="color:#6e7681;font-weight:400;text-transform:none"> (4h / 1h / 1d)</span>
+            </div>
+            <div class="upload-zone" id="zoneMain">
+              <input type="file" name="file_main" accept=".csv" required id="inputMain" onchange="showFile(this,'nameMain','zoneMain')">
+              <div class="uz-icon">📄</div>
+              <div class="uz-label">Kéo thả hoặc <b>chọn file</b></div>
+              <div class="uz-name" id="nameMain"></div>
+            </div>
+          </div>
+          <!-- 1D CSV (optional) -->
+          <div>
+            <div style="font-size:.78rem;color:#8b949e;margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.05em">
+              CSV 1D context
+              <span style="color:#6e7681;font-weight:400;text-transform:none"> (tuỳ chọn, dùng làm D1 filter)</span>
+            </div>
+            <div class="upload-zone" id="zone1d">
+              <input type="file" name="file_1d" accept=".csv" id="input1d" onchange="showFile(this,'name1d','zone1d')">
+              <div class="uz-icon">📅</div>
+              <div class="uz-label">Kéo thả hoặc <b>chọn file</b></div>
+              <div class="uz-name" id="name1d"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-hint">
+          Cột bắt buộc: <code>datetime, close, atr_14</code> và các chỉ báo: <code>rsi_14, macd_hist, macd_rising, adx_14, di_plus, di_minus, stoch_k, bb_upper, bb_lower, buy_score, sell_score</code><br>
+          → Tạo file chuẩn bằng <code>data.py</code> đi kèm project.
+        </div>
+
+        <button type="submit" class="btn-run" style="margin-top:14px" id="btnUpload">⬆️ Upload &amp; Backtest</button>
+      </form>
+    </div>
   </div>
 
   <!-- ── Not run yet ── -->
-  {% if not result and not result %}
   {% if not result %}
   <div class="alert alert-info">
-    Chọn tham số và nhấn <b>▶ Chạy Backtest</b>. Data từ 10 năm lịch sử ({{ available|length }} file có sẵn).
+    Chọn tham số và nhấn <b>▶ Chạy Backtest</b>, hoặc dùng tab <b>Upload CSV</b> để test file của bạn.
+    {% if available %} ({{ available|length }} file có sẵn trong <code>./data/</code>){% endif %}
   </div>
-  {% endif %}
   {% endif %}
 
   {% if result %}
@@ -404,10 +482,55 @@ a{color:#58a6ff;text-decoration:none}
 </div><!-- /container -->
 
 <script>
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.src-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(tab === 'preset' ? '#panelPreset' : '#panelUpload').classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// Sync common params → hidden inputs before submit
+function syncParams() {
+  const sym = document.getElementById('cmSymbol').value;
+  const iv  = document.getElementById('cmInterval').value;
+  const md  = document.getElementById('cmMode').value;
+  const cap = document.getElementById('cmCapital').value;
+  ['p','u'].forEach(prefix => {
+    document.getElementById(prefix+'_symbol').value   = sym;
+    document.getElementById(prefix+'_interval').value = iv;
+    document.getElementById(prefix+'_mode').value     = md;
+    document.getElementById(prefix+'_capital').value  = cap;
+  });
+}
+['cmSymbol','cmInterval','cmMode','cmCapital'].forEach(id =>
+  document.getElementById(id)?.addEventListener('change', syncParams));
+document.getElementById('formPreset')?.addEventListener('submit', syncParams);
+document.getElementById('formUpload')?.addEventListener('submit', function() {
+  syncParams();
+  const btn = document.getElementById('btnUpload');
+  if (btn) { btn.textContent = '⏳ Đang xử lý...'; btn.disabled = true; }
+});
+
+// File drop + name display
+function showFile(input, nameId, zoneId) {
+  const name = input.files[0]?.name || '';
+  document.getElementById(nameId).textContent = name;
+  if (name) document.getElementById(zoneId).style.borderColor = '#3fb950';
+}
+['zoneMain','zone1d'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag'));
+  el.addEventListener('drop', () => el.classList.remove('drag'));
+});
+
 // ── Quick-fill form ────────────────────────────────────────────────────────
 function setForm(sym, iv) {
-  document.querySelector('select[name="symbol"]').value = sym;
-  document.querySelector('select[name="interval"]').value = iv;
+  document.getElementById('cmSymbol').value = sym;
+  document.getElementById('cmInterval').value = iv;
+  syncParams();
 }
 
 // ── Equity chart ──────────────────────────────────────────────────────────

@@ -84,25 +84,8 @@ def _row_to_snap(row) -> dict:
 
 # ── Core backtest engine ──────────────────────────────────────────────────────
 
-def run_backtest(
-    symbol: str,
-    interval: str,
-    mode: str = "default",
-    initial_capital: float = 10_000,
-) -> dict:
-    """
-    Chạy backtest sử dụng algorithm của bot.
-
-    Args:
-        symbol:   BTCUSDT | ETHUSDT
-        interval: 1d | 4h | 1h
-        mode:     default | optimized
-        initial_capital: USD ban đầu
-
-    Returns:
-        dict với summary, trades, equity_curve, exit_reasons, strategy_counts
-    """
-    # Import bot algorithm functions (tránh circular import ở module level)
+def _load_cfg(symbol: str, mode: str):
+    """Import bot_service với BOT_MODE override, trả về (cfg, check_entry, check_exit, update_trailing_stop)."""
     import os
     old_mode = os.environ.get("BOT_MODE", "default")
     os.environ["BOT_MODE"] = mode
@@ -111,32 +94,18 @@ def run_backtest(
         cfg = get_bot_config(symbol)
     finally:
         os.environ["BOT_MODE"] = old_mode
+    return cfg, check_entry, check_exit, update_trailing_stop
 
-    # ── Load data ─────────────────────────────────────────────────────────────
-    f_main = DATA_DIR / f"{symbol}_{interval}_10y.csv"
-    f_1d   = DATA_DIR / f"{symbol}_1d_10y.csv"
 
-    if not f_main.exists():
-        return {"error": f"Không tìm thấy {f_main.name}. Hãy chạy data.py trước."}
-
-    df = pd.read_csv(f_main, parse_dates=["datetime"])
-    df = df.dropna(subset=["close", "atr_14"]).reset_index(drop=True)
-
-    # 1D context map
-    daily_map: Dict[str, dict] = {}
-    if f_1d.exists() and interval != "1d":
-        df_1d = pd.read_csv(f_1d, parse_dates=["datetime"])
-        daily_map = _build_daily_map(df_1d)
-    elif interval == "1d":
-        # Với 1d: dùng chính dữ liệu của nó làm daily context
-        daily_map = _build_daily_map(df)
-
+def _simulate(df: pd.DataFrame, daily_map: Dict[str, dict],
+              cfg: dict, check_entry, check_exit, update_trailing_stop,
+              initial_capital: float, symbol: str, interval: str, mode: str) -> dict:
+    """Core bar-by-bar simulation. Dùng chung cho cả file-based và upload-based backtest."""
     _DEFAULT_DCTX = {
         "uptrend": False, "bull_ema": False, "bear_ema": False,
         "danger": False, "rsi": 50.0, "adx": 20.0,
     }
 
-    # ── Simulation ────────────────────────────────────────────────────────────
     capital   = initial_capital
     position: Optional[dict] = None
     trades:   List[dict] = []
@@ -150,19 +119,16 @@ def run_backtest(
         price = snap["price"]
         atr   = snap["atr_14"]
 
-        # Track equity
         eq = capital
         if position:
             eq += position["pos_usd"] * (price - position["entry_price"]) / position["entry_price"]
         equity_curve.append({"date": day, "equity": round(eq, 2)})
 
         if position:
-            entry = position["entry_price"]
-            old_stop = position["stop_price"]
-            new_stop = update_trailing_stop(price, entry, atr, old_stop, cfg)
+            entry    = position["entry_price"]
+            new_stop = update_trailing_stop(price, entry, atr, position["stop_price"], cfg)
             position["stop_price"] = new_stop
 
-            # Hard stop
             if price <= new_stop:
                 exit_price = new_stop
                 pnl_pct    = (exit_price - entry) / entry * 100
@@ -173,7 +139,6 @@ def run_backtest(
                 position = None
                 continue
 
-            # Signal exit
             should_exit, reason = check_exit(snap, dctx, cfg)
             if should_exit:
                 exit_price = price
@@ -183,7 +148,6 @@ def run_backtest(
                 capital   += position["pos_usd"] + pnl_usd - fee
                 trades.append(_make_trade(position, exit_price, day, reason, pnl_pct, pnl_usd - fee))
                 position = None
-
         else:
             should_enter, strategy = check_entry(snap, dctx, cfg)
             if should_enter and atr > 0:
@@ -199,7 +163,6 @@ def run_backtest(
                 }
                 capital -= pos_usd
 
-    # Đóng lệnh còn lại cuối kỳ
     if position:
         last_price = float(df.iloc[-1]["close"])
         last_day   = str(df.iloc[-1]["datetime"])[:10]
@@ -210,9 +173,71 @@ def run_backtest(
         capital   += position["pos_usd"] + pnl_usd - fee
         trades.append(_make_trade(position, last_price, last_day, "END", pnl_pct, pnl_usd - fee))
 
-    return _compute_metrics(
-        trades, equity_curve, df, initial_capital, capital, cfg, symbol, interval, mode
-    )
+    return _compute_metrics(trades, equity_curve, df, initial_capital, capital, cfg, symbol, interval, mode)
+
+
+def run_backtest(
+    symbol: str,
+    interval: str,
+    mode: str = "default",
+    initial_capital: float = 10_000,
+) -> dict:
+    """Chạy backtest từ file CSV trong ./data/."""
+    cfg, check_entry, check_exit, update_trailing_stop = _load_cfg(symbol, mode)
+
+    f_main = DATA_DIR / f"{symbol}_{interval}_10y.csv"
+    f_1d   = DATA_DIR / f"{symbol}_1d_10y.csv"
+
+    if not f_main.exists():
+        return {"error": f"Không tìm thấy {f_main.name}. Hãy chạy data.py trước."}
+
+    df = pd.read_csv(f_main, parse_dates=["datetime"])
+    df = df.dropna(subset=["close", "atr_14"]).reset_index(drop=True)
+
+    daily_map: Dict[str, dict] = {}
+    if f_1d.exists() and interval != "1d":
+        df_1d = pd.read_csv(f_1d, parse_dates=["datetime"])
+        daily_map = _build_daily_map(df_1d)
+    elif interval == "1d":
+        daily_map = _build_daily_map(df)
+
+    return _simulate(df, daily_map, cfg, check_entry, check_exit, update_trailing_stop,
+                     initial_capital, symbol, interval, mode)
+
+
+def run_backtest_from_df(
+    df_main: "pd.DataFrame",
+    df_1d: "Optional[pd.DataFrame]",
+    symbol: str,
+    interval: str,
+    mode: str = "default",
+    initial_capital: float = 10_000,
+) -> dict:
+    """Chạy backtest từ DataFrame (dùng khi user upload CSV)."""
+    cfg, check_entry, check_exit, update_trailing_stop = _load_cfg(symbol, mode)
+
+    if "datetime" not in df_main.columns:
+        return {"error": "CSV thiếu cột 'datetime'. Vui lòng kiểm tra định dạng file."}
+    if "close" not in df_main.columns or "atr_14" not in df_main.columns:
+        return {"error": "CSV thiếu cột 'close' hoặc 'atr_14'. Hãy dùng file được tạo bởi data.py."}
+
+    df = df_main.copy()
+    df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+    df = df.dropna(subset=["close", "atr_14", "datetime"]).reset_index(drop=True)
+
+    if df.empty:
+        return {"error": "File CSV không có dữ liệu hợp lệ sau khi lọc."}
+
+    daily_map: Dict[str, dict] = {}
+    if df_1d is not None and interval != "1d":
+        df_1d = df_1d.copy()
+        df_1d["datetime"] = pd.to_datetime(df_1d["datetime"], errors="coerce")
+        daily_map = _build_daily_map(df_1d)
+    elif interval == "1d":
+        daily_map = _build_daily_map(df)
+
+    return _simulate(df, daily_map, cfg, check_entry, check_exit, update_trailing_stop,
+                     initial_capital, symbol, interval, mode)
 
 
 def _make_trade(pos: dict, exit_price: float, exit_date: str, reason: str,
