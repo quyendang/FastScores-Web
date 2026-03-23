@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Backtest — {{ symbol }} {{ interval }}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
+a{color:#58a6ff;text-decoration:none}
+/* ── Layout ── */
+.nav{background:#161b22;border-bottom:1px solid #30363d;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.nav-brand{font-weight:700;font-size:1.1rem;color:#f0f6fc}
+.nav-links a{color:#8b949e;font-size:.9rem}
+.nav-links a:hover{color:#e6edf3}
+.container{max-width:1300px;margin:0 auto;padding:20px}
+
+/* ── Form ── */
+.form-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin-bottom:20px}
+.form-title{font-size:1.1rem;font-weight:600;color:#f0f6fc;margin-bottom:16px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:.8rem;color:#8b949e;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.form-group select,.form-group input{background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:8px 12px;border-radius:6px;font-size:.9rem;min-width:130px}
+.form-group select:focus,.form-group input:focus{outline:none;border-color:#388bfd}
+.btn-run{background:#238636;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:.9rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-run:hover{background:#2ea043}
+.mode-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600;background:#1c2128;border:1px solid #30363d}
+.mode-badge.default{border-color:#3fb950;color:#3fb950}
+.mode-badge.optimized{border-color:#d29922;color:#d29922}
+
+/* ── Available files ── */
+.file-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.file-pill{padding:4px 10px;border-radius:20px;font-size:.78rem;background:#21262d;border:1px solid #30363d;color:#8b949e;cursor:pointer;transition:.15s}
+.file-pill:hover{border-color:#58a6ff;color:#58a6ff}
+
+/* ── Error / empty ── */
+.alert{padding:14px 18px;border-radius:8px;margin-bottom:16px;font-size:.9rem}
+.alert-error{background:#2d1117;border:1px solid #6e1a1a;color:#ff7b72}
+.alert-info{background:#111d2e;border:1px solid #1f3d5e;color:#79c0ff}
+
+/* ── Summary cards ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px}
+.card-label{font-size:.72rem;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.card-value{font-size:1.35rem;font-weight:700;color:#f0f6fc}
+.card-value.pos{color:#3fb950}
+.card-value.neg{color:#f85149}
+.card-value.neutral{color:#d29922}
+
+/* ── Two-column layout ── */
+.two-col{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-bottom:20px}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+
+/* ── Chart ── */
+.chart-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px}
+.chart-card h3{font-size:.9rem;color:#8b949e;margin-bottom:12px;font-weight:500}
+.chart-wrap{position:relative;height:280px}
+
+/* ── Side panels ── */
+.side-col{display:flex;flex-direction:column;gap:12px}
+.panel{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px}
+.panel h3{font-size:.85rem;color:#8b949e;margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #21262d;font-size:.85rem}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:#8b949e}
+.stat-val{font-weight:600;color:#e6edf3}
+.stat-val.pos{color:#3fb950}
+.stat-val.neg{color:#f85149}
+.stat-val.info{color:#58a6ff}
+
+/* ── Strategy / exit table ── */
+.reason-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:4px}
+.reason-table th{text-align:left;color:#8b949e;padding:4px 8px;border-bottom:1px solid #30363d;font-weight:500}
+.reason-table td{padding:5px 8px;border-bottom:1px solid #21262d}
+.reason-table tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.74rem;font-weight:600}
+.badge-dip{background:#1a2d3a;color:#79c0ff;border:1px solid #1f4f6e}
+.badge-trend{background:#1a2d1a;color:#56d364;border:1px solid #2d6e2d}
+.badge-score{background:#2d2018;color:#ffa657;border:1px solid #6e3a12}
+.badge-stop{background:#2d1117;color:#f85149;border:1px solid #6e1a1a}
+.badge-sig{background:#1a2d1a;color:#3fb950;border:1px solid #2d6e2d}
+.badge-bear{background:#2d1a2d;color:#bc8cff;border:1px solid #4a2a6e}
+.badge-other{background:#21262d;color:#8b949e;border:1px solid #30363d}
+.wr-bar{display:inline-block;height:6px;border-radius:3px;background:#3fb950;margin-left:6px;vertical-align:middle}
+
+/* ── Trades table ── */
+.trades-section{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px;margin-bottom:20px}
+.trades-section h3{font-size:.9rem;color:#8b949e;margin-bottom:12px;font-weight:500}
+.table-wrap{overflow-x:auto}
+.trades-table{width:100%;border-collapse:collapse;font-size:.81rem}
+.trades-table th{text-align:left;padding:6px 10px;color:#8b949e;border-bottom:1px solid #30363d;font-weight:500;white-space:nowrap}
+.trades-table td{padding:5px 10px;border-bottom:1px solid #21262d;white-space:nowrap}
+.trades-table tr:hover td{background:#21262d}
+.trades-table tr.win td{border-left:2px solid #3fb950}
+.trades-table tr.loss td{border-left:2px solid #f85149}
+.pnl-pos{color:#3fb950;font-weight:600}
+.pnl-neg{color:#f85149;font-weight:600}
+.note{font-size:.78rem;color:#8b949e;margin-top:8px}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-brand">📈 Crypto Bot</span>
+  <div class="nav-links">
+    <a href="/bot">Dashboard</a>
+    <span style="color:#30363d">|</span>
+    <a href="/bot/backtest">Backtest</a>
+  </div>
+  <span class="mode-badge {{ bot_mode }}">
+    {{ "⚙️ DEFAULT" if bot_mode == "default" else "🔧 OPTIMIZED" }} MODE
+  </span>
+</nav>
+
+<div class="container">
+
+  <!-- ── Config form ── -->
+  <div class="form-card">
+    <div class="form-title">🔬 Backtest Configuration</div>
+    <form method="get" action="/bot/backtest">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Symbol</label>
+          <select name="symbol">
+            {% for sym in ["BTCUSDT","ETHUSDT"] %}
+            <option value="{{ sym }}" {% if sym == symbol %}selected{% endif %}>{{ sym }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Timeframe</label>
+          <select name="interval">
+            {% for iv in ["1d","4h","1h"] %}
+            <option value="{{ iv }}" {% if iv == interval %}selected{% endif %}>{{ iv }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Mode</label>
+          <select name="mode">
+            <option value="default"    {% if mode == "default"    %}selected{% endif %}>Default (pos=70%, sl=2.0×ATR)</option>
+            <option value="optimized"  {% if mode == "optimized"  %}selected{% endif %}>Optimized (pos=50%, sl=1.5×ATR)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Vốn ban đầu ($)</label>
+          <input type="number" name="capital" value="{{ capital|int }}" min="100" step="1000" style="width:120px">
+        </div>
+        <input type="hidden" name="run" value="1">
+        <button type="submit" class="btn-run">▶ Chạy Backtest</button>
+      </div>
+    </form>
+
+    {% if available %}
+    <div style="margin-top:12px">
+      <span style="font-size:.78rem;color:#8b949e">Data có sẵn:</span>
+      <div class="file-pills">
+        {% for f in available %}
+        <span class="file-pill" onclick="setForm('{{ f.symbol }}','{{ f.interval }}')">
+          {{ f.symbol }} {{ f.interval }}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Not run yet ── -->
+  {% if not result and not result %}
+  {% if not result %}
+  <div class="alert alert-info">
+    Chọn tham số và nhấn <b>▶ Chạy Backtest</b>. Data từ 10 năm lịch sử ({{ available|length }} file có sẵn).
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {% if result %}
+    {% if result.error %}
+    <div class="alert alert-error">⚠️ {{ result.error }}</div>
+    {% else %}
+
+    {% set s = result.summary %}
+
+    <!-- ── Summary cards ── -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Total Return</div>
+        <div class="card-value {{ 'pos' if s.total_return_pct >= 0 else 'neg' }}">
+          {{ "{:+.1f}".format(s.total_return_pct) }}%
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Final Capital</div>
+        <div class="card-value">${{ "{:,.0f}".format(s.final_capital) }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Alpha vs B&H</div>
+        <div class="card-value {{ 'pos' if s.alpha_pct >= 0 else 'neg' }}">
+          {{ "{:+.1f}".format(s.alpha_pct) }}%
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Win Rate</div>
+        <div class="card-value {{ 'pos' if s.win_rate_pct >= 50 else 'neutral' }}">
+          {{ s.win_rate_pct }}%
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Profit Factor</div>
+        <div class="card-value {{ 'pos' if s.profit_factor > 1 else 'neg' }}">
+          {% if s.profit_factor == s.profit_factor and s.profit_factor < 999 %}
+            {{ "{:.2f}".format(s.profit_factor) }}
+          {% else %}∞{% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Max Drawdown</div>
+        <div class="card-value {{ 'pos' if s.max_drawdown_pct > -15 else 'neg' }}">
+          {{ "{:.1f}".format(s.max_drawdown_pct) }}%
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Sharpe Ratio</div>
+        <div class="card-value {{ 'pos' if s.sharpe_ratio > 1 else 'neutral' }}">
+          {{ "{:.2f}".format(s.sharpe_ratio) }}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total Trades</div>
+        <div class="card-value">{{ s.total_trades }}</div>
+      </div>
+    </div>
+
+    <!-- ── Equity chart + stats ── -->
+    <div class="two-col">
+      <div class="chart-card">
+        <h3>📈 Đường vốn (Equity Curve)</h3>
+        <div class="chart-wrap">
+          <canvas id="equityChart"></canvas>
+        </div>
+      </div>
+
+      <div class="side-col">
+        <!-- Trade stats -->
+        <div class="panel">
+          <h3>Trade Statistics</h3>
+          <div class="stat-row"><span class="stat-label">Kỳ backtest</span>
+            <span class="stat-val info">{{ s.period_start }} → {{ s.period_end }}</span></div>
+          <div class="stat-row"><span class="stat-label">Thắng / Thua</span>
+            <span class="stat-val">
+              <span style="color:#3fb950">{{ s.wins }}</span> /
+              <span style="color:#f85149">{{ s.losses }}</span>
+            </span></div>
+          <div class="stat-row"><span class="stat-label">Avg Win</span>
+            <span class="stat-val pos">+{{ s.avg_win_pct }}%</span></div>
+          <div class="stat-row"><span class="stat-label">Avg Loss</span>
+            <span class="stat-val neg">{{ s.avg_loss_pct }}%</span></div>
+          <div class="stat-row"><span class="stat-label">Best Trade</span>
+            <span class="stat-val pos">+{{ s.best_trade_pct }}%</span></div>
+          <div class="stat-row"><span class="stat-label">Worst Trade</span>
+            <span class="stat-val neg">{{ s.worst_trade_pct }}%</span></div>
+          <div class="stat-row"><span class="stat-label">Max Win Streak</span>
+            <span class="stat-val">{{ s.max_win_streak }}</span></div>
+          <div class="stat-row"><span class="stat-label">Max Loss Streak</span>
+            <span class="stat-val neg">{{ s.max_loss_streak }}</span></div>
+          <div class="stat-row"><span class="stat-label">Buy & Hold</span>
+            <span class="stat-val {{ 'pos' if s.buy_hold_return_pct >= 0 else 'neg' }}">
+              {{ "{:+.1f}".format(s.buy_hold_return_pct) }}%</span></div>
+        </div>
+
+        <!-- Config -->
+        <div class="panel">
+          <h3>Config ({{ result.mode }})</h3>
+          {% if result.config %}
+          <div class="stat-row"><span class="stat-label">Position size</span>
+            <span class="stat-val">{{ "{:.0f}".format(result.config.position_pct * 100) }}%</span></div>
+          <div class="stat-row"><span class="stat-label">SL mult</span>
+            <span class="stat-val">{{ result.config.sl_atr_mult }}×ATR</span></div>
+          <div class="stat-row"><span class="stat-label">Score min</span>
+            <span class="stat-val">≥{{ result.config.buy_score_min }}</span></div>
+          <div class="stat-row"><span class="stat-label">ADX min</span>
+            <span class="stat-val">{{ result.config.adx_min }}</span></div>
+          <div class="stat-row"><span class="stat-label">Commission</span>
+            <span class="stat-val">{{ result.config.commission_pct }}%/side</span></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Strategy + Exit reasons ── -->
+    <div class="two-col">
+      <div class="panel">
+        <h3>Entry Strategy Breakdown</h3>
+        <table class="reason-table">
+          <tr><th>Chiến lược</th><th>Trades</th><th>Win Rate</th><th>Avg P&L</th></tr>
+          {% for strat, data in result.strategy_counts.items() %}
+          <tr>
+            <td>
+              {% if strat == "DIP_BUY" %}<span class="badge badge-dip">📉 DIP_BUY</span>
+              {% elif strat == "TREND_FOLLOW" %}<span class="badge badge-trend">📈 TREND_FOLLOW</span>
+              {% elif strat == "SCORE_BUY" %}<span class="badge badge-score">⭐ SCORE_BUY</span>
+              {% else %}<span class="badge badge-other">{{ strat }}</span>{% endif %}
+            </td>
+            <td>{{ data.count }}</td>
+            <td>
+              {{ data.win_rate }}%
+              <span class="wr-bar" style="width:{{ data.win_rate * 0.6 }}px"></span>
+            </td>
+            <td class="{{ 'pnl-pos' if data.avg_pnl >= 0 else 'pnl-neg' }}">
+              {{ "{:+.2f}".format(data.avg_pnl) }}%
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+
+      <div class="panel">
+        <h3>Exit Reason Breakdown</h3>
+        <table class="reason-table">
+          <tr><th>Lý do thoát</th><th>Trades</th><th>Win Rate</th><th>Avg P&L</th></tr>
+          {% for reason, data in result.exit_reasons.items() %}
+          <tr>
+            <td>
+              {% if reason == "STOP" %}<span class="badge badge-stop">🛑 STOP</span>
+              {% elif reason == "SELL_SIG" %}<span class="badge badge-sig">✅ SELL_SIG</span>
+              {% elif reason == "BEAR" %}<span class="badge badge-bear">🐻 BEAR</span>
+              {% elif reason == "OB_EXIT" %}<span class="badge badge-bear">⚡ OB_EXIT</span>
+              {% elif reason == "TREND_REV" %}<span class="badge badge-stop">↩️ TREND_REV</span>
+              {% elif reason == "END" %}<span class="badge badge-other">⏹ END</span>
+              {% else %}<span class="badge badge-other">{{ reason }}</span>{% endif %}
+            </td>
+            <td>{{ data.count }}</td>
+            <td>
+              {{ data.win_rate }}%
+              <span class="wr-bar" style="width:{{ data.win_rate * 0.6 }}px"></span>
+            </td>
+            <td class="{{ 'pnl-pos' if data.avg_pnl >= 0 else 'pnl-neg' }}">
+              {{ "{:+.2f}".format(data.avg_pnl) }}%
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Trades table ── -->
+    <div class="trades-section">
+      <h3>📋 Chi tiết lệnh gần nhất ({{ result.trades|length }} / {{ result.total_trades_count }} lệnh)</h3>
+      <div class="table-wrap">
+        <table class="trades-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Vào</th><th>Ra</th>
+              <th>Chiến lược</th><th>Giá vào</th><th>Giá ra</th>
+              <th>Lý do ra</th><th>P&L %</th><th>Net P&L $</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set ns = namespace(idx=result.total_trades_count - result.trades|length) %}
+            {% for t in result.trades %}
+            {% set ns.idx = ns.idx + 1 %}
+            <tr class="{{ 'win' if t.win else 'loss' }}">
+              <td style="color:#8b949e">{{ ns.idx }}</td>
+              <td>{{ t.entry_date }}</td>
+              <td>{{ t.exit_date }}</td>
+              <td>
+                {% if t.strategy == "DIP_BUY" %}<span class="badge badge-dip">DIP_BUY</span>
+                {% elif t.strategy == "TREND_FOLLOW" %}<span class="badge badge-trend">TREND</span>
+                {% elif t.strategy == "SCORE_BUY" %}<span class="badge badge-score">SCORE</span>
+                {% else %}<span class="badge badge-other">{{ t.strategy }}</span>{% endif %}
+              </td>
+              <td>${{ "{:,.2f}".format(t.entry_price) }}</td>
+              <td>${{ "{:,.2f}".format(t.exit_price) }}</td>
+              <td>
+                {% if t.reason == "STOP" %}<span class="badge badge-stop">STOP</span>
+                {% elif t.reason == "SELL_SIG" %}<span class="badge badge-sig">SIG</span>
+                {% elif t.reason == "BEAR" %}<span class="badge badge-bear">BEAR</span>
+                {% elif t.reason == "OB_EXIT" %}<span class="badge badge-bear">OB</span>
+                {% elif t.reason == "TREND_REV" %}<span class="badge badge-stop">TREV</span>
+                {% elif t.reason == "END" %}<span class="badge badge-other">END</span>
+                {% else %}<span class="badge badge-other">{{ t.reason }}</span>{% endif %}
+              </td>
+              <td class="{{ 'pnl-pos' if t.win else 'pnl-neg' }}">
+                {{ "{:+.2f}".format(t.pnl_pct) }}%
+              </td>
+              <td class="{{ 'pnl-pos' if t.net_pnl >= 0 else 'pnl-neg' }}">
+                ${{ "{:+,.0f}".format(t.net_pnl) }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if result.total_trades_count > result.trades|length %}
+      <p class="note">⚠️ Chỉ hiển thị {{ result.trades|length }} lệnh gần nhất. Tổng: {{ result.total_trades_count }} lệnh.</p>
+      {% endif %}
+    </div>
+
+    {% endif %} {# end if result.error #}
+  {% endif %} {# end if result #}
+
+</div><!-- /container -->
+
+<script>
+// ── Quick-fill form ────────────────────────────────────────────────────────
+function setForm(sym, iv) {
+  document.querySelector('select[name="symbol"]').value = sym;
+  document.querySelector('select[name="interval"]').value = iv;
+}
+
+// ── Equity chart ──────────────────────────────────────────────────────────
+{% if result and not result.error %}
+(function () {
+  const raw = {{ result_json | safe }};
+  if (!raw || !raw.equity_curve || raw.equity_curve.length === 0) return;
+
+  const labels = raw.equity_curve.map(e => e.date);
+  const values = raw.equity_curve.map(e => e.equity);
+  const initial = raw.summary.initial_capital;
+
+  // Color gradient: green above initial, red below
+  const ctx = document.getElementById('equityChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 280);
+  grad.addColorStop(0, 'rgba(63,185,80,0.3)');
+  grad.addColorStop(1, 'rgba(63,185,80,0.0)');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Equity',
+        data: values,
+        borderColor: '#3fb950',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: true,
+        backgroundColor: grad,
+        tension: 0.1,
+      }, {
+        label: 'Initial Capital',
+        data: Array(labels.length).fill(initial),
+        borderColor: 'rgba(139,148,158,0.4)',
+        borderWidth: 1,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        fill: false,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#161b22',
+          borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#8b949e', bodyColor: '#e6edf3',
+          callbacks: {
+            label: (ctx) => ctx.datasetIndex === 0
+              ? ` $${ctx.parsed.y.toLocaleString('en', {maximumFractionDigits:0})}`
+              : null,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8b949e', maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } },
+          grid: { color: '#21262d' },
+        },
+        y: {
+          ticks: {
+            color: '#8b949e', font: { size: 10 },
+            callback: v => '$' + v.toLocaleString('en', { notation:'compact', maximumFractionDigits:1 }),
+          },
+          grid: { color: '#21262d' },
+        },
+      },
+    },
+  });
+})();
+{% endif %}
+</script>
+</body>
+</html>

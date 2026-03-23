@@ -4,6 +4,7 @@ bot.py — Crypto bot dashboard endpoints.
 import asyncio, json, logging
 from datetime import datetime
 from typing import Any, Dict, List
+from pathlib import Path
 
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -195,4 +196,49 @@ async def bot_dashboard(
         "d1_bearish": not dctx.get("uptrend", True) and dctx.get("bear_ema", False),
         "tracker_action": tracker.get("action", "HOLD"),
         "tracker_reason": tracker.get("reason", ""),
+    })
+
+
+# ── /bot/backtest ─────────────────────────────────────────────────────────────
+
+@router.get("/backtest", response_class=HTMLResponse)
+async def backtest_page(
+    request: Request,
+    symbol:   str   = Query("BTCUSDT"),
+    interval: str   = Query("4h"),
+    mode:     str   = Query(BOT_MODE),
+    capital:  float = Query(10000),
+    run:      int   = Query(0),   # run=1 để thực sự chạy backtest
+):
+    symbol   = symbol.upper()
+    interval = interval if interval in {"1d", "4h", "1h"} else "4h"
+    mode     = mode     if mode     in {"default", "optimized"} else BOT_MODE
+    capital  = max(100.0, min(capital, 10_000_000))
+
+    # Danh sách file có sẵn
+    available = []
+    data_dir  = Path("data")
+    if data_dir.exists():
+        for f in sorted(data_dir.glob("*_10y.csv")):
+            parts = f.stem.split("_")
+            if len(parts) >= 2:
+                available.append({"symbol": parts[0], "interval": parts[1]})
+
+    result = None
+    if run:
+        def _run():
+            from services.bot_backtest import run_backtest
+            return run_backtest(symbol, interval, mode, capital)
+        result = await asyncio.to_thread(_run)
+
+    return templates.TemplateResponse("bot_backtest.html", {
+        "request":    request,
+        "symbol":     symbol,
+        "interval":   interval,
+        "mode":       mode,
+        "capital":    capital,
+        "bot_mode":   BOT_MODE,
+        "available":  available,
+        "result":     result,
+        "result_json": json.dumps(result) if result else "null",
     })
