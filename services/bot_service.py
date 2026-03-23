@@ -729,7 +729,25 @@ def _handle_check_command(chat_id: str, symbol: str):
         symbol = symbol + "USDT"
 
     try:
-        tracker = run_symbol_tracker_once(symbol, send_notify=False)
+        # Fetch tracker + S/R levels in parallel threads
+        tracker_res: Dict[str, Any] = {}
+        sr_d1_res:   Dict[str, Any] = {}
+        sr_4h_res:   Dict[str, Any] = {}
+
+        def _tracker():  tracker_res["v"] = run_symbol_tracker_once(symbol, send_notify=False)
+        def _sr_d1():    sr_d1_res["v"]   = ind.find_support_resistance(symbol, "1d", limit=120)
+        def _sr_4h():    sr_4h_res["v"]   = ind.find_support_resistance(symbol, "4h", limit=100, pivot_strength=2)
+
+        t_tr = threading.Thread(target=_tracker)
+        t_d1 = threading.Thread(target=_sr_d1)
+        t_4h = threading.Thread(target=_sr_4h)
+        t_tr.start(); t_d1.start(); t_4h.start()
+        t_tr.join(timeout=30); t_d1.join(timeout=15); t_4h.join(timeout=15)
+
+        tracker = tracker_res.get("v", {})
+        sr_d1   = sr_d1_res.get("v", {"supports": [], "resistances": []})
+        sr_4h   = sr_4h_res.get("v", {"supports": [], "resistances": []})
+
         snap  = tracker.get("snapshot", {})
         dctx  = tracker.get("daily_context", {})
         sim   = tracker.get("simulated_trade", {})
@@ -804,6 +822,26 @@ def _handle_check_command(chat_id: str, symbol: str):
             msg += f"⚡ Bars below EMA200: <b>{bars_below}</b> (Breakout Watch)\n"
         elif bars_below > 0:
             msg += f"Bars below EMA200: {bars_below}\n"
+
+        # S/R levels block
+        res_d1 = sr_d1.get("resistances", [])
+        sup_d1 = sr_d1.get("supports", [])
+        res_4h = sr_4h.get("resistances", [])
+        sup_4h = sr_4h.get("supports", [])
+        if res_d1 or sup_d1 or res_4h or sup_4h:
+            msg += "━━━━━━━━━━━━━━━\n📌 <b>Vùng S/R</b>\n"
+            if res_d1:
+                levels = " | ".join(f"${v:,.2f}" for v in res_d1)
+                msg += f"🔴 Kháng cự 1D: {levels}\n"
+            if sup_d1:
+                levels = " | ".join(f"${v:,.2f}" for v in sup_d1)
+                msg += f"🟢 Hỗ trợ 1D:   {levels}\n"
+            if res_4h:
+                levels = " | ".join(f"${v:,.2f}" for v in res_4h)
+                msg += f"🟠 Kháng cự 4H: {levels}\n"
+            if sup_4h:
+                levels = " | ".join(f"${v:,.2f}" for v in sup_4h)
+                msg += f"🔵 Hỗ trợ 4H:   {levels}\n"
 
         sim_status = sim.get("status", "WATCHING")
         strategy   = sim.get("strategy", "") or tracker.get("reason", "")
