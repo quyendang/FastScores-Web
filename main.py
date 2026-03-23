@@ -69,13 +69,19 @@ async def health():
 @app.on_event("startup")
 def start_bot_scheduler():
     from services.supabase_client import get_bot_supabase
-    from services.bot_service import symbols_tracker_job
+    from services.bot_service import symbols_tracker_job, poll_telegram_commands
 
     def _job():
         try:
             symbols_tracker_job(get_bot_supabase())
         except Exception as e:
             logging.error(f"[SCHEDULER] symbols_tracker_job error: {e}")
+
+    def _cmd_job():
+        try:
+            poll_telegram_commands()
+        except Exception as e:
+            logging.error(f"[SCHEDULER] poll_telegram_commands error: {e}")
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(
@@ -86,5 +92,12 @@ def start_bot_scheduler():
         replace_existing=True,
         next_run_time=datetime.utcnow(),
     )
+    scheduler.add_job(
+        _cmd_job,
+        "interval",
+        seconds=30,
+        id="telegram_command_handler",
+        replace_existing=True,
+    )
     scheduler.start()
-    logging.info("[SCHEDULER] Bot scheduler started (every 10 min)")
+    logging.info("[SCHEDULER] Bot scheduler started (tracker: 10 min, cmd poll: 30s)")

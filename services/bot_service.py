@@ -81,6 +81,7 @@ _open_positions: Dict[str, dict] = {}   # {symbol: {entry_price, stop_price, ...
 _notify_last_sent: Dict[str, float] = {}
 _chat_ids_cache: Dict[str, Any] = {"ids": [], "fetched_at": 0.0}
 CHAT_IDS_CACHE_TTL = 300
+_cmd_update_offset: int = 0             # last processed update_id + 1 for /check command polling
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 def _can_notify(key: str) -> bool:
@@ -718,6 +719,172 @@ def symbols_tracker_job(supabase=None):
                     logging.warning(f"[JOB] DB {action} {symbol}: {e}")
         except Exception as e:
             logging.error(f"[JOB] {symbol}: {e}")
+
+# ── /check Telegram command handler ──────────────────────────────────────────
+def _handle_check_command(chat_id: str, symbol: str):
+    """Process /check <symbol>: run v5 tracker + AI and reply to chat_id."""
+    url_send = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    # Ensure USDT suffix
+    if not symbol.endswith("USDT"):
+        symbol = symbol + "USDT"
+
+    try:
+        tracker = run_symbol_tracker_once(symbol, send_notify=False)
+        snap  = tracker.get("snapshot", {})
+        dctx  = tracker.get("daily_context", {})
+        sim   = tracker.get("simulated_trade", {})
+        action = tracker.get("action", "HOLD")
+
+        price    = snap.get("price", 0)
+        rsi      = snap.get("rsi_14", 50)
+        adx      = snap.get("adx_14", 0)
+        macd_h   = snap.get("macd_hist", 0)
+        rising   = snap.get("macd_rising", False)
+        atr      = snap.get("atr_14", 0)
+        ema34    = snap.get("ema34") or 0
+        ema50    = snap.get("ema50") or 0
+        ema200   = snap.get("ema200") or 0
+        bars_below = snap.get("bars_below_ema200", 0)
+        buy_score  = snap.get("buy_score", 0)
+        sell_score = snap.get("sell_score", 0)
+        trend_str  = "Uptrend ✅" if dctx.get("uptrend") else "Downtrend ⚠️"
+
+        if action == "BUY":
+            signal_emoji = "🟢"
+            signal_label = f"MUA — {tracker.get('reason', '')}"
+        elif action == "HOLD_POS":
+            signal_emoji = "🔄"
+            signal_label = "Đang giữ lệnh"
+        elif action == "CLOSE":
+            signal_emoji = "🔴"
+            signal_label = f"Đóng lệnh — {tracker.get('reason', '')}"
+        else:
+            signal_emoji = "⚪"
+            signal_label = "Chờ tín hiệu"
+
+        # AI analysis
+        ai_snap = {
+            "price": price, "rsi_14": rsi, "adx_14": adx,
+            "macd_hist": macd_h, "macd_rising": rising,
+            "stoch_k": snap.get("stoch_k", 50), "uptrend": dctx.get("uptrend"),
+            "entry_strategy": sim.get("strategy") or tracker.get("reason", ""),
+            "ema34": ema34, "ema50": ema50,
+            "bars_below_ema200": bars_below,
+            "entry_mode": sim.get("mode", ""),
+        }
+        ai1 = ai2 = ""
+        try:
+            from services.bot_ai import call_openrouter_analysis, call_openrouter_analysis_model2
+            ai_results: Dict[str, str] = {}
+            def _m1(): ai_results["m1"] = call_openrouter_analysis(symbol, "4h", ai_snap)
+            def _m2(): ai_results["m2"] = call_openrouter_analysis_model2(symbol, "4h", ai_snap)
+            t1 = threading.Thread(target=_m1); t2 = threading.Thread(target=_m2)
+            t1.start(); t2.start(); t1.join(timeout=25); t2.join(timeout=25)
+            ai1 = ai_results.get("m1", ""); ai2 = ai_results.get("m2", "")
+        except Exception:
+            pass
+
+        mode_tag = "Optimized" if BOT_MODE == "optimized" else "Default"
+
+        msg = (
+            f"📊 <b>{symbol}</b> /check [{mode_tag}]\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"{signal_emoji} <b>{signal_label}</b>\n"
+            f"Giá: <b>${price:,.2f}</b> | ATR: ${atr:,.2f}\n"
+            f"1D: {trend_str}\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"RSI: {rsi:.1f} | ADX: {adx:.1f}\n"
+            f"MACD: {'↑ Tăng' if rising else '↓ Giảm'} (hist: {macd_h:+.4f})\n"
+            f"Buy Score: {buy_score} | Sell Score: {sell_score}\n"
+            f"EMA34: ${ema34:,.2f} | EMA50: ${ema50:,.2f}"
+            + (f" | EMA200: ${ema200:,.2f}" if ema200 else "") + "\n"
+        )
+
+        if bars_below >= 15:
+            msg += f"⚡ Bars below EMA200: <b>{bars_below}</b> (Breakout Watch)\n"
+        elif bars_below > 0:
+            msg += f"Bars below EMA200: {bars_below}\n"
+
+        sim_status = sim.get("status", "WATCHING")
+        strategy   = sim.get("strategy", "") or tracker.get("reason", "")
+        strat_label = _STRAT_LABELS.get(strategy, strategy)
+
+        if sim_status == "IN_TRADE":
+            entry_p = sim.get("entry_price", price)
+            stop_p  = sim.get("stop_price", 0)
+            pnl_pct = sim.get("pnl_pct", 0)
+            pos_usd = sim.get("pos_usd", 0)
+            trail   = sim.get("trail_label", "")
+            msg += (
+                f"━━━━━━━━━━━━━━━\n"
+                f"🔄 <b>Lệnh đang mở</b> ({strat_label})\n"
+                f"Vào: ${entry_p:,.2f} → Hiện: ${price:,.2f}\n"
+                f"Stop: ${stop_p:,.2f} | {trail}\n"
+                f"P&amp;L: <b>{pnl_pct:+.2f}%</b> | Vị thế: ${pos_usd:,.0f}\n"
+            )
+        elif sim_status == "SIGNAL":
+            stop_p  = sim.get("stop_price", 0)
+            tp_p    = sim.get("tp_estimate", 0)
+            pos_usd = sim.get("pos_usd", 0)
+            sl_pct  = sim.get("sl_pct", 0)
+            msg += (
+                f"━━━━━━━━━━━━━━━\n"
+                f"🚀 <b>Tín hiệu vào lệnh</b> ({strat_label})\n"
+                f"Entry: ${price:,.2f}\n"
+                f"SL: ${stop_p:,.2f} (-{sl_pct:.1f}%)\n"
+                f"TP ước tính: ${tp_p:,.2f}\n"
+                f"Vị thế: ${pos_usd:,.0f}\n"
+            )
+
+        if ai1:
+            msg += f"━━━━━━━━━━━━━━━\n🤖 <b>AI Phân tích:</b>\n{ai1}\n"
+        if ai2:
+            msg += f"⚠️ <b>AI Rủi ro:</b>\n{ai2}\n"
+
+        requests.post(url_send, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}, timeout=15)
+
+    except Exception as e:
+        logging.error(f"[CHECK CMD] {symbol}: {e}")
+        try:
+            requests.post(url_send, json={
+                "chat_id": chat_id,
+                "text": f"❌ Lỗi khi kiểm tra {symbol}: {e}",
+            }, timeout=10)
+        except Exception:
+            pass
+
+
+def poll_telegram_commands():
+    """Poll getUpdates for /check <symbol> commands and reply. Called every 30s by scheduler."""
+    global _cmd_update_offset
+    if not TELEGRAM_BOT_TOKEN:
+        return
+
+    url_updates = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+    try:
+        params: Dict[str, Any] = {"limit": 50, "timeout": 0, "allowed_updates": ["message"]}
+        if _cmd_update_offset:
+            params["offset"] = _cmd_update_offset
+        resp  = requests.get(url_updates, params=params, timeout=10)
+        data  = resp.json()
+        if not data.get("ok"):
+            return
+        for upd in data.get("result", []):
+            update_id = upd.get("update_id", 0)
+            msg = upd.get("message") or {}
+            text    = (msg.get("text") or "").strip()
+            chat_id = str((msg.get("chat") or {}).get("id", ""))
+            if chat_id and text.lower().startswith("/check"):
+                parts  = text.split()
+                symbol = parts[1].upper() if len(parts) >= 2 else ""
+                if symbol:
+                    logging.info(f"[CMD] /check {symbol} from {chat_id}")
+                    _handle_check_command(chat_id, symbol)
+            if update_id + 1 > _cmd_update_offset:
+                _cmd_update_offset = update_id + 1
+    except Exception as e:
+        logging.warning(f"[TELEGRAM CMD] poll error: {e}")
+
 
 # ── Legacy compat (used by old router) ───────────────────────────────────────
 def compute_d1_bias(symbol: str):
