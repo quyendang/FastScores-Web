@@ -455,23 +455,29 @@
         </div>
       </div>
 
-      <!-- Signal History -->
+      <!-- Signal History (Trade P&L) -->
       <div class="panel hist-wrap">
-        <div class="panel-header">Signal History</div>
+        <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Signal History — Trade P&amp;L <span style="font-size:11px;color:#8b949e;font-weight:400">(mô phỏng $10k/lệnh)</span></span>
+          <span id="histSummary" style="font-size:12px;color:#8b949e"></span>
+        </div>
         <div style="overflow-x:auto">
           <table class="hist-table">
             <thead>
               <tr>
-                <th>Time (UTC)</th>
-                <th>Type</th>
-                <th>Price</th>
-                <th>RSI</th>
-                <th>Buy/Sell</th>
-                <th>Detail</th>
+                <th>Entry Time</th>
+                <th>Strategy</th>
+                <th>Entry $</th>
+                <th>Exit $</th>
+                <th>P&amp;L %</th>
+                <th>P&amp;L $</th>
+                <th>Pos $</th>
+                <th>Status</th>
+                <th>Exit Reason</th>
               </tr>
             </thead>
             <tbody id="histTbody">
-              <tr><td colspan="6" class="text-sub" style="padding:16px;text-align:center">Loading...</td></tr>
+              <tr><td colspan="9" class="text-sub" style="padding:16px;text-align:center">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -844,28 +850,72 @@
     },
   });
 
-  // ── Signal History Table ─────────────────────────────────────────────────
+  // ── Signal History Table (Trade P&L) ─────────────────────────────────────
   const tbody = document.getElementById("histTbody");
-  if (!dbSigs || !dbSigs.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-sub" style="padding:16px;text-align:center">No signals yet</td></tr>`;
+  const histSummary = document.getElementById("histSummary");
+
+  // Only show BUY rows (each BUY row tracks a full trade lifecycle)
+  const tradeRows = dbSigs.filter(s => s.signal_type === "BUY" || (!s.signal_type && s.entry_price));
+
+  if (!tradeRows.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="text-sub" style="padding:16px;text-align:center">No trades yet</td></tr>`;
   } else {
-    const recent = dbSigs.slice().reverse().slice(0, 50);
+    const recent = tradeRows.slice().reverse().slice(0, 50);
+
+    // Summary stats for closed trades
+    const closed = tradeRows.filter(s => s.status === "closed" || s.status === "stopped");
+    if (closed.length) {
+      const wins    = closed.filter(s => (s.pnl_pct || 0) > 0).length;
+      const totPnl  = closed.reduce((a, s) => a + (s.pnl_usd || 0), 0);
+      const wr      = (wins / closed.length * 100).toFixed(0);
+      const pnlColor = totPnl >= 0 ? "#3fb950" : "#f85149";
+      histSummary.innerHTML = `${closed.length} closed &nbsp;|&nbsp; WR: <b>${wr}%</b> &nbsp;|&nbsp; Total P&L: <b style="color:${pnlColor}">${totPnl >= 0 ? "+" : ""}$${totPnl.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</b>`;
+    }
+
+    const fmt  = v => v != null ? `$${parseFloat(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
+    const stratLabel = { DIP_BUY: "Dip Buy", TREND_FOLLOW: "Trend", SCORE_BUY: "Score" };
+
     tbody.innerHTML = recent.map(s => {
-      const dt = s.created_at ? s.created_at.replace("T", " ").slice(0, 16) : "—";
-      const typeColor = s.signal_type === "BUY" ? "badge-green" :
-                        s.signal_type === "CLOSE" ? "badge-red" : "badge-gray";
-      const price = s.price ? `$${parseFloat(s.price).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
-      const rsi   = s.rsi ? parseFloat(s.rsi).toFixed(1) : "—";
-      const bs    = s.buy_score ?? "—";
-      const ss    = s.sell_score ?? "—";
-      const detail = s.signal_detail || "—";
-      return `<tr>
-        <td class="text-sub">${dt}</td>
-        <td><span class="badge ${typeColor}">${s.signal_type || "—"}</span></td>
-        <td>${price}</td>
-        <td>${rsi}</td>
-        <td class="text-sub" style="font-size:11px">B:${bs} / S:${ss}</td>
-        <td class="text-sub" style="font-size:11px">${detail}</td>
+      const dt = s.created_at ? s.created_at.replace("T"," ").slice(0,16) : "—";
+      const strat = stratLabel[s.strategy] || s.strategy || s.signal_detail?.split(" ")[0] || "—";
+
+      // Status badge
+      let statusBadge;
+      if (s.status === "open") {
+        statusBadge = `<span class="badge badge-yellow">OPEN</span>`;
+      } else if (s.status === "closed") {
+        statusBadge = `<span class="badge badge-green">WIN</span>`;
+      } else if (s.status === "stopped") {
+        statusBadge = `<span class="badge badge-red">LOSS</span>`;
+      } else {
+        statusBadge = `<span class="badge badge-gray">${s.status || "?"}</span>`;
+      }
+
+      // P&L coloring
+      const pnlPct = s.pnl_pct != null ? parseFloat(s.pnl_pct) : null;
+      const pnlUsd = s.pnl_usd != null ? parseFloat(s.pnl_usd) : null;
+      const pnlPctStr = pnlPct != null
+        ? `<span style="color:${pnlPct>=0?'#3fb950':'#f85149'};font-weight:600">${pnlPct>=0?"+":""}${pnlPct.toFixed(2)}%</span>`
+        : s.status === "open" ? `<span style="color:#8b949e;font-style:italic">open</span>` : "—";
+      const pnlUsdStr = pnlUsd != null
+        ? `<span style="color:${pnlUsd>=0?'#3fb950':'#f85149'};font-weight:600">${pnlUsd>=0?"+":""}$${Math.abs(pnlUsd).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</span>`
+        : "—";
+
+      const posUsd = s.position_usd != null ? `$${parseFloat(s.position_usd).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}` : "—";
+      const rowStyle = s.status === "open" ? "background:rgba(56,139,253,0.05)" :
+                       s.status === "closed" ? "background:rgba(63,185,80,0.04)" :
+                       s.status === "stopped" ? "background:rgba(248,81,73,0.04)" : "";
+
+      return `<tr style="${rowStyle}">
+        <td class="text-sub" style="font-size:11px;white-space:nowrap">${dt}</td>
+        <td style="font-size:12px">${strat}</td>
+        <td style="font-size:12px">${fmt(s.entry_price || s.price)}</td>
+        <td style="font-size:12px">${s.exit_price ? fmt(s.exit_price) : "—"}</td>
+        <td style="font-size:13px">${pnlPctStr}</td>
+        <td style="font-size:13px">${pnlUsdStr}</td>
+        <td class="text-sub" style="font-size:11px">${posUsd}</td>
+        <td>${statusBadge}</td>
+        <td class="text-sub" style="font-size:11px">${s.exit_reason || "—"}</td>
       </tr>`;
     }).join("");
   }

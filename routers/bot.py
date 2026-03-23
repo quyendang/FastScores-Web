@@ -90,7 +90,7 @@ async def bot_dashboard(
     def _db_signals():
         try:
             return (get_supabase().table("signal_history")
-                    .select("signal_type,price,rsi,buy_score,sell_score,signal_detail,created_at")
+                    .select("id,signal_type,status,price,entry_price,exit_price,pnl_pct,pnl_usd,strategy,exit_reason,position_usd,rsi,buy_score,sell_score,signal_detail,created_at,closed_at")
                     .eq("symbol", symbol).order("created_at", desc=False)
                     .limit(200).execute()).data or []
         except Exception:

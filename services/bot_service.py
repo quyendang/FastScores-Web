@@ -476,29 +476,94 @@ def _send_close(symbol, entry, exit_price, atr, pnl_pct, reason_label, strategy,
     telegram_notify(f"{symbol} - Dong lenh", msg)
 
 # ── Background job (called by scheduler) ─────────────────────────────────────
+def _db_record_buy(supabase, symbol: str, result: dict):
+    """Insert a new BUY trade row into signal_history."""
+    snap    = result.get("snapshot", {})
+    cfg     = get_bot_config(symbol)
+    price   = result.get("price") or snap.get("price")
+    pos_usd = 10_000 * cfg["position_pct"]
+    supabase.table("signal_history").insert({
+        "symbol":        symbol,
+        "signal_type":   "BUY",
+        "status":        "open",
+        "price":         price,
+        "entry_price":   price,
+        "rsi":           snap.get("rsi_14"),
+        "macd_hist":     snap.get("macd_hist"),
+        "buy_score":     snap.get("buy_score", 0),
+        "sell_score":    snap.get("sell_score", 0),
+        "signal_strength": 2,
+        "signal_detail": result.get("reason", ""),
+        "strategy":      result.get("strategy", result.get("reason", "")),
+        "position_usd":  round(pos_usd, 2),
+    }).execute()
+
+
+def _db_record_close(supabase, symbol: str, result: dict):
+    """Find the most recent open BUY for this symbol and close it with P&L."""
+    snap      = result.get("snapshot", {})
+    cfg       = get_bot_config(symbol)
+    exit_price = result.get("price") or snap.get("price")
+    reason     = result.get("reason", "")
+    now_iso    = datetime.utcnow().isoformat()
+
+    # Find open row
+    rows = (supabase.table("signal_history")
+            .select("id,entry_price,position_usd")
+            .eq("symbol", symbol).eq("status", "open")
+            .order("created_at", desc=True).limit(1).execute()).data or []
+
+    if rows:
+        row       = rows[0]
+        row_id    = row["id"]
+        entry     = float(row.get("entry_price") or exit_price)
+        pos_usd   = float(row.get("position_usd") or 10_000 * cfg["position_pct"])
+        pnl_pct   = (exit_price - entry) / entry * 100 if entry else 0.0
+        fee       = pos_usd * cfg["commission_pct"] / 100
+        pnl_usd   = pos_usd * pnl_pct / 100 - fee
+        new_status = "closed" if pnl_pct > 0 else "stopped"
+        supabase.table("signal_history").update({
+            "status":      new_status,
+            "exit_price":  round(exit_price, 4),
+            "pnl_pct":     round(pnl_pct, 2),
+            "pnl_usd":     round(pnl_usd, 2),
+            "exit_reason": reason,
+            "closed_at":   now_iso,
+            "sell_score":  snap.get("sell_score", 0),
+            "signal_detail": reason,
+        }).eq("id", row_id).execute()
+    else:
+        # No open trade found — insert a standalone CLOSE record
+        supabase.table("signal_history").insert({
+            "symbol":      symbol,
+            "signal_type": "CLOSE",
+            "status":      "closed",
+            "price":       exit_price,
+            "exit_price":  exit_price,
+            "rsi":         snap.get("rsi_14"),
+            "sell_score":  snap.get("sell_score", 0),
+            "signal_strength": 1,
+            "signal_detail": reason,
+            "exit_reason": reason,
+            "closed_at":   now_iso,
+        }).execute()
+
+
 def symbols_tracker_job(supabase=None):
     for symbol in RSI_SYMBOLS:
         try:
             result = run_symbol_tracker_once(symbol, send_notify=True)
             logging.info(f"[JOB] {symbol}: {result.get('action')} -- {result.get('reason')}")
 
-            # Optionally persist to signal_history
-            if supabase and result.get("action") in ("BUY", "CLOSE"):
+            if supabase:
+                action = result.get("action")
                 try:
-                    snap = result.get("snapshot", {})
-                    supabase.table("signal_history").insert({
-                        "symbol": symbol,
-                        "signal_type": result["action"],
-                        "price": result.get("price"),
-                        "rsi": snap.get("rsi_14"),
-                        "macd_hist": snap.get("macd_hist"),
-                        "buy_score": snap.get("buy_score", 0),
-                        "sell_score": snap.get("sell_score", 0),
-                        "signal_strength": 2 if result.get("action") == "BUY" else 1,
-                        "signal_detail": result.get("reason", ""),
-                    }).execute()
+                    if action == "BUY":
+                        _db_record_buy(supabase, symbol, result)
+                    elif action == "CLOSE":
+                        _db_record_close(supabase, symbol, result)
                 except Exception as e:
-                    logging.warning(f"[JOB] DB insert {symbol}: {e}")
+                    logging.warning(f"[JOB] DB {action} {symbol}: {e}")
         except Exception as e:
             logging.error(f"[JOB] {symbol}: {e}")
 
