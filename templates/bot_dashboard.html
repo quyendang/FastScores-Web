@@ -1,684 +1,875 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>{{ symbol }} Dashboard</title>
+  <title>{{ symbol }} — Crypto Bot Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #f5f7fb;
-      --card-bg: #ffffff;
-      --border: #e2e8f0;
-      --text-main: #0f172a;
-      --text-sub: #64748b;
-      --accent: #2563eb;
-      --green: #22c55e;
-      --red: #ef4444;
-      --muted: #e5e7eb;
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-sub: #8b949e;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+      --blue: #388bfd;
+      --purple: #bc8cff;
+      --orange: #f0883e;
+      --accent: #58a6ff;
     }
-    * { box-sizing: border-box; }
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
       background: var(--bg);
-      color: var(--text-main);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
     }
-    .page { max-width: 1200px; margin: 0 auto; padding: 24px 16px 40px; }
-    .header {
-      display: flex; flex-wrap: wrap; align-items: center;
-      justify-content: space-between; gap: 12px; margin-bottom: 16px;
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .page { max-width: 1280px; margin: 0 auto; padding: 16px 16px 48px; }
+
+    /* Navbar */
+    .navbar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+      padding: 12px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
     }
-    .header-title { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.02em; }
-    .badge-symbol {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 10px; border-radius: 999px;
-      background: rgba(37, 99, 235, 0.08); color: var(--accent);
-      font-size: 0.85rem; font-weight: 600;
+    .navbar-title { font-size: 1.2rem; font-weight: 700; color: var(--text); }
+    .navbar-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+    select, input[type=text] {
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 10px; font-size: 13px; cursor: pointer;
     }
-    .badge-state {
-      display: inline-block; padding: 4px 10px; border-radius: 999px;
-      font-size: 0.85rem; font-weight: 600; margin-left: 8px;
+    select:focus, input[type=text]:focus { outline: none; border-color: var(--accent); }
+    .btn {
+      padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600;
+      border: none; cursor: pointer; transition: opacity .15s;
     }
-    .state-buy  { background-color: var(--green); color: #fff; }
-    .state-sell { background-color: var(--red);   color: #fff; }
-    .state-hold { background-color: #6b7280;      color: #fff; }
-    .header-sub { font-size: 0.9rem; color: var(--text-sub); }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-green  { background: var(--green); color: #000; }
+    .btn-red    { background: var(--red); color: #fff; }
+    .btn-ghost  { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    }
+    .badge-green  { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .badge-red    { background: rgba(248,81,73,.15); color: var(--red); border: 1px solid rgba(248,81,73,.3); }
+    .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+    .badge-blue   { background: rgba(56,139,253,.15); color: var(--blue); border: 1px solid rgba(56,139,253,.3); }
+    .badge-purple { background: rgba(188,140,255,.15); color: var(--purple); border: 1px solid rgba(188,140,255,.3); }
+    .badge-gray   { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
+
+    /* Cards grid */
     .cards {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 12px; margin-bottom: 20px;
     }
     .card {
-      background: var(--card-bg); border-radius: 14px; padding: 12px 14px;
-      border: 1px solid var(--border); box-shadow: 0 4px 10px rgba(15,23,42,0.04);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px;
     }
-    .card-label {
-      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--text-sub); margin-bottom: 4px;
-    }
-    .card-main { font-size: 1.1rem; font-weight: 600; display: flex; align-items: baseline; gap: 6px; }
-    .card-sub { font-size: 0.82rem; color: var(--text-sub); margin-top: 2px; }
-    .change-badge {
-      padding: 2px 8px; border-radius: 999px;
-      font-size: 0.75rem; font-weight: 600; color: #fff;
-    }
-    .change-pos { background-color: var(--green); }
-    .change-neg { background-color: var(--red); }
+    .card-label { font-size: 11px; color: var(--text-sub); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .card-value { font-size: 1.5rem; font-weight: 700; }
+    .card-sub   { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+    .text-green { color: var(--green); }
+    .text-red   { color: var(--red); }
+    .text-yellow{ color: var(--yellow); }
+    .text-blue  { color: var(--blue); }
+    .text-purple{ color: var(--purple); }
+    .text-sub   { color: var(--text-sub); }
+
+    /* Two-column layout */
+    .two-col { display: grid; grid-template-columns: 1fr 360px; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* Panel */
     .panel {
-      background: var(--card-bg); border-radius: 16px; padding: 16px 16px 20px;
-      border: 1px solid var(--border); box-shadow: 0 8px 20px rgba(15,23,42,0.06);
-      margin-bottom: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
     }
-    .panel-title {
-      font-size: 0.96rem; font-weight: 600; margin-bottom: 10px;
-      color: var(--text-main); display: flex; justify-content: space-between; align-items: center;
+    .panel-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px;
     }
-    .panel-title span.sub { font-size: 0.8rem; color: var(--text-sub); font-weight: 400; }
-    canvas { max-width: 100%; }
-    .zone-legend {
-      display: inline-flex; align-items: center; gap: 8px;
-      font-size: 0.8rem; color: var(--text-sub);
+    .panel-body { padding: 16px; }
+
+    /* Chart */
+    .chart-wrap { position: relative; height: 320px; }
+    .chart-sub-wrap { position: relative; height: 120px; margin-top: 8px; }
+
+    /* Indicator rows */
+    .ind-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0; border-bottom: 1px solid var(--border);
     }
-    .legend-box { width: 14px; height: 8px; border-radius: 999px; }
-    .legend-buy     { background: rgba(34, 197, 94, 0.12); }
-    .legend-sell    { background: rgba(239, 68, 68, 0.12); }
-    .legend-db-buy  { background: rgba(5, 150, 105, 0.85); border-radius: 2px; }
-    .legend-db-sell { background: rgba(220, 38, 38, 0.85); border-radius: 2px; }
-    .sub-btn {
-      border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600;
-      padding: 6px 12px; border-radius: 999px;
+    .ind-row:last-child { border-bottom: none; }
+    .ind-label { color: var(--text-sub); font-size: 12px; }
+    .ind-value { font-weight: 600; font-size: 13px; }
+
+    /* Signal trade table */
+    .sig-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sig-table th {
+      text-align: left; padding: 8px 10px; background: var(--surface2);
+      color: var(--text-sub); font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+      border-bottom: 1px solid var(--border);
     }
-    .tf-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-    .tf-btn {
-      padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border);
-      background: #1e293b; color: #cbd5e1; font-size: 0.83rem; font-weight: 600;
-      cursor: pointer; text-decoration: none; transition: background 0.15s, color 0.15s;
+    .sig-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .sig-table tr:last-child td { border-bottom: none; }
+    .sig-table tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* Trend bar */
+    .trend-bar {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      background: var(--surface2); border-radius: 8px; margin-bottom: 16px;
     }
-    .tf-btn:hover { background: #334155; color: #fff; }
-    .tf-btn.active { background: #fff; color: #0f172a; border-color: #94a3b8; }
-    .d1-badge {
-      display: inline-block; padding: 5px 12px; border-radius: 999px;
-      font-size: 0.83rem; font-weight: 700; letter-spacing: 0.04em;
+    .trend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* AI boxes */
+    .ai-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 16px; overflow: hidden;
     }
-    .d1-bull { background: rgba(34,197,94,0.15); color: #16a34a; border: 1px solid rgba(34,197,94,0.3); }
-    .d1-bear { background: rgba(239,68,68,0.15); color: #dc2626; border: 1px solid rgba(239,68,68,0.3); }
-    .d1-neutral { background: rgba(107,114,128,0.12); color: #6b7280; border: 1px solid rgba(107,114,128,0.25); }
-    .ai-panel {
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      border-color: rgba(99,102,241,0.3);
+    .ai-box-header {
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 600; color: var(--text-sub);
     }
-    .ai-panel .panel-title {
-      color: #e2e8f0; border-bottom: 1px solid rgba(99,102,241,0.2);
-      padding-bottom: 10px; margin-bottom: 14px;
+    .ai-box-body { padding: 14px 16px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+
+    /* Subscribe */
+    .sub-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* Pnl colors */
+    .pnl-pos { color: var(--green); }
+    .pnl-neg { color: var(--red); }
+
+    /* History table */
+    .hist-wrap { margin-top: 20px; }
+    .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .hist-table th {
+      text-align: left; padding: 7px 10px; background: var(--surface2);
+      color: var(--text-sub); font-size: 11px; text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
     }
-    .ai-panel .panel-title .sub { color: #94a3b8; }
-    .ai-badge {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
-      font-size: 0.7rem; font-weight: 700; padding: 3px 9px;
-      border-radius: 999px; letter-spacing: 0.08em;
+    .hist-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+    .hist-table tr:hover td { background: rgba(255,255,255,.02); }
+    .hist-table tbody tr:last-child td { border-bottom: none; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .cards { grid-template-columns: 1fr 1fr; }
+      .card-value { font-size: 1.2rem; }
     }
-    .ai-body { color: #cbd5e1; font-size: 0.92rem; line-height: 1.75; }
-    .ai-body h3 {
-      color: #f1f5f9; font-size: 0.97rem; font-weight: 700;
-      margin: 16px 0 6px; display: flex; align-items: center; gap: 6px;
-    }
-    .ai-body h3:first-child { margin-top: 0; }
-    .ai-body p  { margin: 0 0 10px; }
-    .ai-body ul { margin: 0 0 10px; padding-left: 20px; }
-    .ai-body li { margin-bottom: 4px; }
-    .ai-body strong { color: #f8fafc; font-weight: 600; }
-    .ai-body table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.88rem; }
-    .ai-body th { background: rgba(99,102,241,0.15); color: #a5b4fc; padding: 6px 10px; text-align: left; font-weight: 600; }
-    .ai-body td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .ai-body tr:last-child td { border-bottom: none; }
-    @media (max-width: 640px) { .header { align-items: flex-start; } }
   </style>
 </head>
 <body>
-  <div class="page">
-    <!-- HEADER -->
-    <header class="header">
-      <div>
-        <div class="header-title">
-          {{ symbol }} Dashboard
-          <span class="badge-symbol">
-            <span style="width:8px;height:8px;border-radius:999px;background:#22c55e;"></span>
-            Spot Tracker
-          </span>
-          <span id="lastStateBadge" class="badge-state state-hold">HOLD</span>
-        </div>
-        <div class="header-sub">
-          Auto-tracking Price, RSI, zones &amp; BUY/SELL signals ({{ tf }} data)
-          <br />
-          <small>
-            Server tracker: <strong>{{ tracker_action }}</strong>
-            {% if tracker_reason %} &ndash; {{ tracker_reason }}{% endif %}
-          </small>
-        </div>
-      </div>
-      <div>
-        {% if is_subscribed %}
-        <form method="post" action="/bot/unsubscribe">
-          <input type="hidden" name="symbol" value="{{ symbol }}">
-          <button type="submit" class="sub-btn state-sell">UNSUBSCRIBE</button>
-        </form>
-        {% else %}
-        <form method="post" action="/bot/subscribe">
-          <input type="hidden" name="symbol" value="{{ symbol }}">
-          <button type="submit" class="sub-btn state-buy">SUBSCRIBE</button>
-        </form>
-        {% endif %}
-      </div>
-    </header>
+<div class="page">
 
-    <!-- TIMEFRAME SELECTOR + D1 BIAS -->
-    <div class="tf-bar">
-      <a href="?symbol={{ symbol }}&tf=15m" class="tf-btn {% if tf == '15m' %}active{% endif %}">M15</a>
-      <a href="?symbol={{ symbol }}&tf=1h"  class="tf-btn {% if tf == '1h'  %}active{% endif %}">H1</a>
-      <a href="?symbol={{ symbol }}&tf=4h"  class="tf-btn {% if tf == '4h'  %}active{% endif %}">H4</a>
-      <a href="?symbol={{ symbol }}&tf=1d"  class="tf-btn {% if tf == '1d'  %}active{% endif %}">D1</a>
-      {% if d1_bullish %}
-        <span class="d1-badge d1-bull">D1: BULL</span>
-      {% elif d1_bearish %}
-        <span class="d1-badge d1-bear">D1: BEAR</span>
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <div class="navbar-title">Crypto Bot</div>
+
+    <!-- Mode badge -->
+    {% if bot_mode == "optimized" %}
+      <span class="badge badge-purple">Optimized</span>
+    {% else %}
+      <span class="badge badge-gray">Default</span>
+    {% endif %}
+
+    <!-- 1D trend -->
+    {% if d1_bullish %}
+      <span class="badge badge-green">1D Uptrend</span>
+    {% elif d1_bearish %}
+      <span class="badge badge-red">1D Downtrend</span>
+    {% else %}
+      <span class="badge badge-yellow">1D Neutral</span>
+    {% endif %}
+
+    <!-- Action badge -->
+    {% set act = tracker_action %}
+    {% if act == "BUY" or act == "LOOKING" %}
+      <span class="badge badge-green">{{ act }}</span>
+    {% elif act == "CLOSE" %}
+      <span class="badge badge-red">CLOSE</span>
+    {% elif act == "HOLD_POS" %}
+      <span class="badge badge-blue">HOLD POS</span>
+    {% else %}
+      <span class="badge badge-gray">{{ act }}</span>
+    {% endif %}
+
+    <div class="navbar-controls">
+      <form method="get" action="/bot" style="display:flex;gap:8px;align-items:center">
+        <input type="text" name="symbol" value="{{ symbol }}" style="width:130px" placeholder="Symbol" />
+        <select name="tf">
+          {% for t in ["15m","1h","4h","1d"] %}
+            <option value="{{ t }}" {% if t == tf %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Go</button>
+      </form>
+
+      <!-- Subscribe / Unsubscribe -->
+      {% if is_subscribed %}
+        <form method="post" action="/bot/unsubscribe" class="sub-form">
+          <input type="hidden" name="symbol" value="{{ symbol }}" />
+          <button type="submit" class="btn btn-ghost">Unsubscribe</button>
+        </form>
       {% else %}
-        <span class="d1-badge d1-neutral">D1: NEUTRAL</span>
+        <form method="post" action="/bot/subscribe" class="sub-form">
+          <input type="hidden" name="symbol" value="{{ symbol }}" />
+          <button type="submit" class="btn btn-green">Subscribe</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- STAT CARDS -->
+  <div class="cards">
+    <!-- Price -->
+    <div class="card">
+      <div class="card-label">Price</div>
+      {% if last_price %}
+        <div class="card-value">${{ "{:,.2f}".format(last_price) }}</div>
+      {% else %}
+        <div class="card-value text-sub">N/A</div>
+      {% endif %}
+      {% if change_24h is not none %}
+        <div class="card-sub {% if change_24h >= 0 %}text-green{% else %}text-red{% endif %}">
+          {{ "{:+.2f}".format(change_24h) }}% approx 24h
+        </div>
       {% endif %}
     </div>
 
-    <!-- SUMMARY CARDS -->
-    <section class="cards">
-      <div class="card">
-        <div class="card-label">Current Price</div>
-        <div class="card-main">
-          <span>${{ "%.2f"|format(last_price) if last_price is not none else "…" }}</span>
-          {% if change_24h is not none %}
-          <span class="change-badge {{ 'change-pos' if change_24h >= 0 else 'change-neg' }}">
-            {{ "%+.2f"|format(change_24h) }}%
-          </span>
-          {% endif %}
-        </div>
-        <div class="card-sub">Last candle close ({{ tf }})</div>
+    <!-- RSI -->
+    <div class="card">
+      <div class="card-label">RSI 14 (4H)</div>
+      {% set rsi_v = snap.get('rsi_14', 50) %}
+      <div class="card-value {% if rsi_v < 35 %}text-green{% elif rsi_v > 65 %}text-red{% else %}text-blue{% endif %}">
+        {{ "{:.1f}".format(rsi_v) }}
       </div>
-      <div class="card">
-        <div class="card-label">RSI ({{ tf }})</div>
-        <div class="card-main">
-          <span>{{ "%.2f"|format(last_rsi) if last_rsi is not none else "…" }}</span>
-        </div>
-        <div class="card-sub">Momentum oscillator (0–100)</div>
+      <div class="card-sub">
+        {% if rsi_v < 35 %}Oversold
+        {% elif rsi_v > 65 %}Overbought
+        {% else %}Neutral{% endif %}
       </div>
-      <div class="card">
-        <div class="card-label">Buy Zone</div>
-        <div class="card-main">
-          {% if buy_low is not none and buy_high is not none %}
-          <span>${{ "%.0f"|format(buy_low) }} – {{ "%.0f"|format(buy_high) }}</span>
-          {% else %}<span>Auto-calculating…</span>{% endif %}
-        </div>
-        <div class="card-sub">Only BUY signals inside this zone</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Sell Zone</div>
-        <div class="card-main">
-          {% if sell_low is not none and sell_high is not none %}
-          <span>${{ "%.0f"|format(sell_low) }} – {{ "%.0f"|format(sell_high) }}</span>
-          {% else %}<span>Auto-calculating…</span>{% endif %}
-        </div>
-        <div class="card-sub">Only SELL signals inside this zone</div>
-      </div>
-    </section>
+    </div>
 
-    <!-- PRICE CHART -->
-    <section class="panel">
-      <div class="panel-title">
-        <div>{{ symbol }} Price + EMA + BB <span class="sub">{{ tf }} candles</span></div>
-        <div class="zone-legend">
-          <span class="legend-box legend-buy"></span> Buy zone
-          <span class="legend-box legend-sell"></span> Sell zone
-          <span class="legend-box legend-db-buy"></span> Bot BUY
-          <span class="legend-box legend-db-sell"></span> Bot SELL
-          <span class="legend-box" style="background:rgba(34,197,94,0.8)"></span> Hỗ trợ
-          <span class="legend-box" style="background:rgba(239,68,68,0.8)"></span> Kháng cự
-        </div>
+    <!-- ADX -->
+    <div class="card">
+      <div class="card-label">ADX 14 (4H)</div>
+      {% set adx_v = snap.get('adx_14', 0) %}
+      <div class="card-value {% if adx_v > 25 %}text-green{% else %}text-sub{% endif %}">
+        {{ "{:.1f}".format(adx_v) }}
       </div>
-      <canvas id="priceChart" height="260"></canvas>
-      <!-- S/R level tags -->
-      <div id="srLevelTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;font-size:0.78rem;"></div>
-    </section>
-
-    <!-- RSI CHART -->
-    <section class="panel">
-      <div class="panel-title">RSI <span class="sub">{{ tf }} — period 14</span></div>
-      <canvas id="rsiChart" height="120"></canvas>
-    </section>
-
-    <!-- MACD CHART -->
-    <section class="panel">
-      <div class="panel-title">MACD Histogram <span class="sub">{{ tf }}</span></div>
-      <canvas id="macdChart" height="120"></canvas>
-    </section>
-
-    <!-- VOLUME CHART -->
-    <section class="panel">
-      <div class="panel-title">Volume <span class="sub">{{ tf }}</span></div>
-      <canvas id="volumeChart" height="100"></canvas>
-    </section>
-
-    <!-- AI ANALYSIS MODEL 1 -->
-    {% if ai_analysis %}
-    <section class="panel ai-panel">
-      <div class="panel-title">
-        <div>🤖 Phân tích AI <span class="sub">{{ symbol }} · {{ tf }} · Model 1</span></div>
-        <span class="ai-badge">AI</span>
+      <div class="card-sub">
+        {% if adx_v > 40 %}Strong trend
+        {% elif adx_v > 25 %}Trending
+        {% else %}Weak / choppy{% endif %}
       </div>
-      <div class="ai-body" id="aiBody"></div>
-    </section>
-    {% endif %}
+    </div>
 
-    <!-- AI ANALYSIS MODEL 2 -->
-    {% if ai_analysis2 %}
-    <section class="panel ai-panel">
-      <div class="panel-title">
-        <div>🧠 Nhận định thứ hai <span class="sub">{{ symbol }} · {{ tf }} · Model 2</span></div>
-        <span class="ai-badge" style="background:#6c5ce7">AI²</span>
+    <!-- MACD -->
+    <div class="card">
+      <div class="card-label">MACD Hist (4H)</div>
+      {% set mh = snap.get('macd_hist', 0) %}
+      {% set mr = snap.get('macd_rising', false) %}
+      <div class="card-value {% if mh > 0 and mr %}text-green{% elif mh < 0 and not mr %}text-red{% else %}text-yellow{% endif %}">
+        {{ "{:.4f}".format(mh) }}
       </div>
-      <div class="ai-body" id="aiBody2"></div>
-    </section>
-    {% endif %}
+      <div class="card-sub">{% if mr %}Rising{% else %}Falling{% endif %}</div>
+    </div>
+
+    <!-- Stochastic -->
+    <div class="card">
+      <div class="card-label">Stoch %K</div>
+      {% set stk = snap.get('stoch_k', 50) %}
+      <div class="card-value {% if stk < 25 %}text-green{% elif stk > 75 %}text-red{% else %}text-sub{% endif %}">
+        {{ "{:.1f}".format(stk) }}
+      </div>
+      <div class="card-sub">
+        {% if stk < 25 %}OS zone{% elif stk > 75 %}OB zone{% else %}Neutral{% endif %}
+      </div>
+    </div>
+
+    <!-- OBV -->
+    <div class="card">
+      <div class="card-label">OBV Trend</div>
+      {% set obv = snap.get('obv_trend', 'neutral') %}
+      <div class="card-value {% if obv == 'up' %}text-green{% elif obv == 'down' %}text-red{% else %}text-sub{% endif %}">
+        {{ obv | upper }}
+      </div>
+      <div class="card-sub">Volume pressure</div>
+    </div>
+
+    <!-- Buy score -->
+    <div class="card">
+      <div class="card-label">Buy Score</div>
+      {% set bs = snap.get('buy_score', 0) %}
+      <div class="card-value {% if bs >= 7 %}text-green{% elif bs >= 4 %}text-yellow{% else %}text-sub{% endif %}">
+        {{ bs }} / 13
+      </div>
+      <div class="card-sub">Entry threshold: {{ cfg.buy_score_min }}</div>
+    </div>
+
+    <!-- Sell score -->
+    <div class="card">
+      <div class="card-label">Sell Score</div>
+      {% set ss = snap.get('sell_score', 0) %}
+      <div class="card-value {% if ss >= 7 %}text-red{% elif ss >= 4 %}text-yellow{% else %}text-sub{% endif %}">
+        {{ ss }} / 13
+      </div>
+      <div class="card-sub">Exit threshold: {{ cfg.sell_score_exit }}</div>
+    </div>
   </div>
 
-  {% if ai_analysis %}
-  <script id="ai-analysis-raw" type="text/plain">{{ ai_analysis | e }}</script>
-  {% endif %}
-  {% if ai_analysis2 %}
-  <script id="ai-analysis2-raw" type="text/plain">{{ ai_analysis2 | e }}</script>
-  {% endif %}
-  <script id="rows-data" type="application/json">{{ rows_json_str | safe }}</script>
-  <script id="db-signals-data" type="application/json">{{ db_signals_json | safe }}</script>
-  <script id="sr-d1-data" type="application/json">{{ sr_d1_json | safe }}</script>
-  <script id="sr-near-data" type="application/json">{{ sr_near_json | safe }}</script>
+  <!-- MAIN TWO-COL -->
+  <div class="two-col">
 
-  <script>
-    const rows      = JSON.parse(document.getElementById('rows-data').textContent);
-    const dbSignals = JSON.parse(document.getElementById('db-signals-data').textContent);
-    const srD1      = JSON.parse(document.getElementById('sr-d1-data').textContent);
-    const srNear    = JSON.parse(document.getElementById('sr-near-data').textContent);
-    const symbol    = "{{ symbol }}";
-    const tf        = "{{ tf }}";
+    <!-- LEFT: Chart + Signal table -->
+    <div>
+      <!-- Price Chart -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header">Price Chart — {{ symbol }} {{ tf }}</div>
+        <div class="panel-body" style="padding:12px">
+          <div class="chart-wrap">
+            <canvas id="priceChart"></canvas>
+          </div>
+          <div class="chart-sub-wrap">
+            <canvas id="rsiChart"></canvas>
+          </div>
+          <div class="chart-sub-wrap">
+            <canvas id="macdChart"></canvas>
+          </div>
+        </div>
+      </div>
 
-    const labels    = rows.map(r => r.time_str);
-    const prices    = rows.map(r => r.price);
-    const rsiValues = rows.map(r => r.rsi_h4);
-    const macdHist  = rows.map(r => r.macd_hist);
-    const ema34     = rows.map(r => r.ema34);
-    const ema50     = rows.map(r => r.ema50);
-    const ema89     = rows.map(r => r.ema89);
-    const ema200    = rows.map(r => r.ema200);
-    const sma50     = rows.map(r => r.sma_50);
-    const sma150    = rows.map(r => r.sma_150);
-    const volumes   = rows.map(r => r.volume);
-    const bbMiddle  = rows.map(r => r.bb_middle);
-    const bbUpper   = rows.map(r => r.bb_upper);
-    const bbLower   = rows.map(r => r.bb_lower);
-    const stochK    = rows.map(r => r.stoch_k);
+      <!-- Signal & Trade Simulation -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header">Signal &amp; Trade Simulation
+          {% set sim_st = sim.get('status', 'WATCHING') %}
+          {% if sim_st == 'IN_TRADE' %}
+            <span class="badge badge-red" style="margin-left:auto">IN TRADE</span>
+          {% elif sim_st == 'SIGNAL' %}
+            <span class="badge badge-green" style="margin-left:auto">SIGNAL</span>
+          {% else %}
+            <span class="badge badge-yellow" style="margin-left:auto">WATCHING</span>
+          {% endif %}
+        </div>
+        <div class="panel-body" style="padding:0">
+          <table class="sig-table">
+            <tbody>
+              <tr>
+                <th>Mode</th>
+                <td>{{ bot_mode | capitalize }} &nbsp; | &nbsp; $10,000 base</td>
+              </tr>
+              <tr>
+                <th>Strategy</th>
+                <td>
+                  {% set strat = sim.get('strategy', '') %}
+                  {% if strat == 'DIP_BUY' %}
+                    <span class="badge badge-blue">DIP BUY</span>
+                  {% elif strat == 'TREND_FOLLOW' %}
+                    <span class="badge badge-green">TREND FOLLOW</span>
+                  {% elif strat == 'SCORE_BUY' %}
+                    <span class="badge badge-purple">SCORE BUY</span>
+                  {% else %}
+                    <span class="text-sub">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <th>Entry Price</th>
+                <td>${{ "{:,.2f}".format(sim.get('entry_price', 0)) }}</td>
+              </tr>
+              <tr>
+                <th>Stop Loss</th>
+                <td>
+                  ${{ "{:,.2f}".format(sim.get('stop_price', 0)) }}
+                  <span class="text-sub" style="font-size:12px">(-{{ "{:.1f}".format(sim.get('sl_pct', 0)) }}%)</span>
+                </td>
+              </tr>
+              {% if sim_st != 'IN_TRADE' %}
+              <tr>
+                <th>TP Estimate</th>
+                <td>
+                  ${{ "{:,.2f}".format(sim.get('tp_estimate', 0)) }}
+                  {% set tp = sim.get('tp_estimate', 0) %}
+                  {% set ep = sim.get('entry_price', 0) %}
+                  {% if ep > 0 %}
+                    <span class="text-green" style="font-size:12px">(+{{ "{:.1f}".format((tp-ep)/ep*100) }}%)</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endif %}
+              <tr>
+                <th>Position</th>
+                <td>${{ "{:,.0f}".format(sim.get('pos_usd', 0)) }} ({{ "{:.0f}".format(cfg.position_pct * 100) }}%)</td>
+              </tr>
+              <tr>
+                <th>Qty</th>
+                <td>{{ "{:.4f}".format(sim.get('qty', 0)) }} {{ symbol.replace('USDT','') }}</td>
+              </tr>
+              {% if sim_st == 'IN_TRADE' %}
+              <tr>
+                <th>Current P&amp;L</th>
+                {% set pnl = sim.get('pnl_pct', 0) %}
+                <td class="{% if pnl >= 0 %}pnl-pos{% else %}pnl-neg{% endif %}">
+                  {{ "{:+.2f}".format(pnl) }}%
+                  (~${{ "{:+,.0f}".format(sim.get('pnl_usd', 0)) }})
+                </td>
+              </tr>
+              <tr>
+                <th>Trailing Tier</th>
+                <td>{{ sim.get('trail_label', '—') }}</td>
+              </tr>
+              <tr>
+                <th>Profit (ATR)</th>
+                <td>{{ "{:.2f}".format(sim.get('profit_atr', 0)) }}x ATR</td>
+              </tr>
+              <tr>
+                <th>Entry Time</th>
+                <td class="text-sub">{{ sim.get('entry_time', '—') }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <th>Risk $</th>
+                <td class="text-red">~${{ "{:,.0f}".format(sim.get('risk_usd', 0)) }}</td>
+              </tr>
+              {% endif %}
+              <tr>
+                <th>ATR (4H)</th>
+                <td>${{ "{:,.2f}".format(snap.get('atr_14', 0)) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-    const buyLow   = {{ buy_low   if buy_low   is not none else 'null' }};
-    const buyHigh  = {{ buy_high  if buy_high  is not none else 'null' }};
-    const sellLow  = {{ sell_low  if sell_low  is not none else 'null' }};
-    const sellHigh = {{ sell_high if sell_high is not none else 'null' }};
+      <!-- Signal History -->
+      <div class="panel hist-wrap">
+        <div class="panel-header">Signal History</div>
+        <div style="overflow-x:auto">
+          <table class="hist-table">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Type</th>
+                <th>Price</th>
+                <th>RSI</th>
+                <th>Buy/Sell</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody id="histTbody">
+              <tr><td colspan="6" class="text-sub" style="padding:16px;text-align:center">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-    const rsiOversold   = (tf === "15m" || tf === "1h") ? 35 : 30;
-    const rsiOverbought = (tf === "15m" || tf === "1h") ? 65 : 70;
+    <!-- RIGHT: Indicators + AI -->
+    <div>
+      <!-- 1D Context -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header">1D Daily Context</div>
+        <div class="panel-body" style="padding:12px 16px">
+          <div class="ind-row">
+            <span class="ind-label">Trend (vs EMA200)</span>
+            <span class="ind-value {% if dctx.get('uptrend') %}text-green{% else %}text-red{% endif %}">
+              {{ 'Uptrend' if dctx.get('uptrend') else 'Downtrend' }}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">EMA Alignment (34/89)</span>
+            <span class="ind-value {% if dctx.get('bull_ema') %}text-green{% elif dctx.get('bear_ema') %}text-red{% else %}text-sub{% endif %}">
+              {{ 'Bull' if dctx.get('bull_ema') else ('Bear' if dctx.get('bear_ema') else 'Neutral') }}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">1D RSI</span>
+            <span class="ind-value">{{ "{:.1f}".format(dctx.get('rsi', 50)) }}</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">1D ADX</span>
+            <span class="ind-value">{{ "{:.1f}".format(dctx.get('adx', 0)) }}</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">Danger (BB+RSI)</span>
+            <span class="ind-value {% if dctx.get('danger') %}text-red{% else %}text-green{% endif %}">
+              {{ 'YES' if dctx.get('danger') else 'No' }}
+            </span>
+          </div>
+          {% if dctx.get('ema200') %}
+          <div class="ind-row">
+            <span class="ind-label">EMA 200 (1D)</span>
+            <span class="ind-value">${{ "{:,.2f}".format(dctx.get('ema200')) }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
 
-    // ── S/R level tags ──────────────────────────────────────────────────────
-    (function() {
-      const container = document.getElementById('srLevelTags');
-      if (!container) return;
-      const fmt = v => v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-      const makeTag = (label, price, bgColor, textColor) => {
-        const s = document.createElement('span');
-        s.style.cssText = `background:${bgColor};color:${textColor};padding:2px 8px;border-radius:999px;font-weight:600;white-space:nowrap`;
-        s.textContent = `${label} $${fmt(price)}`;
-        return s;
+      <!-- 4H Indicators -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header">4H Indicators</div>
+        <div class="panel-body" style="padding:12px 16px">
+          <div class="ind-row">
+            <span class="ind-label">DI+ / DI-</span>
+            <span class="ind-value">
+              <span class="text-green">{{ "{:.1f}".format(snap.get('di_plus', 0)) }}</span>
+              /
+              <span class="text-red">{{ "{:.1f}".format(snap.get('di_minus', 0)) }}</span>
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">BB Position</span>
+            {% set bbp = snap.get('bb_pct') %}
+            <span class="ind-value {% if bbp is not none and bbp < 0.2 %}text-green{% elif bbp is not none and bbp > 0.8 %}text-red{% else %}text-sub{% endif %}">
+              {% if bbp is not none %}{{ "{:.0f}".format(bbp * 100) }}%{% else %}N/A{% endif %}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">BB Upper / Lower</span>
+            <span class="ind-value text-sub" style="font-size:12px">
+              {% if snap.get('bb_upper') %}${{ "{:,.2f}".format(snap.get('bb_upper')) }}{% else %}—{% endif %}
+              /
+              {% if snap.get('bb_lower') %}${{ "{:,.2f}".format(snap.get('bb_lower')) }}{% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">EMA 34 / 89</span>
+            <span class="ind-value text-sub" style="font-size:12px">
+              {% if snap.get('ema34') %}${{ "{:,.2f}".format(snap.get('ema34')) }}{% else %}—{% endif %}
+              /
+              {% if snap.get('ema89') %}${{ "{:,.2f}".format(snap.get('ema89')) }}{% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">In Buy Zone</span>
+            <span class="ind-value {% if snap.get('in_buy_zone') %}text-green{% else %}text-sub{% endif %}">
+              {{ 'YES' if snap.get('in_buy_zone') else 'No' }}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">In Sell Zone</span>
+            <span class="ind-value {% if snap.get('in_sell_zone') %}text-red{% else %}text-sub{% endif %}">
+              {{ 'YES' if snap.get('in_sell_zone') else 'No' }}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">Dyn Oversold / OB</span>
+            <span class="ind-value text-sub" style="font-size:12px">
+              {{ "{:.1f}".format(snap.get('dyn_oversold', 30)) }} / {{ "{:.1f}".format(snap.get('dyn_overbought', 70)) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strategy Config -->
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header">Strategy Config ({{ bot_mode | capitalize }})</div>
+        <div class="panel-body" style="padding:12px 16px">
+          <div class="ind-row">
+            <span class="ind-label">Position Size</span>
+            <span class="ind-value">{{ "{:.0f}".format(cfg.position_pct * 100) }}% (${{ "{:,.0f}".format(cfg.position_pct * 10000) }})</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">SL Multiplier</span>
+            <span class="ind-value">{{ cfg.sl_atr_mult }}x ATR</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">Min Buy Score</span>
+            <span class="ind-value">{{ cfg.buy_score_min }} / 13</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">Min ADX</span>
+            <span class="ind-value">{{ cfg.adx_min }}</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">Max RSI Entry</span>
+            <span class="ind-value">{{ cfg.rsi_max_entry }}</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">Trail Tiers</span>
+            <span class="ind-value text-sub" style="font-size:12px">
+              BE@{{ cfg.breakeven_atr }}x | T1@{{ cfg.trail_tier1 }}x | T2@{{ cfg.trail_tier2 }}x | T3@{{ cfg.trail_tier3 }}x
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Analysis Model 1 -->
+      {% if ai_analysis %}
+      <div class="ai-box">
+        <div class="ai-box-header">AI Analysis — {{ bot_mode | capitalize }} Trend</div>
+        <div class="ai-box-body">{{ ai_analysis }}</div>
+      </div>
+      {% endif %}
+
+      <!-- AI Analysis Model 2 -->
+      {% if ai_analysis2 %}
+      <div class="ai-box">
+        <div class="ai-box-header">AI Analysis — Risk Check</div>
+        <div class="ai-box-body">{{ ai_analysis2 }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── JavaScript ─────────────────────────────────────────────────────────── -->
+<script>
+(function () {
+  // Parse data from Jinja2
+  const rows     = JSON.parse({{ rows_json_str | tojson }});
+  const srD1     = JSON.parse({{ sr_d1_json | tojson }});
+  const srNear   = JSON.parse({{ sr_near_json | tojson }});
+  const dbSigs   = JSON.parse({{ db_signals_json | tojson }});
+
+  const labels   = rows.map(r => r.time_str);
+  const prices   = rows.map(r => r.price);
+  const ema34    = rows.map(r => r.ema34);
+  const ema89    = rows.map(r => r.ema89);
+  const ema200   = rows.map(r => r.ema200);
+  const bbUp     = rows.map(r => r.bb_upper);
+  const bbLo     = rows.map(r => r.bb_lower);
+  const rsiVals  = rows.map(r => r.rsi);
+  const macdVals = rows.map(r => r.macd_hist);
+
+  // ── S/R lines plugin ────────────────────────────────────────────────────────
+  const srPlugin = {
+    id: "srLines",
+    afterDraw(chart) {
+      const { ctx, scales: { x, y } } = chart;
+      if (!y) return;
+      const drawLine = (price, color, dash) => {
+        const yVal = y.getPixelForValue(price);
+        if (yVal < y.top || yVal > y.bottom) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash(dash || []);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.moveTo(x.left, yVal);
+        ctx.lineTo(x.right, yVal);
+        ctx.stroke();
+        ctx.restore();
       };
-      (srD1.resistances || []).forEach(p => container.appendChild(makeTag('KT D1', p, 'rgba(239,68,68,0.15)', '#dc2626')));
-      (srD1.supports    || []).forEach(p => container.appendChild(makeTag('HT D1', p, 'rgba(34,197,94,0.15)',  '#16a34a')));
-      (srNear.resistances || []).forEach(p => container.appendChild(makeTag('KT', p, 'rgba(239,68,68,0.08)', '#ef4444')));
-      (srNear.supports    || []).forEach(p => container.appendChild(makeTag('HT', p, 'rgba(34,197,94,0.08)',  '#22c55e')));
-    })();
+      (srD1.supports || []).forEach(p => drawLine(p, "rgba(63,185,80,0.5)", [4,3]));
+      (srD1.resistances || []).forEach(p => drawLine(p, "rgba(248,81,73,0.5)", [4,3]));
+      (srNear.supports || []).forEach(p => drawLine(p, "rgba(63,185,80,0.25)", [2,3]));
+      (srNear.resistances || []).forEach(p => drawLine(p, "rgba(248,81,73,0.25)", [2,3]));
+    },
+  };
 
-    // Last state badge
-    let lastState = "HOLD";
-    for (let i = rows.length - 1; i >= 0; i--) {
-      if (rows[i].is_buy_signal)  { lastState = "BUY";  break; }
-      if (rows[i].is_sell_signal) { lastState = "SELL"; break; }
-    }
-    const stateEl = document.getElementById("lastStateBadge");
-    if (stateEl) {
-      stateEl.textContent = lastState;
-      stateEl.className = "badge-state state-" + lastState.toLowerCase();
-    }
-
-    // ── Plugin: Zone shading ────────────────────────────────────────────────
-    const priceZonesPlugin = {
-      id: 'priceZones',
-      beforeDraw(chart) {
-        if (chart.canvas.id !== "priceChart") return;
-        const { ctx, chartArea, scales } = chart;
-        if (!chartArea) return;
-        const { left, right } = chartArea;
-        const yScale = scales['y'];
-        if (!yScale) return;
-        ctx.save();
-
-        // Danger zone stripes
-        const meta0 = chart.getDatasetMeta(0);
-        if (meta0 && meta0.data) {
-          for (let i = 0; i < rows.length && i < meta0.data.length; i++) {
-            if (rows[i].is_danger_zone) {
-              const pt = meta0.data[i];
-              const hw = (meta0.data.length > 1 && i > 0) ? Math.abs(pt.x - meta0.data[i-1].x)/2 : 4;
-              ctx.fillStyle = "rgba(239,68,68,0.08)";
-              ctx.fillRect(pt.x - hw, chartArea.top, hw*2, chartArea.bottom - chartArea.top);
-            }
-          }
-        }
-        if (buyHigh != null && sellLow != null) {
-          const a = yScale.getPixelForValue(buyHigh), b = yScale.getPixelForValue(sellLow);
-          ctx.fillStyle = "rgba(107,114,128,0.03)";
-          ctx.fillRect(left, Math.min(a,b), right-left, Math.abs(b-a));
-        }
-        if (buyLow != null && buyHigh != null) {
-          const a = yScale.getPixelForValue(buyLow), b = yScale.getPixelForValue(buyHigh);
-          ctx.fillStyle = "rgba(34,197,94,0.12)";
-          ctx.fillRect(left, Math.min(a,b), right-left, Math.abs(b-a));
-        }
-        if (sellLow != null && sellHigh != null) {
-          const a = yScale.getPixelForValue(sellLow), b = yScale.getPixelForValue(sellHigh);
-          ctx.fillStyle = "rgba(239,68,68,0.12)";
-          ctx.fillRect(left, Math.min(a,b), right-left, Math.abs(b-a));
-        }
-        ctx.restore();
-      }
-    };
-
-    // ── Plugin: Signal arrows ───────────────────────────────────────────────
-    const signalArrowPlugin = {
-      id: 'signalArrows',
-      afterDraw(chart) {
-        if (chart.canvas.id !== "priceChart") return;
-        const { ctx, scales } = chart;
-        if (!scales || !scales.y) return;
-        const meta0 = chart.getDatasetMeta(0);
-        if (!meta0 || !meta0.data) return;
-        ctx.save();
-        for (let i = 0; i < rows.length && i < meta0.data.length; i++) {
-          const row = rows[i];
-          const pt  = meta0.data[i];
-          if (row.is_buy_signal) {
-            const str = row.signal_strength || 1;
-            const size = str === 3 ? 12 : (str === 2 ? 9 : 6);
-            const yTip = scales.y.getPixelForValue(row.low) + size * 0.6;
-            ctx.beginPath();
-            ctx.moveTo(pt.x, yTip + size*1.6);
-            ctx.lineTo(pt.x - size, yTip + size*1.6);
-            ctx.lineTo(pt.x, yTip);
-            ctx.lineTo(pt.x + size, yTip + size*1.6);
-            ctx.closePath();
-            ctx.fillStyle = "rgba(22,163,74,0.95)";
-            ctx.strokeStyle = "rgba(255,255,255,0.8)";
-            ctx.lineWidth = 1.2;
-            ctx.fill(); ctx.stroke();
-            ctx.font = `bold ${size*0.85}px system-ui`;
-            ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText("B"+str, pt.x, yTip + size*0.85);
-          }
-          if (row.is_sell_signal) {
-            const str = row.signal_strength || 1;
-            const size = str === 3 ? 12 : (str === 2 ? 9 : 6);
-            const yTip = scales.y.getPixelForValue(row.high) - size * 0.6;
-            ctx.beginPath();
-            ctx.moveTo(pt.x, yTip - size*1.6);
-            ctx.lineTo(pt.x - size, yTip - size*1.6);
-            ctx.lineTo(pt.x, yTip);
-            ctx.lineTo(pt.x + size, yTip - size*1.6);
-            ctx.closePath();
-            ctx.fillStyle = "rgba(239,68,68,0.95)";
-            ctx.strokeStyle = "rgba(255,255,255,0.8)";
-            ctx.lineWidth = 1.2;
-            ctx.fill(); ctx.stroke();
-            ctx.font = `bold ${size*0.85}px system-ui`;
-            ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText("S"+str, pt.x, yTip - size*0.85);
-          }
-        }
-        ctx.restore();
-      }
-    };
-
-    // ── Plugin: RSI reference lines ─────────────────────────────────────────
-    const rsiLinesPlugin = {
-      id: 'rsiLines',
-      afterDraw(chart) {
-        if (chart.canvas.id !== "rsiChart") return;
-        const { ctx, chartArea, scales } = chart;
-        if (!chartArea || !scales.y) return;
-        const { left, right } = chartArea;
-        ctx.save();
-        ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(22,163,74,0.6)";
-        ctx.beginPath(); ctx.moveTo(left, scales.y.getPixelForValue(rsiOversold)); ctx.lineTo(right, scales.y.getPixelForValue(rsiOversold)); ctx.stroke();
-        ctx.strokeStyle = "rgba(239,68,68,0.6)";
-        ctx.beginPath(); ctx.moveTo(left, scales.y.getPixelForValue(rsiOverbought)); ctx.lineTo(right, scales.y.getPixelForValue(rsiOverbought)); ctx.stroke();
-        ctx.strokeStyle = "rgba(100,116,139,0.3)"; ctx.setLineDash([2, 6]);
-        ctx.beginPath(); ctx.moveTo(left, scales.y.getPixelForValue(50)); ctx.lineTo(right, scales.y.getPixelForValue(50)); ctx.stroke();
-        ctx.restore();
-      }
-    };
-
-    // ── Plugin: DB historical signals ───────────────────────────────────────
-    const dbSignalsByIndex = {};
-    if (dbSignals && dbSignals.length > 0 && labels.length > 0) {
-      const labelMs = labels.map(l => new Date(l.replace(" ","T")+"Z").getTime());
-      dbSignals.forEach(sig => {
-        const sigMs = new Date(sig.created_at).getTime();
-        if (isNaN(sigMs)) return;
-        let bestIdx = 0, bestDist = Infinity;
-        for (let i = 0; i < labelMs.length; i++) {
-          const dist = Math.abs(labelMs[i] - sigMs);
-          if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-        }
-        if (!dbSignalsByIndex[bestIdx]) dbSignalsByIndex[bestIdx] = [];
-        dbSignalsByIndex[bestIdx].push(sig);
-      });
-    }
-    const dbSignalPlugin = {
-      id: 'dbSignals',
-      afterDraw(chart) {
-        if (chart.canvas.id !== "priceChart") return;
-        const { ctx, scales } = chart;
-        if (!scales || !scales.y) return;
-        const meta0 = chart.getDatasetMeta(0);
-        if (!meta0 || !meta0.data) return;
-        ctx.save();
-        Object.entries(dbSignalsByIndex).forEach(([idxStr, sigs]) => {
-          const i = parseInt(idxStr, 10);
-          if (i >= meta0.data.length) return;
-          const pt = meta0.data[i];
-          sigs.forEach(sig => {
-            const isBuy = sig.signal_type === "BUY";
-            const str = sig.signal_strength || 1;
-            const size = 10 + str * 2;
-            const row = rows[i];
-            const refPrice = isBuy ? (row ? row.low : sig.price) : (row ? row.high : sig.price);
-            const yCenter = scales.y.getPixelForValue(refPrice) + (isBuy ? size*2.2 : -size*2.2);
-            const half = size / 2;
-            ctx.beginPath();
-            ctx.moveTo(pt.x, yCenter - half); ctx.lineTo(pt.x + half, yCenter);
-            ctx.lineTo(pt.x, yCenter + half); ctx.lineTo(pt.x - half, yCenter);
-            ctx.closePath();
-            ctx.fillStyle = isBuy ? "rgba(5,150,105,0.92)" : "rgba(220,38,38,0.92)";
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
-            ctx.fill(); ctx.stroke();
-            ctx.font = `bold ${Math.round(size*0.6)}px system-ui`;
-            ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(isBuy ? "B" : "S", pt.x, yCenter);
-          });
-        });
-        ctx.restore();
-      }
-    };
-
-    // ── Plugin: Support & Resistance lines ──────────────────────────────────
-    const srLinesPlugin = {
-      id: 'srLines',
-      afterDraw(chart) {
-        if (chart.canvas.id !== "priceChart") return;
-        const { ctx, chartArea, scales } = chart;
-        if (!chartArea || !scales.y) return;
-        const { left, right } = chartArea;
-        ctx.save();
-
-        const drawSR = (price, color, dash, lineWidth, labelText) => {
-          const y = scales.y.getPixelForValue(price);
-          if (y < chartArea.top - 1 || y > chartArea.bottom + 1) return;
-          // Line
-          ctx.beginPath();
-          ctx.setLineDash(dash);
-          ctx.lineWidth = lineWidth;
-          ctx.strokeStyle = color;
-          ctx.moveTo(left, y);
-          ctx.lineTo(right, y);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          // Label pill on right edge
-          const lbl = labelText + "  " + price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-          ctx.font = "bold 9px system-ui";
-          const tw = ctx.measureText(lbl).width;
-          const pad = 3, ph = 13;
-          const rx = right - tw - pad * 2 - 2;
-          const ry = y - ph / 2;
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          if (ctx.roundRect) {
-            ctx.roundRect(rx, ry, tw + pad * 2, ph, 3);
-          } else {
-            ctx.rect(rx, ry, tw + pad * 2, ph);
-          }
-          ctx.fill();
-          ctx.fillStyle = "#fff";
-          ctx.textAlign = "left";
-          ctx.textBaseline = "middle";
-          ctx.fillText(lbl, rx + pad, y);
-        };
-
-        // D1 levels — prominent
-        (srD1.resistances || []).forEach(p => drawSR(p, "rgba(239,68,68,0.85)",  [6,3], 1.5, "KT D1"));
-        (srD1.supports    || []).forEach(p => drawSR(p, "rgba(34,197,94,0.85)",  [6,3], 1.5, "HT D1"));
-        // Near-term levels — lighter
-        (srNear.resistances || []).forEach(p => drawSR(p, "rgba(239,68,68,0.45)", [3,4], 1,   "KT"));
-        (srNear.supports    || []).forEach(p => drawSR(p, "rgba(34,197,94,0.45)", [3,4], 1,   "HT"));
-
-        ctx.restore();
-      }
-    };
-
-    Chart.register(priceZonesPlugin, signalArrowPlugin, rsiLinesPlugin, dbSignalPlugin, srLinesPlugin);
-
-    // MACD colors
-    const macdHistColors = macdHist.map((v, i) => {
-      const prev = i > 0 ? macdHist[i-1] : v;
-      if (v >= 0) return v >= prev ? "rgba(22,163,74,0.8)" : "rgba(134,239,172,0.8)";
-      return v <= prev ? "rgba(239,68,68,0.8)" : "rgba(252,165,165,0.8)";
-    });
-
-    // Price chart
-    new Chart(document.getElementById("priceChart").getContext("2d"), {
-      type: "line",
-      data: { labels, datasets: [
-        { label: symbol+" Price", data: prices, borderColor: "rgba(37,99,235,1)", backgroundColor: "rgba(37,99,235,0.05)", yAxisID:"y", tension:0.2, pointRadius:0, order:1 },
-        { label: "EMA 34",  data: ema34,  borderColor: "rgba(16,185,129,0.9)",  backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1.4, order:2 },
-        { label: "EMA 50",  data: ema50,  borderColor: "rgba(245,158,11,0.9)",  backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1.4, order:3 },
-        { label: "EMA 89",  data: ema89,  borderColor: "rgba(239,68,68,0.85)",  backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1.6, order:4 },
-        { label: "EMA 200", data: ema200, borderColor: "rgba(139,92,246,0.85)", backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:2,   order:5 },
-        { label: "SMA 150", data: sma150, borderColor: "rgba(249,115,22,0.7)",  backgroundColor:"transparent", yAxisID:"y", tension:0,   pointRadius:0, borderWidth:1.5, borderDash:[8,4], order:6 },
-        { label: "BB Mid",  data: bbMiddle, borderColor:"rgba(100,116,139,0.4)",backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1, borderDash:[2,4], order:7 },
-        { label: "BB Upper",data: bbUpper,  borderColor:"rgba(148,163,184,0.4)",backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1, order:8 },
-        { label: "BB Lower",data: bbLower,  borderColor:"rgba(148,163,184,0.4)",backgroundColor:"transparent", yAxisID:"y", tension:0.2, pointRadius:0, borderWidth:1, order:9 },
-        { label: "Stoch %K",data: stochK,   borderColor:"rgba(139,92,246,0.75)",backgroundColor:"transparent", yAxisID:"yStoch", tension:0.2, pointRadius:0, borderWidth:1.2, borderDash:[3,2], order:10 },
-      ]},
-      options: {
-        responsive: true,
-        interaction: { mode:"index", intersect:false },
-        plugins: {
-          legend: { position:"top" },
-          tooltip: {
-            mode:"index", intersect:false,
-            callbacks: {
-              label: ctx => ctx.dataset.yAxisID === "yStoch"
-                ? "Stoch %K: "+(ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) : "—")
-                : ctx.dataset.label+": "+(ctx.parsed.y != null ? ctx.parsed.y.toLocaleString() : "—"),
-              afterBody: items => {
-                const i = items[0] ? items[0].dataIndex : null;
-                if (i === null) return [];
-                const row = rows[i];
-                const lines = [];
-                if (row.is_danger_zone) lines.push("DANGER ZONE");
-                if (row.is_buy_signal)  lines.push("BUY SIGNAL (str="+row.signal_strength+")");
-                if (row.is_sell_signal) lines.push("SELL SIGNAL (str="+row.signal_strength+")");
-                if (row.signal_detail)  lines.push(row.signal_detail);
-                return lines;
-              }
-            }
-          }
+  const commonOpts = {
+    animation: false,
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { labels: { color: "#8b949e", font: { size: 11 }, boxWidth: 12 } },
+      tooltip: {
+        backgroundColor: "#161b22",
+        borderColor: "#30363d",
+        borderWidth: 1,
+        titleColor: "#e6edf3",
+        bodyColor: "#8b949e",
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: "#8b949e", maxTicksLimit: 8, maxRotation: 0,
+          callback(v, i) {
+            const s = labels[i] || "";
+            return s.slice(5, 16); // MM-DD HH:MM
+          },
         },
-        scales: {
-          y: { type:"linear", position:"left", title:{display:true,text:"Price"} },
-          yStoch: { type:"linear", position:"right", min:0, max:100, title:{display:true,text:"Stoch %K"}, grid:{drawOnChartArea:false}, ticks:{stepSize:20,color:"rgba(139,92,246,0.8)"} },
-          x: { ticks:{ maxRotation:60, minRotation:45 } }
-        }
-      }
-    });
+        grid: { color: "rgba(48,54,61,0.6)" },
+      },
+      y: {
+        ticks: { color: "#8b949e" },
+        grid: { color: "rgba(48,54,61,0.6)" },
+      },
+    },
+  };
 
-    // RSI chart
-    new Chart(document.getElementById("rsiChart").getContext("2d"), {
-      type: "line",
-      data: { labels, datasets: [{ label:"RSI ("+tf+")", data:rsiValues, borderColor:"rgba(16,185,129,1)", backgroundColor:"rgba(16,185,129,0.05)", tension:0.2, pointRadius:0, borderWidth:1.5 }] },
-      options: { responsive:true, interaction:{mode:"index",intersect:false}, plugins:{legend:{position:"top"}}, scales:{ y:{min:0,max:100,title:{display:true,text:"RSI"}}, x:{ticks:{maxRotation:60,minRotation:45}} } }
-    });
+  // ── Price Chart ──────────────────────────────────────────────────────────
+  new Chart(document.getElementById("priceChart"), {
+    type: "line",
+    plugins: [srPlugin],
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Price",
+          data: prices,
+          borderColor: "#58a6ff",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.1,
+          fill: false,
+        },
+        {
+          label: "EMA34",
+          data: ema34,
+          borderColor: "#f0883e",
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0.1,
+          fill: false,
+          borderDash: [],
+        },
+        {
+          label: "EMA89",
+          data: ema89,
+          borderColor: "#d29922",
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0.1,
+          fill: false,
+        },
+        {
+          label: "EMA200",
+          data: ema200,
+          borderColor: "#bc8cff",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.1,
+          fill: false,
+        },
+        {
+          label: "BB Upper",
+          data: bbUp,
+          borderColor: "rgba(88,166,255,0.35)",
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0.1,
+          fill: false,
+          borderDash: [3, 3],
+        },
+        {
+          label: "BB Lower",
+          data: bbLo,
+          borderColor: "rgba(88,166,255,0.35)",
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0.1,
+          fill: "-1",
+          backgroundColor: "rgba(88,166,255,0.04)",
+          borderDash: [3, 3],
+        },
+      ],
+    },
+    options: {
+      ...commonOpts,
+      plugins: {
+        ...commonOpts.plugins,
+        srLines: {},
+      },
+    },
+  });
 
-    // MACD chart
-    new Chart(document.getElementById("macdChart").getContext("2d"), {
-      type: "bar",
-      data: { labels, datasets: [{ label:"MACD Histogram", data:macdHist, backgroundColor:macdHistColors, borderWidth:0, barPercentage:0.9, categoryPercentage:0.9 }] },
-      options: { responsive:true, interaction:{mode:"index",intersect:false}, plugins:{legend:{position:"top"}}, scales:{ y:{title:{display:true,text:"Histogram"}}, x:{ticks:{maxRotation:60,minRotation:45}} } }
-    });
+  // ── RSI Chart ────────────────────────────────────────────────────────────
+  new Chart(document.getElementById("rsiChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "RSI 14",
+          data: rsiVals,
+          borderColor: "#3fb950",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.1,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      ...commonOpts,
+      plugins: {
+        ...commonOpts.plugins,
+        annotation: {},
+      },
+      scales: {
+        x: commonOpts.scales.x,
+        y: {
+          min: 0, max: 100,
+          ticks: { color: "#8b949e", stepSize: 25 },
+          grid: { color: "rgba(48,54,61,0.6)" },
+        },
+      },
+    },
+  });
 
-    // Volume chart
-    const volColors = volumes.map((v,i) => prices[i] >= (i>0?prices[i-1]:prices[i]) ? "rgba(34,197,94,0.6)" : "rgba(239,68,68,0.6)");
-    new Chart(document.getElementById("volumeChart").getContext("2d"), {
-      type: "bar",
-      data: { labels, datasets: [{ label:"Volume", data:volumes, backgroundColor:volColors, borderWidth:0, barPercentage:0.9, categoryPercentage:0.9 }] },
-      options: {
-        responsive:true, interaction:{mode:"index",intersect:false}, plugins:{legend:{position:"top"},
-          tooltip:{mode:"index",intersect:false,callbacks:{label:ctx=>{ const v=ctx.parsed.y; return v>=1e6?"Volume:"+(v/1e6).toFixed(2)+"M":v>=1e3?"Volume:"+(v/1e3).toFixed(1)+"K":"Volume:"+v.toFixed(2); }}}},
-        scales:{ y:{title:{display:true,text:"Volume"},ticks:{callback:v=>v>=1e6?(v/1e6).toFixed(1)+"M":v>=1e3?(v/1e3).toFixed(0)+"K":v}}, x:{ticks:{maxRotation:60,minRotation:45}} }
-      }
-    });
+  // ── MACD Chart ───────────────────────────────────────────────────────────
+  new Chart(document.getElementById("macdChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "MACD Hist",
+          data: macdVals,
+          backgroundColor: macdVals.map(v =>
+            v === null ? "transparent" :
+            v >= 0 ? "rgba(63,185,80,0.55)" : "rgba(248,81,73,0.55)"
+          ),
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      ...commonOpts,
+      scales: {
+        x: commonOpts.scales.x,
+        y: {
+          ticks: { color: "#8b949e", maxTicksLimit: 4 },
+          grid: { color: "rgba(48,54,61,0.6)" },
+        },
+      },
+    },
+  });
 
-    // AI analysis markdown
-    marked.setOptions({ breaks:true, gfm:true });
-    const aiRaw  = document.getElementById('ai-analysis-raw');
-    const aiBody = document.getElementById('aiBody');
-    if (aiRaw && aiBody && typeof marked !== 'undefined') {
-      aiBody.innerHTML = marked.parse(aiRaw.textContent.trim());
-    }
-    const aiRaw2  = document.getElementById('ai-analysis2-raw');
-    const aiBody2 = document.getElementById('aiBody2');
-    if (aiRaw2 && aiBody2 && typeof marked !== 'undefined') {
-      aiBody2.innerHTML = marked.parse(aiRaw2.textContent.trim());
-    }
-  </script>
+  // ── Signal History Table ─────────────────────────────────────────────────
+  const tbody = document.getElementById("histTbody");
+  if (!dbSigs || !dbSigs.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-sub" style="padding:16px;text-align:center">No signals yet</td></tr>`;
+  } else {
+    const recent = dbSigs.slice().reverse().slice(0, 50);
+    tbody.innerHTML = recent.map(s => {
+      const dt = s.created_at ? s.created_at.replace("T", " ").slice(0, 16) : "—";
+      const typeColor = s.signal_type === "BUY" ? "badge-green" :
+                        s.signal_type === "CLOSE" ? "badge-red" : "badge-gray";
+      const price = s.price ? `$${parseFloat(s.price).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
+      const rsi   = s.rsi ? parseFloat(s.rsi).toFixed(1) : "—";
+      const bs    = s.buy_score ?? "—";
+      const ss    = s.sell_score ?? "—";
+      const detail = s.signal_detail || "—";
+      return `<tr>
+        <td class="text-sub">${dt}</td>
+        <td><span class="badge ${typeColor}">${s.signal_type || "—"}</span></td>
+        <td>${price}</td>
+        <td>${rsi}</td>
+        <td class="text-sub" style="font-size:11px">B:${bs} / S:${ss}</td>
+        <td class="text-sub" style="font-size:11px">${detail}</td>
+      </tr>`;
+    }).join("");
+  }
+})();
+</script>
 </body>
 </html>

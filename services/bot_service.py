@@ -1,138 +1,121 @@
 """
-bot_service.py — Core bot business logic:
-  - Signal computation (D1 bias, candle signals, scoring)
-  - Tracker (per-symbol BUY/SELL/HOLD decision)
-  - DB persistence (signal_history, bot_subscriptions)
-  - Telegram notifications
-  - Background job (symbols_tracker_job)
+bot_service.py — Multi-Timeframe crypto bot (v2 algorithm).
+  1D trend filter + 4H entry signals + ATR trailing stop.
+
+BOT_MODE=default    -> pos=70%, sl=2.0xATR, score>=5, adx>=20
+BOT_MODE=optimized  -> pos=50%, sl=1.5xATR, score>=4, adx>=22(BTC)/18(ETH)
 """
 
-import os
-import time
-import logging
+import os, time, threading, logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import requests
-
 from services import bot_indicators as ind
-from services.bot_ai import expert_panel_verdict, ai_macro_brief, ai_investment_guide, OPENROUTER_MODEL, OPENROUTER_MODEL2
 
-# ── Config ───────────────────────────────────────────────────────────────────
-
+# ── Env ───────────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_IDS = [
-    cid.strip() for cid in os.getenv("TELEGRAM_CHAT_IDS", "").split(",") if cid.strip()
-]
-RSI_SYMBOLS = [
-    s.strip() for s in os.getenv("RSI_SYMBOLS", "ETHUSDT,BTCUSDT").split(",") if s.strip()
-] or ["ETHUSDT", "BTCUSDT"]
-RSI_PERIOD = int(os.getenv("RSI_PERIOD", "14"))
-RSI_CHECK_MINUTES = int(os.getenv("RSI_CHECK_MINUTES", "5"))
-RSI_TIMEFRAMES = {"1h": "1h", "4h": "4h", "1d": "1d"}
+TELEGRAM_CHAT_IDS  = [c.strip() for c in os.getenv("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()]
+RSI_SYMBOLS        = [s.strip() for s in os.getenv("RSI_SYMBOLS", "ETHUSDT,BTCUSDT").split(",") if s.strip()] or ["ETHUSDT", "BTCUSDT"]
 NOTIFY_COOLDOWN_MINUTES = int(os.getenv("NOTIFY_COOLDOWN_MINUTES", "120"))
-TRACKER_INTERVAL = os.getenv("ETH_TRACKER_INTERVAL", "4h")
+BOT_MODE           = os.getenv("BOT_MODE", "default").lower()
 
-MACD_FAST = int(os.getenv("ETH_MACD_FAST", "12"))
-MACD_SLOW = int(os.getenv("ETH_MACD_SLOW", "26"))
-MACD_SIGNAL = int(os.getenv("ETH_MACD_SIGNAL", "9"))
+# Keep these for router compatibility
+TRACKER_INTERVAL = "4h"
+RSI_PERIOD = 14
+MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
 
-ETH_RSI_BUY = float(os.getenv("ETH_RSI_BUY", "40"))
-ETH_RSI_SELL = float(os.getenv("ETH_RSI_SELL", "65"))
+# ── Strategy config ───────────────────────────────────────────────────────────
+_BASE_CFG = dict(
+    position_pct   = 0.70,
+    sl_atr_mult    = 2.0,
+    commission_pct = 0.075,
+    rsi_dip        = 40.0,
+    bb_pct_dip     = 0.20,
+    adx_min        = 20.0,
+    buy_score_min  = 5,
+    rsi_max_entry  = 75.0,
+    sell_score_exit= 4,
+    rsi_exit       = 70.0,
+    stoch_ob       = 85.0,
+    adx_bear_exit  = 25.0,
+    rsi_trend_break= 40.0,
+    trail_tier3    = 3.0,
+    trail_tier2    = 2.0,
+    trail_tier1    = 1.0,
+    breakeven_atr  = 0.3,
+)
 
-# ── State ────────────────────────────────────────────────────────────────────
-
-_rsi_last_state: Dict[str, Dict[str, str]] = {
-    sym: {tf: "unknown" for tf in RSI_TIMEFRAMES} for sym in RSI_SYMBOLS
+_OPT_OVERRIDES: Dict[str, dict] = {
+    "BTCUSDT":  dict(position_pct=0.50, sl_atr_mult=1.5, buy_score_min=4, adx_min=22.0),
+    "ETHUSDT":  dict(position_pct=0.50, sl_atr_mult=1.5, buy_score_min=4, adx_min=18.0),
+    "_default": dict(position_pct=0.50, sl_atr_mult=1.5, buy_score_min=4, adx_min=20.0),
 }
+
+def get_bot_config(symbol: str) -> dict:
+    if BOT_MODE == "optimized":
+        overrides = _OPT_OVERRIDES.get(symbol, _OPT_OVERRIDES["_default"])
+        return {**_BASE_CFG, **overrides}
+    return dict(_BASE_CFG)
+
+# ── In-memory state ───────────────────────────────────────────────────────────
+_open_positions: Dict[str, dict] = {}   # {symbol: {entry_price, stop_price, ...}}
 _notify_last_sent: Dict[str, float] = {}
-
-# Cache chat IDs lấy từ getUpdates (TTL 5 phút)
 _chat_ids_cache: Dict[str, Any] = {"ids": [], "fetched_at": 0.0}
-CHAT_IDS_CACHE_TTL = 300  # 5 minutes
+CHAT_IDS_CACHE_TTL = 300
 
-
-# ── Notification helpers ──────────────────────────────────────────────────────
-
-def _can_notify(symbol: str, action: str) -> bool:
-    key = f"{symbol}_{action}"
+# ── Telegram ──────────────────────────────────────────────────────────────────
+def _can_notify(key: str) -> bool:
     return (time.time() - _notify_last_sent.get(key, 0.0)) >= NOTIFY_COOLDOWN_MINUTES * 60
 
-
-def _mark_notified(symbol: str, action: str) -> None:
-    _notify_last_sent[f"{symbol}_{action}"] = time.time()
-    opposite = "SELL" if action == "BUY" else "BUY"
-    _notify_last_sent.pop(f"{symbol}_{opposite}", None)
-
+def _mark_notified(key: str) -> None:
+    _notify_last_sent[key] = time.time()
 
 def get_dynamic_chat_ids() -> List[str]:
-    """
-    Lấy toàn bộ chat IDs từ Telegram getUpdates API (phân trang).
-    Cache kết quả 5 phút. Fallback về TELEGRAM_CHAT_IDS nếu lỗi.
-    """
     if not TELEGRAM_BOT_TOKEN:
         return TELEGRAM_CHAT_IDS
-
     now = time.time()
     if now - _chat_ids_cache["fetched_at"] < CHAT_IDS_CACHE_TTL and _chat_ids_cache["ids"]:
         return _chat_ids_cache["ids"]
-
     try:
-        base_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
         chat_ids: set = set()
         offset = 0
-
         while True:
             params: Dict[str, Any] = {"limit": 100, "timeout": 0}
             if offset:
                 params["offset"] = offset
-
-            resp = requests.get(base_url, params=params, timeout=10)
+            resp = requests.get(url, params=params, timeout=10)
             data = resp.json()
-
             if not data.get("ok"):
-                logging.warning(f"[TELEGRAM] getUpdates failed: {data.get('description')}")
                 break
-
             results = data.get("result", [])
             if not results:
                 break
-
-            for update in results:
-                # Hỗ trợ nhiều loại update: message, callback_query, channel_post, ...
+            for upd in results:
                 for key in ("message", "edited_message", "channel_post", "edited_channel_post"):
-                    msg = update.get(key)
+                    msg = upd.get(key)
                     if msg:
                         chat = msg.get("chat")
                         if chat and chat.get("id"):
                             chat_ids.add(str(chat["id"]))
-
-                cb = update.get("callback_query")
+                cb = upd.get("callback_query")
                 if cb:
-                    msg = cb.get("message") or {}
+                    msg = (cb.get("message") or {})
                     chat = msg.get("chat")
                     if chat and chat.get("id"):
                         chat_ids.add(str(chat["id"]))
-
-            # Phân trang: offset = update_id của bản cuối + 1
-            last_update_id = results[-1].get("update_id")
-            if last_update_id is None or len(results) < 100:
+            last_id = results[-1].get("update_id")
+            if last_id is None or len(results) < 100:
                 break
-            offset = last_update_id + 1
-
+            offset = last_id + 1
         if chat_ids:
-            ids_list = list(chat_ids)
-            _chat_ids_cache["ids"] = ids_list
-            _chat_ids_cache["fetched_at"] = now
-            logging.info(f"[TELEGRAM] Dynamic chat IDs: {ids_list}")
-            return ids_list
-
+            ids = list(chat_ids)
+            _chat_ids_cache.update({"ids": ids, "fetched_at": now})
+            return ids
     except Exception as e:
-        logging.warning(f"[TELEGRAM] getUpdates error: {e}")
-
-    # Fallback
+        logging.warning(f"[TELEGRAM] getUpdates: {e}")
     return TELEGRAM_CHAT_IDS
-
 
 def telegram_notify(title: str, message: str):
     if not TELEGRAM_BOT_TOKEN:
@@ -142,647 +125,388 @@ def telegram_notify(title: str, message: str):
         return
     text = f"<b>{title}</b>\n{message}"
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    for chat_id in chat_ids:
+    for cid in chat_ids:
         try:
-            requests.post(
-                url,
-                json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
-                timeout=15,
-            )
+            requests.post(url, json={"chat_id": cid, "text": text, "parse_mode": "HTML"}, timeout=15)
         except Exception:
             pass
 
-
-# ── D1 Bias ───────────────────────────────────────────────────────────────────
-
-def compute_d1_bias(symbol: str):
-    """Return (d1_bullish, d1_bearish). ADX-gated EMA cross on daily chart."""
+# ── 1D context ────────────────────────────────────────────────────────────────
+def get_daily_context(symbol: str) -> dict:
     klines = ind.fetch_klines(symbol, "1d", limit=250)
     closes = [float(k[4]) for k in klines]
-    highs = [float(k[2]) for k in klines]
-    lows = [float(k[3]) for k in klines]
-    ema34 = ind.ema_series(closes, 34)
-    ema89 = ind.ema_series(closes, 89)
-    ema200 = ind.ema_series(closes, 200)
-    _, _, hist_d1 = ind.macd_series(closes, MACD_FAST, MACD_SLOW, MACD_SIGNAL)
-    adx = ind.compute_adx(highs, lows, closes)
-    e34, e89, e200, h, p = ema34[-1], ema89[-1], ema200[-1], hist_d1[-1], closes[-1]
-    threshold = p * 0.0001
-    raw_bull = (
-        e34 is not None and e89 is not None and e34 > e89
-        and (e200 is None or p > e200)
-        and h is not None and h > -threshold
-    )
-    raw_bear = (
-        e34 is not None and e89 is not None and e34 < e89
-        and (e200 is None or p < e200)
-        and h is not None and h < threshold
-    )
-    is_trending = adx["trending"]
-    return raw_bull and is_trending, raw_bear and is_trending
+    highs  = [float(k[2]) for k in klines]
+    lows   = [float(k[3]) for k in klines]
 
+    e34  = ind.ema_series(closes, 34)
+    e89  = ind.ema_series(closes, 89)
+    e200 = ind.ema_series(closes, 200)
+    rsi  = ind.rsi_series(closes, 14)
+    _, bb_upper, _ = ind.bollinger_bands(closes, 20, 2.0)
 
-# ── Per-candle signal engine ──────────────────────────────────────────────────
-
-def compute_candle_signals(
-    closes, highs, lows, rsi, macd_hist,
-    ema34, ema50, ema89, ema200,
-    sma_50, sma_150, bb_upper, bb_lower, stoch_k, williams_r,
-    buy_zone_low, buy_zone_high, sell_zone_low, sell_zone_high,
-    d1_bullish, d1_bearish, btc_rsi_h4, btc_macd_hist,
-    atr_series=None, volumes=None, fng_adj=None, funding_adj=None,
-) -> List[dict]:
-    n = len(closes)
-    _obv = ind.compute_obv_signals(closes, volumes or []) if volumes else {"buy_vol_score": 0, "sell_vol_score": 0}
-    _dyn_oversold, _dyn_overbought = ind.dynamic_rsi_thresholds(rsi, lookback=100)
-    results = []
-
-    for i in range(n):
-        price = closes[i]
-        rsi_i = rsi[i] if i < len(rsi) else None
-        macd_i = macd_hist[i] if i < len(macd_hist) else None
-        macd_p = macd_hist[i - 1] if i > 0 and (i - 1) < len(macd_hist) else None
-        e34_i = ema34[i] if i < len(ema34) else None
-        e89_i = ema89[i] if i < len(ema89) else None
-        s150_i = sma_150[i] if i < len(sma_150) else None
-        bb_u = bb_upper[i] if i < len(bb_upper) else None
-        bb_l = bb_lower[i] if i < len(bb_lower) else None
-        sk = stoch_k[i] if i < len(stoch_k) else None
-        wr_i = williams_r[i] if i < len(williams_r) else None
-        atr_i = atr_series[i] if atr_series and i < len(atr_series) else None
-
-        vol_extreme = vol_high = False
-        if atr_i is not None and price > 0:
-            atr_pct = atr_i / price * 100
-            if atr_pct > 5.0:
-                vol_extreme = True
-            elif atr_pct > 3.0:
-                vol_high = True
-
-        # ── BUY SCORE ────────────────────────────────────────────────
-        buy_score = 0
-        in_buy_zone = (
-            buy_zone_low is not None and buy_zone_high is not None
-            and buy_zone_low <= price <= buy_zone_high
-        )
-        if in_buy_zone:
-            buy_score += 3
-            if rsi_i is not None:
-                if rsi_i < 45: buy_score += 1
-                if rsi_i < 35: buy_score += 1
-            if macd_i is not None and macd_p is not None:
-                if macd_i > macd_p: buy_score += 1
-                if macd_i > 0: buy_score += 1
-            if e34_i is not None and e89_i is not None and e34_i > e89_i:
-                buy_score += 1
-            if s150_i is not None and price > s150_i:
-                buy_score += 1
-            if sk is not None and sk < 30: buy_score += 1
-            if wr_i is not None and wr_i < -70: buy_score += 1
-            if d1_bullish: buy_score += 2
-            if bb_l is not None and price <= bb_l: buy_score += 1
-            if rsi_i is not None and rsi_i < _dyn_oversold: buy_score += 1
-            if i >= n - 3: buy_score += _obv["buy_vol_score"]
-            if fng_adj: buy_score += fng_adj.get("buy_adj", 0)
-            if funding_adj: buy_score += funding_adj.get("buy_adj", 0)
-
-        # ── SELL SCORE ───────────────────────────────────────────────
-        sell_score = 0
-        in_sell_zone = (
-            sell_zone_low is not None and sell_zone_high is not None
-            and sell_zone_low <= price <= sell_zone_high
-        )
-        if in_sell_zone:
-            sell_score += 3
-            if rsi_i is not None:
-                if rsi_i > 55: sell_score += 1
-                if rsi_i > 65: sell_score += 1
-            if macd_i is not None and macd_p is not None:
-                if macd_i < macd_p: sell_score += 1
-                if macd_i < 0: sell_score += 1
-            if e34_i is not None and e89_i is not None and e34_i < e89_i:
-                sell_score += 1
-            if sk is not None and sk > 70: sell_score += 1
-            if wr_i is not None and wr_i > -30: sell_score += 1
-            if d1_bearish: sell_score += 2
-            if bb_u is not None and price >= bb_u: sell_score += 1
-            if rsi_i is not None and rsi_i > _dyn_overbought: sell_score += 1
-            if i >= n - 3: sell_score += _obv["sell_vol_score"]
-            if fng_adj: sell_score += fng_adj.get("sell_adj", 0)
-            if funding_adj: sell_score += funding_adj.get("sell_adj", 0)
-
-        # ── DANGER ZONE ──────────────────────────────────────────────
-        dz_flags = []
-        if d1_bearish: dz_flags.append("D1Bear")
-        if bb_u is not None and rsi_i is not None and price >= bb_u and rsi_i > 72:
-            dz_flags.append("OBought")
-        if btc_rsi_h4 is not None and btc_macd_hist is not None and btc_rsi_h4 < 35 and btc_macd_hist < 0:
-            dz_flags.append("BTCweak")
-        is_danger_zone = len(dz_flags) > 0
-
-        buy_blocked = is_danger_zone
-        btc_bull = (btc_rsi_h4 is not None and btc_rsi_h4 > 65
-                    and btc_macd_hist is not None and btc_macd_hist > 0)
-        sell_blocked = d1_bullish or btc_bull
-
-        is_buy_signal = buy_score >= 4 and not buy_blocked
-        is_sell_signal = sell_score >= 4 and not sell_blocked
-
-        if vol_extreme:
-            is_buy_signal = is_sell_signal = False
-        elif vol_high:
-            is_buy_signal = buy_score >= 6 and not buy_blocked
-            is_sell_signal = sell_score >= 6 and not sell_blocked
-
-        buy_strength = 3 if buy_score >= 9 else (2 if buy_score >= 6 else 1)
-        sell_strength = 3 if sell_score >= 9 else (2 if sell_score >= 6 else 1)
-        signal_strength = (
-            buy_strength if is_buy_signal else
-            sell_strength if is_sell_signal else 0
-        )
-
-        zone = "buy" if in_buy_zone else ("sell" if in_sell_zone else "neutral")
-
-        parts = []
-        if is_buy_signal: parts.append(f"BUY str={buy_strength} score={buy_score}")
-        if is_sell_signal: parts.append(f"SELL str={sell_strength} score={sell_score}")
-        if dz_flags: parts.append("DANGER:" + ",".join(dz_flags))
-        if not parts: parts.append(f"zone={zone} b={buy_score} s={sell_score}")
-        signal_detail = " | ".join(parts)
-
-        atr_levels = {}
-        if atr_i and price > 0:
-            mult = 1.5 if signal_strength == 3 else 2.0
-            risk = mult * atr_i
-            if is_buy_signal:
-                atr_levels = {
-                    "stop_loss": round(price - risk, 2),
-                    "take_profit": round(price + 2 * risk, 2),
-                    "atr": round(atr_i, 4),
-                    "atr_pct": round(atr_i / price * 100, 2),
-                }
-            elif is_sell_signal:
-                atr_levels = {
-                    "stop_loss": round(price + risk, 2),
-                    "take_profit": round(price - 2 * risk, 2),
-                    "atr": round(atr_i, 4),
-                    "atr_pct": round(atr_i / price * 100, 2),
-                }
-
-        results.append({
-            "is_buy_signal": bool(is_buy_signal),
-            "is_sell_signal": bool(is_sell_signal),
-            "is_danger_zone": bool(is_danger_zone),
-            "signal_strength": signal_strength,
-            "buy_score": buy_score,
-            "sell_score": sell_score,
-            "zone": zone,
-            "signal_detail": signal_detail,
-            "atr_levels": atr_levels,
-        })
-
-    return results
-
-
-# ── Tracker (BUY/SELL/HOLD decision) ────────────────────────────────────────
-
-def _decide_action(
-    price, rsi_h4, macd_hist, prev_macd_hist, zones,
-    btc_rsi_h4, btc_macd_hist, btc_prev_macd_hist,
-    rsi_buy_threshold=None, rsi_sell_threshold=None,
-    d1_bullish=False, d1_bearish=False,
-) -> Dict[str, str]:
-    rsi_buy_thr = rsi_buy_threshold if rsi_buy_threshold is not None else ETH_RSI_BUY
-    rsi_sell_thr = rsi_sell_threshold if rsi_sell_threshold is not None else ETH_RSI_SELL
-    sell_low, sell_high, buy_low, buy_high, recent_low, recent_high = zones
-
-    reasons = [
-        f"Dynamic zones: BUY[{buy_low:.1f}-{buy_high:.1f}] "
-        f"SELL[{sell_low:.1f}-{sell_high:.1f}] "
-        f"(range {recent_low:.1f}-{recent_high:.1f})"
-    ]
-    action = "HOLD"
-
-    # D1 bias — khi D1 đồng thuận, nới lỏng ngưỡng RSI một chút để bắt được tín hiệu sớm hơn
-    rsi_buy_thr_effective = rsi_buy_thr + 3 if d1_bullish else rsi_buy_thr
-    rsi_sell_thr_effective = rsi_sell_thr - 3 if d1_bearish else rsi_sell_thr
-
-    macd_weakening = macd_hist > 0 and prev_macd_hist is not None and macd_hist < prev_macd_hist
-
-    if sell_low <= price <= sell_high and rsi_h4 >= rsi_sell_thr_effective and macd_weakening:
-        action = "SELL"
-        reasons.append(f"Price in SELL zone & RSI_H4 {rsi_h4:.1f} >= {rsi_sell_thr_effective:.1f}")
-        reasons.append(f"MACD hist weakening: {macd_hist:.4f} < {prev_macd_hist:.4f}")
-    elif buy_low <= price <= buy_high and rsi_h4 <= rsi_buy_thr_effective:
-        action = "BUY"
-        reasons.append(f"Price in BUY zone & RSI_H4 {rsi_h4:.1f} <= {rsi_buy_thr_effective:.1f}")
-    else:
-        reasons.append("No buy/sell condition matched (HOLD).")
-
-    btc_bull_rsi = btc_rsi_h4 >= 65
-    btc_macd_stronger = btc_macd_hist > 0 and btc_prev_macd_hist is not None and btc_macd_hist >= btc_prev_macd_hist
-
-    # Huỷ SELL nếu BTC vẫn tăng hoặc D1 bullish
-    if action == "SELL" and (btc_bull_rsi or btc_macd_stronger or d1_bullish):
-        cancel_reason = []
-        if btc_bull_rsi or btc_macd_stronger:
-            cancel_reason.append(f"BTC bullish (RSI_H4={btc_rsi_h4:.1f}, MACD {btc_macd_hist:.4f})")
-        if d1_bullish:
-            cancel_reason.append("D1 Bullish (ngược chiều)")
-        reasons.append(f"Cancel SELL: {' & '.join(cancel_reason)}")
-        action = "HOLD"
-
-    # Huỷ BUY nếu D1 bearish — tín hiệu ngược xu hướng ngày, bỏ qua
-    if action == "BUY" and d1_bearish:
-        reasons.append("Cancel BUY: D1 Bearish (ngược chiều xu hướng ngày)")
-        action = "HOLD"
-
-    # Gán signal quality dựa trên D1 alignment
-    if action == "BUY":
-        signal_quality = "D1_CONFIRMED" if d1_bullish else "D1_NEUTRAL"
-        reasons.append(f"D1 bias: {'Bullish ✅ đồng thuận' if d1_bullish else 'Neutral ➡'}")
-    elif action == "SELL":
-        signal_quality = "D1_CONFIRMED" if d1_bearish else "D1_NEUTRAL"
-        reasons.append(f"D1 bias: {'Bearish ✅ đồng thuận' if d1_bearish else 'Neutral ➡'}")
-    else:
-        signal_quality = "HOLD"
-
-    if abs(macd_hist) < 0.5:
-        reasons.append("MACD hist ~0 → momentum weak / sideway.")
-    elif macd_hist > 0:
-        reasons.append("MACD hist > 0 → bullish momentum.")
-    else:
-        reasons.append("MACD hist < 0 → bearish momentum.")
-
-    return {"action": action, "reason": " | ".join(reasons), "signal_quality": signal_quality}
-
-
-def run_symbol_tracker_once(symbol: str, send_notify: bool = False) -> Dict[str, Any]:
-    """Run one analysis cycle for a symbol. Returns full payload dict."""
-    symbol = symbol.upper()
-    interval = TRACKER_INTERVAL
-
-    price, rsi_h4 = ind.rsi_latest(symbol, interval, RSI_PERIOD)
-    macd_line, macd_signal, macd_hist, prev_macd_hist = ind.macd_latest_with_prev(symbol, interval)
-    btc_price, btc_rsi_h4 = ind.rsi_latest("BTCUSDT", interval, RSI_PERIOD)
-    _, _, btc_macd_hist, btc_prev_macd_hist = ind.macd_latest_with_prev("BTCUSDT", interval)
-    zones = ind.compute_zones(symbol, interval, lookback=60)
-    sell_low, sell_high, buy_low, buy_high, recent_low, recent_high = zones
-
-    # S/R từ D1 (key levels) và interval hiện tại (near-term levels)
-    sr_d1: dict = {"supports": [], "resistances": []}
-    sr_near: dict = {"supports": [], "resistances": []}
-    try:
-        sr_d1 = ind.find_support_resistance(symbol, interval="1d", limit=120)
-    except Exception as e:
-        logging.warning(f"[SR_D1] {symbol}: {e}")
-    if interval != "1d":
-        try:
-            sr_near = ind.find_support_resistance(symbol, interval=interval, limit=100, pivot_strength=2)
-        except Exception as e:
-            logging.warning(f"[SR_NEAR] {symbol}: {e}")
-
-    # D1 bias — tính TRƯỚC khi quyết định để dùng làm bộ lọc xu hướng
-    d1_bull = d1_bear = False
-    try:
-        d1_bull, d1_bear = compute_d1_bias(symbol)
-    except Exception as e:
-        logging.warning(f"[D1_BIAS] {symbol}: {e}")
-
-    rsi_buy_thr = rsi_sell_thr = None
-    try:
-        kl = ind.fetch_klines(symbol, interval, limit=150)
-        closes_full = [float(k[4]) for k in kl]
-        rsi_s = ind.rsi_series(closes_full, RSI_PERIOD)
-        rsi_buy_thr, rsi_sell_thr = ind.dynamic_rsi_thresholds(rsi_s)
-    except Exception:
-        pass
-
-    decision = _decide_action(
-        price=price, rsi_h4=rsi_h4, macd_hist=macd_hist, prev_macd_hist=prev_macd_hist,
-        zones=zones, btc_rsi_h4=btc_rsi_h4, btc_macd_hist=btc_macd_hist,
-        btc_prev_macd_hist=btc_prev_macd_hist,
-        rsi_buy_threshold=rsi_buy_thr, rsi_sell_threshold=rsi_sell_thr,
-        d1_bullish=d1_bull, d1_bearish=d1_bear,
-    )
-    action = decision["action"]
-    reason = decision["reason"]
-    signal_quality = decision.get("signal_quality", "HOLD")
-    now_utc = datetime.utcnow().isoformat() + "Z"
-
-    payload: Dict[str, Any] = {
-        "symbol": symbol,
-        "timeframe": interval,
-        "now_utc": now_utc,
-        "price": price,
-        "rsi_h4": rsi_h4,
-        "macd": macd_line,
-        "macd_signal": macd_signal,
-        "macd_hist": macd_hist,
-        "action": action,
-        "reason": reason,
-        "signal_quality": signal_quality,
-        "d1_bullish": d1_bull,
-        "d1_bearish": d1_bear,
-        "sr_d1": sr_d1,
-        "sr_near": sr_near,
-        "zones": {
-            "sell_low": sell_low, "sell_high": sell_high,
-            "buy_low": buy_low, "buy_high": buy_high,
-            "recent_low": recent_low, "recent_high": recent_high,
-        },
-        "btc": {
-            "price": btc_price, "rsi_h4": btc_rsi_h4,
-            "macd_hist": btc_macd_hist, "prev_macd_hist": btc_prev_macd_hist,
-        },
+    price = closes[-1]
+    return {
+        "uptrend":  e200[-1] is not None and price > e200[-1],
+        "bull_ema": e34[-1] is not None and e89[-1] is not None and e34[-1] > e89[-1],
+        "bear_ema": e34[-1] is not None and e89[-1] is not None and e34[-1] < e89[-1],
+        "danger":   bb_upper[-1] is not None and price >= bb_upper[-1] and rsi[-1] > 72,
+        "rsi":      rsi[-1] if rsi else 50.0,
+        "adx":      ind.compute_adx(highs, lows, closes)["adx"],
+        "price":    price,
+        "ema200":   e200[-1],
     }
 
-    if send_notify and action != "HOLD" and _can_notify(symbol, action):
-        try:
-            # ── ATR ──────────────────────────────────────────────────────────
-            atr_val = None
-            atr_pct_val = 0.0
-            try:
-                kl_atr = ind.fetch_klines(symbol, interval, limit=50)
-                h_atr = [float(k[2]) for k in kl_atr]
-                l_atr = [float(k[3]) for k in kl_atr]
-                c_atr = [float(k[4]) for k in kl_atr]
-                atr_s = ind.atr_series(h_atr, l_atr, c_atr)
-                atr_val = next((v for v in reversed(atr_s) if v is not None), None)
-                if atr_val:
-                    atr_pct_val = atr_val / price * 100
-            except Exception:
-                pass
+# ── 4H snapshot ───────────────────────────────────────────────────────────────
+def get_4h_snapshot(symbol: str) -> dict:
+    klines = ind.fetch_klines(symbol, "4h", limit=250)
+    closes = [float(k[4]) for k in klines]
+    highs  = [float(k[2]) for k in klines]
+    lows   = [float(k[3]) for k in klines]
+    vols   = [float(k[5]) for k in klines]
 
-            # ── Macro snapshot (cached 15 min) ───────────────────────────────
-            macro_data = {}
-            try:
-                macro_data = ind.fetch_macro_snapshot()
-            except Exception:
-                pass
+    rsi_s   = ind.rsi_series(closes, 14)
+    _, _, macd_h = ind.macd_series(closes, 12, 26, 9)
+    e34  = ind.ema_series(closes, 34)
+    e89  = ind.ema_series(closes, 89)
+    e200 = ind.ema_series(closes, 200)
+    _, bb_upper, bb_lower = ind.bollinger_bands(closes, 20, 2.0)
+    stoch = ind.stochastic_k(highs, lows, closes, 14)
+    atr_s = ind.atr_series(highs, lows, closes, 14)
+    adx_r = ind.compute_adx(highs, lows, closes)
+    obv_r = ind.compute_obv_signals(closes, vols)
+    dyn_os, dyn_ob = ind.dynamic_rsi_thresholds(rsi_s, 100)
 
-            # ── Hội đồng 4 chuyên gia (Selective Breakout Sniper) ────────────
-            panel = expert_panel_verdict(
-                symbol=symbol,
-                action=action,
-                price=price,
-                rsi=rsi_h4,
-                macd_hist=macd_hist,
-                macd_hist_rising=(prev_macd_hist is not None and macd_hist > prev_macd_hist),
-                d1_bullish=d1_bull,
-                d1_bearish=d1_bear,
-                btc_rsi=btc_rsi_h4,
-                btc_macd_hist=btc_macd_hist,
-                atr_pct=atr_pct_val,
-                interval=interval,
-                buy_low=buy_low,
-                buy_high=buy_high,
-                sell_low=sell_low,
-                sell_high=sell_high,
-                sr_supports=sr_d1.get("supports", []),
-                sr_resistances=sr_d1.get("resistances", []),
-            )
-
-            is_bypass = panel.get("bypass", False)
-            confirmed = panel["confirmed"]
-            total = panel.get("total", 4) or 4
-
-            if not panel["go"]:
-                logging.info(
-                    f"[EXPERT_PANEL] {symbol} {action}: {confirmed}/{total} CONFIRM — bị chặn, bỏ qua chu kỳ này."
-                )
-                # Không mark notified → bot thử lại chu kỳ tiếp theo
-                return payload
-
-            _mark_notified(symbol, action)
-
-            # ── Shared helpers ────────────────────────────────────────────────
-            d1_label = "🟢 Bullish" if d1_bull else ("🔴 Bearish" if d1_bear else "⚪ Neutral")
-            d1_align = "✅ đồng thuận" if signal_quality == "D1_CONFIRMED" else "➡ trung lập"
-
-            def _fmt_levels(levels: list) -> str:
-                return " · ".join(f"{v:,.2f}" for v in levels) if levels else "—"
-
-            sr_lines = []
-            if sr_d1.get("supports") or sr_d1.get("resistances"):
-                sr_lines.append(f"🟢 HT (D1): <b>{_fmt_levels(sr_d1['supports'])}</b>")
-                sr_lines.append(f"🔴 KT (D1): <b>{_fmt_levels(sr_d1['resistances'])}</b>")
-            if sr_near.get("supports") or sr_near.get("resistances"):
-                sr_lines.append(f"🟡 HT ({interval}): {_fmt_levels(sr_near['supports'])}")
-                sr_lines.append(f"🟠 KT ({interval}): {_fmt_levels(sr_near['resistances'])}")
-
-            # ── Canonical SL/TP: validate panel values, fallback to ATR ─────────
-            def _is_valid_level(val, ref):
-                """SL/TP phải là mức giá thực (trong khoảng 50%–200% của giá hiện tại)."""
-                return val and val > 0 and 0.5 < val / ref < 2.0
-
-            raw_sl = panel.get("sl", 0.0)
-            raw_tp = panel.get("tp", 0.0)
-            if _is_valid_level(raw_sl, price) and _is_valid_level(raw_tp, price):
-                canonical_sl, canonical_tp = raw_sl, raw_tp
-                sl_tp_source = "panel"
-            elif atr_val:
-                mult = 2.0
-                risk = mult * atr_val
-                canonical_sl = round(price - risk if action == "BUY" else price + risk, 4)
-                canonical_tp = round(price + 2 * risk if action == "BUY" else price - 2 * risk, 4)
-                sl_tp_source = "atr"
-            else:
-                canonical_sl = canonical_tp = 0.0
-                sl_tp_source = "none"
-
-            def _sl_tp_lines(use_sl, use_tp):
-                lines = []
-                if use_sl and use_tp:
-                    suffix = "" if sl_tp_source == "panel" else f" (ATR×2)"
-                    lines.append(f"\n🛑 SL: <b>{use_sl:,.4f}</b> | 🎯 TP: <b>{use_tp:,.4f}</b>{suffix}")
-                if atr_val:
-                    lines.append(f"📐 ATR: {atr_val:.4f} ({atr_pct_val:.2f}%)")
-                return lines
-
-            # ── Build message ─────────────────────────────────────────────────
-            if is_bypass:
-                # API không khả dụng → format đơn giản (không có expert panel)
-                d1_tag = " ✅D1" if signal_quality == "D1_CONFIRMED" else ""
-                title = f"[{action}{d1_tag}] {symbol}"
-                msg_lines = [
-                    f"💰 Giá: <b>{price:,.4f}</b> USDT",
-                    f"📊 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.6f}",
-                    f"📅 D1 Bias: {d1_label} {d1_align}",
-                    f"🎯 Zone: BUY[{buy_low:.1f}–{buy_high:.1f}] SELL[{sell_low:.1f}–{sell_high:.1f}]",
-                ] + sr_lines + _sl_tp_lines(canonical_sl, canonical_tp) + [
-                    f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.6f}",
-                    f"⏰ {now_utc}",
-                ]
-            else:
-                # Expert panel có votes thật
-                vote_icon = "✅" if confirmed == total else "⚠️"
-                title = f"🎯 [{action} {vote_icon} {confirmed}/{total}] {symbol}"
-                vote_lines = [
-                    f"  {'✅' if v['confirmed'] else '❌'} <b>{v['expert']}</b>: <i>{v['reason']}</i>"
-                    for v in panel.get("votes", [])
-                ]
-                msg_lines = [
-                    f"💰 Giá: <b>{price:,.4f}</b> USDT",
-                    f"📊 RSI: {rsi_h4:.1f} | MACD Hist: {macd_hist:.6f}",
-                    f"📅 D1 Bias: {d1_label}",
-                    "",
-                    f"👥 <b>Hội đồng chuyên gia ({confirmed}/{total} đồng thuận):</b>",
-                ] + vote_lines + _sl_tp_lines(canonical_sl, canonical_tp)
-                if sr_lines:
-                    msg_lines += [""] + sr_lines
-                msg_lines += [
-                    f"₿ BTC RSI: {btc_rsi_h4:.1f} | BTC MACD: {btc_macd_hist:.6f}",
-                    f"⏰ {now_utc}",
-                ]
-                if panel.get("summary"):
-                    msg_lines.append(f"\n💬 <i>{panel['summary']}</i>")
-
-            # ── 3 AI calls song song: macro corr, macro risk, investment guide ──
-            import threading as _thr
-            ai_results = {"m1": "", "m2": "", "guide": ""}
-
-            def _fetch_m1():
-                if macro_data and OPENROUTER_MODEL:
-                    ai_results["m1"] = ai_macro_brief(
-                        symbol=symbol, action=action, price=price,
-                        macro=macro_data, interval=interval,
-                        model=OPENROUTER_MODEL, style="correlation",
-                    )
-
-            def _fetch_m2():
-                if macro_data and OPENROUTER_MODEL2:
-                    ai_results["m2"] = ai_macro_brief(
-                        symbol=symbol, action=action, price=price,
-                        macro=macro_data, interval=interval,
-                        model=OPENROUTER_MODEL2, style="risk",
-                    )
-
-            def _fetch_guide():
-                if OPENROUTER_MODEL:
-                    ai_results["guide"] = ai_investment_guide(
-                        symbol=symbol, action=action, price=price,
-                        sl=canonical_sl, tp=canonical_tp,
-                        atr=atr_val or 0.0, atr_pct=atr_pct_val,
-                        rsi=rsi_h4, macd_hist=macd_hist,
-                        d1_bullish=d1_bull, d1_bearish=d1_bear,
-                        btc_rsi=btc_rsi_h4,
-                        sr_d1_supports=sr_d1.get("supports", []),
-                        sr_d1_resistances=sr_d1.get("resistances", []),
-                        sr_near_supports=sr_near.get("supports", []),
-                        sr_near_resistances=sr_near.get("resistances", []),
-                        panel_confirmed=confirmed,
-                        panel_total=total,
-                        buy_zone=(buy_low, buy_high),
-                        sell_zone=(sell_low, sell_high),
-                        macro=macro_data,
-                        interval=interval,
-                    )
-
-            threads = [
-                _thr.Thread(target=_fetch_m1, daemon=True),
-                _thr.Thread(target=_fetch_m2, daemon=True),
-                _thr.Thread(target=_fetch_guide, daemon=True),
-            ]
-            for t in threads: t.start()
-            for t in threads: t.join(timeout=32)
-
-            if ai_results["m1"]:
-                msg_lines.append(f"\n🌐 <i>{ai_results['m1']}</i>")
-            if ai_results["m2"]:
-                msg_lines.append(f"\n⚡ <i>{ai_results['m2']}</i>")
-            if ai_results["guide"]:
-                msg_lines.append(f"\n─────────────────────\n{ai_results['guide']}")
-
-            msg_lines.append(f"\n🔗 <a href=\"https://fs.fasteng.app/bot?symbol={symbol}\">Xem chart {symbol}</a>")
-            telegram_notify(title, "\n".join(msg_lines))
-        except Exception as e:
-            logging.error(f"[TRACKER_NOTIFY] Error: {e}")
-
-    return payload
-
-
-# ── DB persistence ────────────────────────────────────────────────────────────
-
-def save_signal_to_db(
-    supabase_admin,
-    symbol: str,
-    timeframe: str,
-    signal_type: str,
-    price: float,
-    rsi: Optional[float] = None,
-    macd_hist: Optional[float] = None,
-    buy_score: int = 0,
-    sell_score: int = 0,
-    signal_strength: int = 1,
-    signal_detail: str = "",
-) -> None:
     try:
-        from datetime import timezone, timedelta
-        cutoff = (datetime.now(tz=timezone.utc) - timedelta(minutes=NOTIFY_COOLDOWN_MINUTES)).isoformat()
-        check = (
-            supabase_admin.table("signal_history")
-            .select("id")
-            .eq("symbol", symbol)
-            .eq("timeframe", timeframe)
-            .eq("signal_type", signal_type)
-            .gte("created_at", cutoff)
-            .limit(1)
-            .execute()
-        )
-        if check.data:
-            logging.info(f"[SIGNAL_DB] Skip duplicate {signal_type} {symbol}")
-            return
-        supabase_admin.table("signal_history").insert({
-            "symbol": symbol, "timeframe": timeframe, "signal_type": signal_type,
-            "price": price, "rsi": rsi, "macd_hist": macd_hist,
-            "buy_score": buy_score, "sell_score": sell_score,
-            "signal_strength": signal_strength, "signal_detail": signal_detail,
-        }).execute()
-        logging.info(f"[SIGNAL_DB] Saved {signal_type} {symbol} @ {price}")
+        zones = ind.compute_zones(symbol, "4h", lookback=60)
+        sl, sh, bl, bh, _, _ = zones
+    except Exception:
+        sl = sh = bl = bh = None
+
+    price   = closes[-1]
+    rsi_v   = rsi_s[-1] if rsi_s else 50.0
+    mh      = macd_h[-1] if macd_h else 0.0
+    mh_p    = macd_h[-2] if len(macd_h) >= 2 else 0.0
+    macd_rising = mh > mh_p
+    bb_u    = bb_upper[-1]
+    bb_l    = bb_lower[-1]
+    atr_v   = atr_s[-1] if atr_s else 0.0
+    stk     = stoch[-1] if stoch else 50.0
+    e34_v   = e34[-1]
+    e89_v   = e89[-1]
+
+    bb_pct = None
+    if bb_u is not None and bb_l is not None and bb_u > bb_l:
+        bb_pct = (price - bb_l) / (bb_u - bb_l)
+
+    in_buy  = bl is not None and bh is not None and bl <= price <= bh
+    in_sell = sl is not None and sh is not None and sl <= price <= sh
+
+    # Buy score (adapted from v2)
+    bs = 0
+    if in_buy: bs += 3
+    if rsi_v < 45: bs += 1
+    if rsi_v < 35: bs += 1
+    if macd_rising: bs += 1
+    if mh > 0: bs += 1
+    if e34_v and e89_v and e34_v > e89_v: bs += 1
+    if stk and stk < 30: bs += 1
+    if bb_l and price <= bb_l: bs += 1
+    if rsi_v < dyn_os: bs += 1
+    if obv_r["obv_trend"] == "up": bs += 1
+    bs = min(bs, 13)
+
+    # Sell score
+    ss = 0
+    if in_sell: ss += 3
+    if rsi_v > 55: ss += 1
+    if rsi_v > 65: ss += 1
+    if not macd_rising: ss += 1
+    if mh < 0: ss += 1
+    if e34_v and e89_v and e34_v < e89_v: ss += 1
+    if stk and stk > 70: ss += 1
+    if bb_u and price >= bb_u: ss += 1
+    if rsi_v > dyn_ob: ss += 1
+    if obv_r["obv_trend"] == "down": ss += 1
+    ss = min(ss, 13)
+
+    return {
+        "price": price, "rsi_14": rsi_v, "macd_hist": mh, "macd_rising": macd_rising,
+        "adx_14": adx_r["adx"], "di_plus": adx_r["di_plus"], "di_minus": adx_r["di_minus"],
+        "stoch_k": stk, "atr_14": atr_v, "bb_pct": bb_pct,
+        "bb_upper": bb_u, "bb_lower": bb_l,
+        "ema34": e34_v, "ema89": e89_v, "ema200": e200[-1],
+        "buy_score": bs, "sell_score": ss,
+        "in_buy_zone": in_buy, "in_sell_zone": in_sell,
+        "obv_trend": obv_r["obv_trend"],
+        "danger_overbought": bb_u is not None and price >= bb_u and rsi_v > 72,
+        "dyn_oversold": dyn_os, "dyn_overbought": dyn_ob,
+    }
+
+# ── Entry / Exit checks (v2 algorithm) ───────────────────────────────────────
+def check_entry(snap: dict, dctx: dict, cfg: dict):
+    if not dctx.get("uptrend"):
+        return False, ""
+    if dctx.get("danger"):
+        return False, ""
+    if snap["rsi_14"] >= cfg["rsi_max_entry"]:
+        return False, ""
+
+    bb_pct = snap.get("bb_pct")
+    if snap["rsi_14"] < cfg["rsi_dip"] and bb_pct is not None and bb_pct < cfg["bb_pct_dip"]:
+        return True, "DIP_BUY"
+
+    if (snap["macd_rising"] and snap["macd_hist"] > 0
+            and snap["adx_14"] > cfg["adx_min"]
+            and snap["di_plus"] > snap["di_minus"]):
+        return True, "TREND_FOLLOW"
+
+    if snap["buy_score"] >= cfg["buy_score_min"] and snap["macd_rising"]:
+        return True, "SCORE_BUY"
+
+    return False, ""
+
+def check_exit(snap: dict, dctx: dict, cfg: dict):
+    if snap["sell_score"] >= cfg["sell_score_exit"] and snap["rsi_14"] > cfg["rsi_exit"]:
+        return True, "SELL_SIG"
+    if dctx.get("danger") and snap["stoch_k"] is not None and snap["stoch_k"] > cfg["stoch_ob"]:
+        return True, "OB_EXIT"
+    if dctx.get("bear_ema") and snap["adx_14"] > cfg["adx_bear_exit"]:
+        return True, "BEAR"
+    if not dctx.get("uptrend", True) and snap["rsi_14"] < cfg["rsi_trend_break"]:
+        return True, "TREND_REV"
+    return False, ""
+
+def update_trailing_stop(price: float, entry: float, atr: float, current_stop: float, cfg: dict) -> float:
+    if atr <= 0:
+        return current_stop
+    profit_atr = (price - entry) / atr
+    if profit_atr > cfg["trail_tier3"]:
+        return max(current_stop, price - 1.0 * atr)
+    elif profit_atr > cfg["trail_tier2"]:
+        return max(current_stop, price - 1.2 * atr)
+    elif profit_atr > cfg["trail_tier1"]:
+        return max(current_stop, price - 1.5 * atr)
+    elif profit_atr > cfg["breakeven_atr"]:
+        return max(current_stop, entry)
+    return current_stop
+
+# ── Simulated trade ($10k) ────────────────────────────────────────────────────
+def compute_simulated_trade(symbol: str, snap: dict, dctx: dict, cfg: dict) -> dict:
+    price   = snap["price"]
+    atr     = snap["atr_14"]
+    pos     = _open_positions.get(symbol)
+    pos_usd = 10_000 * cfg["position_pct"]
+
+    if pos:
+        entry       = pos["entry_price"]
+        stop        = pos["stop_price"]
+        qty         = pos_usd / entry
+        pnl_pct     = (price - entry) / entry * 100
+        pnl_usd     = pos_usd * pnl_pct / 100
+        sl_pct      = abs(entry - stop) / entry * 100
+        profit_atr  = (price - entry) / max(atr, 0.001)
+        tier = 3 if profit_atr > cfg["trail_tier3"] else \
+               2 if profit_atr > cfg["trail_tier2"] else \
+               1 if profit_atr > cfg["trail_tier1"] else \
+               0 if profit_atr > cfg["breakeven_atr"] else -1
+        tier_labels = {
+            3: "Tier 3 - Tight (1xATR)", 2: "Tier 2 - Medium (1.2xATR)",
+            1: "Tier 1 - Normal (1.5xATR)", 0: "Breakeven", -1: "Chua kich hoat",
+        }
+        return {
+            "status": "IN_TRADE", "strategy": pos.get("strategy", ""),
+            "entry_price": entry, "entry_time": pos.get("entry_time", ""),
+            "stop_price": round(stop, 2), "current_price": price,
+            "qty": round(qty, 6), "pos_usd": round(pos_usd, 0),
+            "pnl_pct": round(pnl_pct, 2), "pnl_usd": round(pnl_usd, 2),
+            "sl_pct": round(sl_pct, 2), "profit_atr": round(profit_atr, 2),
+            "trail_tier": tier, "trail_label": tier_labels[tier],
+        }
+    else:
+        should_enter, strategy = check_entry(snap, dctx, cfg)
+        sl      = price - cfg["sl_atr_mult"] * atr
+        tp_est  = price + cfg["trail_tier2"] * atr
+        sl_pct  = abs(price - sl) / price * 100
+        qty     = pos_usd / price
+        risk_usd = pos_usd * sl_pct / 100
+        return {
+            "status": "SIGNAL" if should_enter else "WATCHING",
+            "strategy": strategy,
+            "entry_price": price, "stop_price": round(sl, 2),
+            "tp_estimate": round(tp_est, 2),
+            "qty": round(qty, 6), "pos_usd": round(pos_usd, 0),
+            "sl_pct": round(sl_pct, 2), "risk_usd": round(risk_usd, 0),
+            "pnl_pct": 0.0, "pnl_usd": 0.0,
+        }
+
+# ── Main tracker ──────────────────────────────────────────────────────────────
+def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
+    cfg = get_bot_config(symbol)
+    try:
+        dctx = get_daily_context(symbol)
+        snap = get_4h_snapshot(symbol)
     except Exception as e:
-        logging.error(f"[SIGNAL_DB] Error: {e}")
+        logging.error(f"[TRACKER] {symbol}: {e}")
+        return {"action": "HOLD", "reason": str(e), "symbol": symbol,
+                "snapshot": {}, "daily_context": {}, "simulated_trade": {}, "mode": BOT_MODE}
 
+    price = snap["price"]
+    atr   = snap["atr_14"]
+    pos   = _open_positions.get(symbol)
 
-# ── Background job ────────────────────────────────────────────────────────────
+    result = {
+        "symbol": symbol, "price": price, "atr": atr,
+        "action": "HOLD", "reason": "",
+        "daily_context": dctx, "snapshot": snap,
+        "position": pos, "config": cfg, "mode": BOT_MODE,
+    }
 
-def symbols_tracker_job(supabase_admin) -> None:
-    """Run every 10 minutes: check all active subscriptions, send alerts, save to DB."""
+    if pos:
+        entry     = pos["entry_price"]
+        old_stop  = pos["stop_price"]
+        new_stop  = update_trailing_stop(price, entry, atr, old_stop, cfg)
+        _open_positions[symbol]["stop_price"] = new_stop
+        result["position"] = dict(_open_positions[symbol])
+
+        if price <= new_stop:
+            pnl_pct = (price - entry) / entry * 100
+            _open_positions.pop(symbol, None)
+            result.update(action="CLOSE", reason="STOP_HIT", pnl_pct=pnl_pct)
+            if send_notify and _can_notify(f"{symbol}_CLOSE"):
+                _mark_notified(f"{symbol}_CLOSE")
+                _send_close(symbol, entry, price, atr, pnl_pct, "Stop Loss", pos.get("strategy", ""), cfg)
+            return result
+
+        should_exit, exit_reason = check_exit(snap, dctx, cfg)
+        if should_exit:
+            pnl_pct = (price - entry) / entry * 100
+            _open_positions.pop(symbol, None)
+            result.update(action="CLOSE", reason=exit_reason, pnl_pct=pnl_pct)
+            if send_notify and _can_notify(f"{symbol}_CLOSE"):
+                _mark_notified(f"{symbol}_CLOSE")
+                emoji = "" if pnl_pct >= 0 else ""
+                _send_close(symbol, entry, price, atr, pnl_pct, f"{emoji} {exit_reason}", pos.get("strategy", ""), cfg)
+            return result
+
+        result.update(action="HOLD_POS",
+                      reason=f"stop={new_stop:.2f} pnl={((price-entry)/entry*100):+.2f}%")
+
+    else:
+        should_enter, strategy = check_entry(snap, dctx, cfg)
+        if should_enter:
+            stop = price - cfg["sl_atr_mult"] * atr
+            _open_positions[symbol] = {
+                "entry_price": price, "stop_price": stop,
+                "entry_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                "strategy": strategy, "entry_atr": atr,
+            }
+            result.update(action="BUY", reason=strategy, strategy=strategy)
+            if send_notify and _can_notify(f"{symbol}_BUY"):
+                _mark_notified(f"{symbol}_BUY")
+                _send_entry(symbol, price, stop, atr, strategy, snap, dctx, cfg)
+        else:
+            result.update(action="LOOKING", reason="No entry condition")
+
+    result["simulated_trade"] = compute_simulated_trade(symbol, snap, dctx, cfg)
+    return result
+
+# ── Telegram notification formatters ──────────────────────────────────────────
+_STRAT_LABELS = {
+    "DIP_BUY":      "Mua day (Dip Buy)",
+    "TREND_FOLLOW": "Theo xu huong",
+    "SCORE_BUY":    "Score-based",
+}
+
+def _send_entry(symbol, price, stop, atr, strategy, snap, dctx, cfg):
+    mode_tag = "Optimized" if BOT_MODE == "optimized" else "Default"
+    sl_pct   = abs(price - stop) / price * 100
+    tp_est   = price + cfg["trail_tier2"] * atr
+    pos_usd  = 10_000 * cfg["position_pct"]
+    qty      = pos_usd / price
+    risk_usd = pos_usd * sl_pct / 100
+    strat    = _STRAT_LABELS.get(strategy, strategy)
+
+    # Parallel AI macro
+    macro      = ind.fetch_macro_snapshot()
+    m1_text    = m2_text = ""
     try:
-        rows = (
-            supabase_admin.table("bot_subscriptions")
-            .select("symbol")
-            .eq("is_active", True)
-            .execute()
-        ).data or []
-    except Exception as e:
-        logging.error(f"[TRACKER_JOB] Error fetch subscriptions: {e}")
-        return
-
-    try:
-        fng = ind.fetch_fear_greed()
-        logging.info(f"[TRACKER_JOB] F&G Index: {fng['value']}")
+        from services.bot_ai import ai_macro_brief, OPENROUTER_MODEL, OPENROUTER_MODEL2
+        m1_res, m2_res = {}, {}
+        def _m1(): m1_res["t"] = ai_macro_brief(symbol, "BUY", price, macro, "4h", OPENROUTER_MODEL, "correlation")
+        def _m2(): m2_res["t"] = ai_macro_brief(symbol, "BUY", price, macro, "4h", OPENROUTER_MODEL2, "risk")
+        t1 = threading.Thread(target=_m1); t2 = threading.Thread(target=_m2)
+        t1.start(); t2.start(); t1.join(timeout=20); t2.join(timeout=20)
+        m1_text = m1_res.get("t", ""); m2_text = m2_res.get("t", "")
     except Exception:
         pass
 
-    for row in rows:
-        symbol = (row.get("symbol") or "").upper()
-        if not symbol:
-            continue
+    macro_block = ""
+    if m1_text: macro_block += f"\nMacro: {m1_text}"
+    if m2_text: macro_block += f"\nRisk: {m2_text}"
+
+    msg = (
+        f"Chien luoc: <b>{strat}</b> ({mode_tag})\n"
+        f"---\n"
+        f"Vao: <b>${price:,.2f}</b>\n"
+        f"SL: <b>${stop:,.2f}</b> (-{sl_pct:.1f}%)\n"
+        f"TP uoc tinh: <b>${tp_est:,.2f}</b> (+{(tp_est-price)/price*100:.1f}%)\n"
+        f"---\n"
+        f"Gia lap $10,000\n"
+        f"Vi the: ${pos_usd:,.0f} ({cfg['position_pct']*100:.0f}%)\n"
+        f"SL luong: {qty:.4f} {symbol.replace('USDT','')}\n"
+        f"Rui ro: ~${risk_usd:,.0f}\n"
+        f"---\n"
+        f"RSI: {snap['rsi_14']:.1f} | ADX: {snap['adx_14']:.1f} | ATR: ${atr:,.2f}\n"
+        f"1D: {'Uptrend' if dctx['uptrend'] else 'Downtrend'}"
+        f"{macro_block}"
+    )
+    telegram_notify(f"{symbol} - TIN HIEU MUA", msg)
+
+def _send_close(symbol, entry, exit_price, atr, pnl_pct, reason_label, strategy, cfg):
+    pos_usd  = 10_000 * cfg["position_pct"]
+    pnl_usd  = pos_usd * pnl_pct / 100
+    strat    = _STRAT_LABELS.get(strategy, strategy)
+    msg = (
+        f"Ly do: <b>{reason_label}</b>\n"
+        f"---\n"
+        f"Vao: ${entry:,.2f} -&gt; Ra: ${exit_price:,.2f}\n"
+        f"P&amp;L: <b>{pnl_pct:+.2f}%</b> (~${pnl_usd:+,.0f})\n"
+        f"Chien luoc: {strat}"
+    )
+    telegram_notify(f"{symbol} - Dong lenh", msg)
+
+# ── Background job (called by scheduler) ─────────────────────────────────────
+def symbols_tracker_job(supabase=None):
+    for symbol in RSI_SYMBOLS:
         try:
-            payload = run_symbol_tracker_once(symbol, send_notify=True)
-            action = payload["action"]
-            logging.info(f"[TRACKER_JOB] {symbol}: action={action} price={payload['price']}")
-            if action in ("BUY", "SELL"):
-                save_signal_to_db(
-                    supabase_admin,
-                    symbol=symbol,
-                    timeframe=payload.get("timeframe", TRACKER_INTERVAL),
-                    signal_type=action,
-                    price=payload["price"],
-                    rsi=payload.get("rsi_h4"),
-                    macd_hist=payload.get("macd_hist"),
-                    signal_detail=payload.get("reason", ""),
-                )
+            result = run_symbol_tracker_once(symbol, send_notify=True)
+            logging.info(f"[JOB] {symbol}: {result.get('action')} -- {result.get('reason')}")
+
+            # Optionally persist to signal_history
+            if supabase and result.get("action") in ("BUY", "CLOSE"):
+                try:
+                    snap = result.get("snapshot", {})
+                    supabase.table("signal_history").insert({
+                        "symbol": symbol,
+                        "signal_type": result["action"],
+                        "price": result.get("price"),
+                        "rsi": snap.get("rsi_14"),
+                        "macd_hist": snap.get("macd_hist"),
+                        "buy_score": snap.get("buy_score", 0),
+                        "sell_score": snap.get("sell_score", 0),
+                        "signal_strength": 2 if result.get("action") == "BUY" else 1,
+                        "signal_detail": result.get("reason", ""),
+                    }).execute()
+                except Exception as e:
+                    logging.warning(f"[JOB] DB insert {symbol}: {e}")
         except Exception as e:
-            logging.error(f"[TRACKER_JOB] {symbol}: {e}")
+            logging.error(f"[JOB] {symbol}: {e}")
+
+# ── Legacy compat (used by old router) ───────────────────────────────────────
+def compute_d1_bias(symbol: str):
+    dctx = get_daily_context(symbol)
+    return (dctx.get("uptrend", False) and dctx.get("bull_ema", False),
+            not dctx.get("uptrend", True) and dctx.get("bear_ema", False))
+
+def compute_candle_signals(*args, **kwargs):
+    return []
