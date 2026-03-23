@@ -350,22 +350,53 @@ a{color:#58a6ff;text-decoration:none}
 
         <!-- Config -->
         <div class="panel">
-          <h3>Config ({{ result.mode }})</h3>
+          <h3>Config v5 ({{ result.mode }})</h3>
           {% if result.config %}
-          <div class="stat-row"><span class="stat-label">Position size</span>
+          <div class="stat-row"><span class="stat-label">Trend pos</span>
             <span class="stat-val">{{ "{:.0f}".format(result.config.position_pct * 100) }}%</span></div>
-          <div class="stat-row"><span class="stat-label">SL mult</span>
+          <div class="stat-row"><span class="stat-label">Trend SL</span>
             <span class="stat-val">{{ result.config.sl_atr_mult }}×ATR</span></div>
+          <div class="stat-row"><span class="stat-label">Bounce pos</span>
+            <span class="stat-val">{{ "{:.0f}".format(result.config.bounce_position_pct * 100) }}%</span></div>
+          <div class="stat-row"><span class="stat-label">Breakout pos</span>
+            <span class="stat-val">{{ "{:.0f}".format(result.config.breakout_position_pct * 100) }}%</span></div>
+          <div class="stat-row"><span class="stat-label">Breakout min bars</span>
+            <span class="stat-val">{{ result.config.breakout_min_bars }}</span></div>
           <div class="stat-row"><span class="stat-label">Score min</span>
             <span class="stat-val">≥{{ result.config.buy_score_min }}</span></div>
-          <div class="stat-row"><span class="stat-label">ADX min</span>
-            <span class="stat-val">{{ result.config.adx_min }}</span></div>
           <div class="stat-row"><span class="stat-label">Commission</span>
             <span class="stat-val">{{ result.config.commission_pct }}%/side</span></div>
           {% endif %}
         </div>
       </div>
     </div>
+
+    <!-- ── Mode Breakdown ── -->
+    {% if result.mode_stats %}
+    <div class="panel" style="margin-bottom:16px">
+      <h3>Mode Breakdown (v5)</h3>
+      <table class="reason-table">
+        <tr><th>Mode</th><th>Trades</th><th>Win Rate</th><th>Avg Win</th><th>Avg Loss</th><th>Profit Factor</th></tr>
+        {% for m, d in result.mode_stats.items() %}
+        <tr>
+          <td>
+            {% if m == "trend" %}<span class="badge badge-trend">📈 TREND</span>
+            {% elif m == "bounce" %}<span class="badge badge-bear">🔄 BOUNCE</span>
+            {% elif m == "breakout" %}<span class="badge badge-score">🚀 BREAKOUT</span>
+            {% else %}<span class="badge badge-other">{{ m }}</span>{% endif %}
+          </td>
+          <td>{{ d.trades }}</td>
+          <td>{{ d.win_rate }}% <span class="wr-bar" style="width:{{ d.win_rate * 0.6 }}px"></span></td>
+          <td class="pnl-pos">+{{ d.avg_win }}%</td>
+          <td class="pnl-neg">{{ d.avg_loss }}%</td>
+          <td class="{{ 'pnl-pos' if d.profit_factor > 1.5 else 'stat-val' }}">
+            {% if d.profit_factor < 999 %}{{ "{:.2f}".format(d.profit_factor) }}{% else %}∞{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
 
     <!-- ── Strategy + Exit reasons ── -->
     <div class="two-col">
@@ -379,6 +410,8 @@ a{color:#58a6ff;text-decoration:none}
               {% if strat == "DIP_BUY" %}<span class="badge badge-dip">📉 DIP_BUY</span>
               {% elif strat == "TREND_FOLLOW" %}<span class="badge badge-trend">📈 TREND_FOLLOW</span>
               {% elif strat == "SCORE_BUY" %}<span class="badge badge-score">⭐ SCORE_BUY</span>
+              {% elif strat == "BEAR_BOUNCE" %}<span class="badge badge-bear">🔄 BEAR_BOUNCE</span>
+              {% elif strat == "BREAKOUT_BUY" %}<span class="badge badge-score">🚀 BREAKOUT_BUY</span>
               {% else %}<span class="badge badge-other">{{ strat }}</span>{% endif %}
             </td>
             <td>{{ data.count }}</td>
@@ -406,6 +439,10 @@ a{color:#58a6ff;text-decoration:none}
               {% elif reason == "BEAR" %}<span class="badge badge-bear">🐻 BEAR</span>
               {% elif reason == "OB_EXIT" %}<span class="badge badge-bear">⚡ OB_EXIT</span>
               {% elif reason == "TREND_REV" %}<span class="badge badge-stop">↩️ TREND_REV</span>
+              {% elif reason == "BOUNCE_SELL" %}<span class="badge badge-sig">📤 BOUNCE_SELL</span>
+              {% elif reason == "BOUNCE_OB" %}<span class="badge badge-bear">📈 BOUNCE_OB</span>
+              {% elif reason == "MICRO_LOST" %}<span class="badge badge-stop">📉 MICRO_LOST</span>
+              {% elif reason == "MOM_FADE" %}<span class="badge badge-stop">💨 MOM_FADE</span>
               {% elif reason == "END" %}<span class="badge badge-other">⏹ END</span>
               {% else %}<span class="badge badge-other">{{ reason }}</span>{% endif %}
             </td>
@@ -444,9 +481,11 @@ a{color:#58a6ff;text-decoration:none}
               <td>{{ t.entry_date }}</td>
               <td>{{ t.exit_date }}</td>
               <td>
-                {% if t.strategy == "DIP_BUY" %}<span class="badge badge-dip">DIP_BUY</span>
+                {% if t.strategy == "DIP_BUY" %}<span class="badge badge-dip">DIP</span>
                 {% elif t.strategy == "TREND_FOLLOW" %}<span class="badge badge-trend">TREND</span>
                 {% elif t.strategy == "SCORE_BUY" %}<span class="badge badge-score">SCORE</span>
+                {% elif t.strategy == "BEAR_BOUNCE" %}<span class="badge badge-bear">BOUNCE</span>
+                {% elif t.strategy == "BREAKOUT_BUY" %}<span class="badge badge-score">BKOUT</span>
                 {% else %}<span class="badge badge-other">{{ t.strategy }}</span>{% endif %}
               </td>
               <td>${{ "{:,.2f}".format(t.entry_price) }}</td>

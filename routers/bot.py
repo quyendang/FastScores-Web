@@ -172,6 +172,10 @@ async def bot_dashboard(
         "adx_14": snap.get("adx_14"), "macd_hist": snap.get("macd_hist"),
         "macd_rising": snap.get("macd_rising"), "stoch_k": snap.get("stoch_k"),
         "uptrend": dctx.get("uptrend"), "entry_strategy": sim.get("strategy"),
+        # v5 additions
+        "ema34": snap.get("ema34"), "ema50": snap.get("ema50"),
+        "bars_below_ema200": snap.get("bars_below_ema200", 0),
+        "entry_mode": sim.get("mode", ""),
     }
     ai1, ai2 = await asyncio.gather(
         asyncio.to_thread(call_openrouter_analysis, symbol, tf, ai_snap),

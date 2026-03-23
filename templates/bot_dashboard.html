@@ -65,6 +65,7 @@
     .badge-green  { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
     .badge-red    { background: rgba(248,81,73,.15); color: var(--red); border: 1px solid rgba(248,81,73,.3); }
     .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+    .badge-orange { background: rgba(255,140,0,.15); color: #ff8c00; border: 1px solid rgba(255,140,0,.3); }
     .badge-blue   { background: rgba(56,139,253,.15); color: var(--blue); border: 1px solid rgba(56,139,253,.3); }
     .badge-purple { background: rgba(188,140,255,.15); color: var(--purple); border: 1px solid rgba(188,140,255,.3); }
     .badge-gray   { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
@@ -191,6 +192,7 @@
       <span class="badge badge-green">1D Uptrend</span>
     {% elif d1_bearish %}
       <span class="badge badge-red">1D Downtrend</span>
+      <span class="badge badge-yellow">Bounce Watch</span>
     {% else %}
       <span class="badge badge-yellow">1D Neutral</span>
     {% endif %}
@@ -382,6 +384,10 @@
                     <span class="badge badge-green">TREND FOLLOW</span>
                   {% elif strat == 'SCORE_BUY' %}
                     <span class="badge badge-purple">SCORE BUY</span>
+                  {% elif strat == 'BEAR_BOUNCE' %}
+                    <span class="badge badge-yellow">BEAR BOUNCE</span>
+                  {% elif strat == 'BREAKOUT_BUY' %}
+                    <span class="badge badge-orange">BREAKOUT EMA200</span>
                   {% else %}
                     <span class="text-sub">—</span>
                   {% endif %}
@@ -413,7 +419,16 @@
               {% endif %}
               <tr>
                 <th>Position</th>
-                <td>${{ "{:,.0f}".format(sim.get('pos_usd', 0)) }} ({{ "{:.0f}".format(cfg.position_pct * 100) }}%)</td>
+                <td>
+                  ${{ "{:,.0f}".format(sim.get('pos_usd', 0)) }}
+                  {% set pos_pct_display = (sim.get('pos_usd', 0) / 10000 * 100) | round(0) | int %}
+                  <span class="text-sub">({{ pos_pct_display }}%
+                  {% set sim_mode = sim.get('mode', '') %}
+                  {% if sim_mode == 'bounce' %}— Bounce
+                  {% elif sim_mode == 'breakout' %}— Breakout
+                  {% elif sim_mode == 'trend' %}— Trend
+                  {% endif %})</span>
+                </td>
               </tr>
               <tr>
                 <th>Qty</th>
@@ -578,38 +593,59 @@
               {{ "{:.1f}".format(snap.get('dyn_oversold', 30)) }} / {{ "{:.1f}".format(snap.get('dyn_overbought', 70)) }}
             </span>
           </div>
+          {% set bbl = snap.get('bars_below_ema200', 0) %}
+          <div class="ind-row">
+            <span class="ind-label">Bars below EMA200</span>
+            <span class="ind-value {% if bbl >= 15 %}text-green{% elif bbl > 0 %}text-yellow{% else %}text-sub{% endif %}">
+              {{ bbl }}
+              {% if bbl >= 15 %}<span class="text-sub" style="font-size:11px"> (Breakout watch)</span>{% endif %}
+            </span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">EMA 50 (4H)</span>
+            <span class="ind-value text-sub">
+              {% if snap.get('ema50') %}${{ "{:,.2f}".format(snap.get('ema50')) }}{% else %}—{% endif %}
+            </span>
+          </div>
         </div>
       </div>
 
       <!-- Strategy Config -->
       <div class="panel" style="margin-bottom:16px">
-        <div class="panel-header">Strategy Config ({{ bot_mode | capitalize }})</div>
+        <div class="panel-header">Strategy Config v5 ({{ bot_mode | capitalize }})</div>
         <div class="panel-body" style="padding:12px 16px">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">📈 Trend (MODE A)</div>
           <div class="ind-row">
-            <span class="ind-label">Position Size</span>
-            <span class="ind-value">{{ "{:.0f}".format(cfg.position_pct * 100) }}% (${{ "{:,.0f}".format(cfg.position_pct * 10000) }})</span>
+            <span class="ind-label">Position / SL</span>
+            <span class="ind-value">{{ "{:.0f}".format(cfg.position_pct * 100) }}% &nbsp;/&nbsp; {{ cfg.sl_atr_mult }}x ATR</span>
           </div>
           <div class="ind-row">
-            <span class="ind-label">SL Multiplier</span>
-            <span class="ind-value">{{ cfg.sl_atr_mult }}x ATR</span>
-          </div>
-          <div class="ind-row">
-            <span class="ind-label">Min Buy Score</span>
-            <span class="ind-value">{{ cfg.buy_score_min }} / 13</span>
-          </div>
-          <div class="ind-row">
-            <span class="ind-label">Min ADX</span>
-            <span class="ind-value">{{ cfg.adx_min }}</span>
-          </div>
-          <div class="ind-row">
-            <span class="ind-label">Max RSI Entry</span>
-            <span class="ind-value">{{ cfg.rsi_max_entry }}</span>
+            <span class="ind-label">Score / ADX</span>
+            <span class="ind-value">≥{{ cfg.buy_score_min }} &nbsp;/&nbsp; ADX≥{{ cfg.adx_min }}</span>
           </div>
           <div class="ind-row">
             <span class="ind-label">Trail Tiers</span>
             <span class="ind-value text-sub" style="font-size:12px">
               BE@{{ cfg.breakeven_atr }}x | T1@{{ cfg.trail_tier1 }}x | T2@{{ cfg.trail_tier2 }}x | T3@{{ cfg.trail_tier3 }}x
             </span>
+          </div>
+          <div style="font-size:11px;color:#8b949e;margin:10px 0 8px;text-transform:uppercase;letter-spacing:.05em">🔄 Bear Bounce (MODE B)</div>
+          <div class="ind-row">
+            <span class="ind-label">Position / SL</span>
+            <span class="ind-value">{{ "{:.0f}".format(cfg.bounce_position_pct * 100) }}% &nbsp;/&nbsp; {{ cfg.bounce_sl_atr }}x ATR</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">RSI range</span>
+            <span class="ind-value">{{ cfg.bounce_rsi_min | int }}–{{ cfg.bounce_rsi_max | int }}</span>
+          </div>
+          <div style="font-size:11px;color:#8b949e;margin:10px 0 8px;text-transform:uppercase;letter-spacing:.05em">🚀 Breakout EMA200</div>
+          <div class="ind-row">
+            <span class="ind-label">Position / SL</span>
+            <span class="ind-value">{{ "{:.0f}".format(cfg.breakout_position_pct * 100) }}% &nbsp;/&nbsp; {{ cfg.breakout_sl_atr }}x ATR</span>
+          </div>
+          <div class="ind-row">
+            <span class="ind-label">Min bars below</span>
+            <span class="ind-value">{{ cfg.breakout_min_bars }} bars</span>
           </div>
         </div>
       </div>
@@ -873,7 +909,7 @@
     }
 
     const fmt  = v => v != null ? `$${parseFloat(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` : "—";
-    const stratLabel = { DIP_BUY: "Dip Buy", TREND_FOLLOW: "Trend", SCORE_BUY: "Score" };
+    const stratLabel = { DIP_BUY: "Dip Buy", TREND_FOLLOW: "Trend", SCORE_BUY: "Score", BEAR_BOUNCE: "Bounce", BREAKOUT_BUY: "Breakout" };
 
     tbody.innerHTML = recent.map(s => {
       const dt = s.created_at ? s.created_at.replace("T"," ").slice(0,16) : "—";

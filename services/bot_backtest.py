@@ -1,9 +1,8 @@
 """
-bot_backtest.py — Backtest engine dùng chính algorithm của bot.
+bot_backtest.py — Backtest engine v5 (Trend + Bear Bounce + Breakout).
 
 Dùng CSV data từ ./data/ (được tạo bởi data.py).
-Reuse hoàn toàn: check_entry(), check_exit(), update_trailing_stop(), get_bot_config()
-từ bot_service.py → kết quả nhất quán 100% với bot thực.
+Reuse hoàn toàn logic từ bot_service.py → kết quả nhất quán 100% với bot thực.
 """
 
 from __future__ import annotations
@@ -20,17 +19,15 @@ DATA_DIR = Path("data")
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _available_files() -> List[Dict]:
-    """Trả về danh sách các file CSV hiện có."""
     out = []
     for f in sorted(DATA_DIR.glob("*.csv")):
-        parts = f.stem.split("_")          # BTCUSDT_4h_10y
+        parts = f.stem.split("_")
         if len(parts) >= 2:
             out.append({"symbol": parts[0], "interval": parts[1], "file": str(f)})
     return out
 
 
 def _build_daily_map(df_1d: pd.DataFrame) -> Dict[str, dict]:
-    """Xây dựng map ngày → 1D context từ CSV."""
     daily: Dict[str, dict] = {}
     for _, row in df_1d.iterrows():
         day = str(row["datetime"])[:10]
@@ -46,10 +43,9 @@ def _build_daily_map(df_1d: pd.DataFrame) -> Dict[str, dict]:
 
 
 def _row_to_snap(row) -> dict:
-    """Chuyển 1 dòng CSV thành snap dict cho check_entry/check_exit."""
     def _f(col, default=0.0):
         v = row.get(col, default)
-        return float(v) if v is not None and v == v else float(default)  # NaN check
+        return float(v) if v is not None and v == v else float(default)
 
     price  = _f("close")
     bb_u   = _f("bb_upper") or None
@@ -79,32 +75,62 @@ def _row_to_snap(row) -> dict:
         "danger_overbought": int(row.get("danger_overbought", 0)) == 1,
         "dyn_oversold":  _f("rsi_oversold_dyn", 35),
         "dyn_overbought":_f("rsi_overbought_dyn", 70),
+        # v5 additions
+        "ema34":  _f("ema_34") or None,
+        "ema50":  _f("ema_50") or None,
+        "ema200": _f("ema_200") or None,
     }
 
 
-# ── Core backtest engine ──────────────────────────────────────────────────────
+def build_bars_below_ema200(df: pd.DataFrame) -> List[int]:
+    """Số bar liên tiếp close < EMA200 tại mỗi vị trí (dùng cho BREAKOUT_BUY)."""
+    result, count = [], 0
+    for _, row in df.iterrows():
+        ema200 = row.get("ema_200")
+        if ema200 is None or (isinstance(ema200, float) and np.isnan(ema200)):
+            result.append(count); continue
+        count = count + 1 if row["close"] < ema200 else 0
+        result.append(count)
+    return result
+
+
+# ── Config loader ──────────────────────────────────────────────────────────────
 
 def _load_cfg(symbol: str, mode: str):
-    """Import bot_service với BOT_MODE override, trả về (cfg, check_entry, check_exit, update_trailing_stop)."""
     import os
     old_mode = os.environ.get("BOT_MODE", "default")
     os.environ["BOT_MODE"] = mode
     try:
-        from services.bot_service import get_bot_config, check_entry, check_exit, update_trailing_stop
+        from services.bot_service import (
+            get_bot_config,
+            check_entry, check_exit, update_trailing_stop,
+            check_bounce_entry, check_bounce_exit, update_bounce_trailing,
+            check_breakout_entry,
+        )
         cfg = get_bot_config(symbol)
     finally:
         os.environ["BOT_MODE"] = old_mode
-    return cfg, check_entry, check_exit, update_trailing_stop
+    return (cfg, check_entry, check_exit, update_trailing_stop,
+            check_bounce_entry, check_bounce_exit, update_bounce_trailing,
+            check_breakout_entry)
+
+
+# ── Core backtest engine ───────────────────────────────────────────────────────
+
+_DEFAULT_DCTX = {
+    "uptrend": False, "bull_ema": False, "bear_ema": False,
+    "danger": False, "rsi": 50.0, "adx": 20.0,
+}
 
 
 def _simulate(df: pd.DataFrame, daily_map: Dict[str, dict],
-              cfg: dict, check_entry, check_exit, update_trailing_stop,
+              cfg: dict,
+              check_entry, check_exit, update_trailing_stop,
+              check_bounce_entry, check_bounce_exit, update_bounce_trailing,
+              check_breakout_entry,
               initial_capital: float, symbol: str, interval: str, mode: str) -> dict:
-    """Core bar-by-bar simulation. Dùng chung cho cả file-based và upload-based backtest."""
-    _DEFAULT_DCTX = {
-        "uptrend": False, "bull_ema": False, "bear_ema": False,
-        "danger": False, "rsi": 50.0, "adx": 20.0,
-    }
+
+    bars_below_list = build_bars_below_ema200(df)
 
     capital   = initial_capital
     position: Optional[dict] = None
@@ -118,6 +144,7 @@ def _simulate(df: pd.DataFrame, daily_map: Dict[str, dict],
         snap  = _row_to_snap(row)
         price = snap["price"]
         atr   = snap["atr_14"]
+        prev_bars_below = bars_below_list[i - 1] if i > 0 else 0
 
         eq = capital
         if position:
@@ -125,8 +152,13 @@ def _simulate(df: pd.DataFrame, daily_map: Dict[str, dict],
         equity_curve.append({"date": day, "equity": round(eq, 2)})
 
         if position:
-            entry    = position["entry_price"]
-            new_stop = update_trailing_stop(price, entry, atr, position["stop_price"], cfg)
+            entry      = position["entry_price"]
+            trade_mode = position.get("mode", "trend")
+
+            if trade_mode == "bounce":
+                new_stop = update_bounce_trailing(price, entry, atr, position["stop_price"], cfg)
+            else:
+                new_stop = update_trailing_stop(price, entry, atr, position["stop_price"], cfg)
             position["stop_price"] = new_stop
 
             if price <= new_stop:
@@ -139,7 +171,11 @@ def _simulate(df: pd.DataFrame, daily_map: Dict[str, dict],
                 position = None
                 continue
 
-            should_exit, reason = check_exit(snap, dctx, cfg)
+            if trade_mode == "bounce":
+                should_exit, reason = check_bounce_exit(snap, dctx, cfg)
+            else:
+                should_exit, reason = check_exit(snap, dctx, cfg)
+
             if should_exit:
                 exit_price = price
                 pnl_pct    = (exit_price - entry) / entry * 100
@@ -148,11 +184,33 @@ def _simulate(df: pd.DataFrame, daily_map: Dict[str, dict],
                 capital   += position["pos_usd"] + pnl_usd - fee
                 trades.append(_make_trade(position, exit_price, day, reason, pnl_pct, pnl_usd - fee))
                 position = None
+
         else:
-            should_enter, strategy = check_entry(snap, dctx, cfg)
-            if should_enter and atr > 0:
-                pos_usd = capital * cfg["position_pct"]
-                stop    = price - cfg["sl_atr_mult"] * atr
+            entered = False; strategy = ""; trade_mode = "trend"
+
+            # Priority 1: BREAKOUT_BUY
+            should_enter, strategy = check_breakout_entry(snap, dctx, prev_bars_below, cfg)
+            if should_enter:
+                entered = True; trade_mode = "breakout"
+                pos_pct = cfg["breakout_position_pct"]; sl_mult = cfg["breakout_sl_atr"]
+
+            # Priority 2: Trend MODE A
+            if not entered:
+                should_enter, strategy = check_entry(snap, dctx, cfg)
+                if should_enter:
+                    entered = True; trade_mode = "trend"
+                    pos_pct = cfg["position_pct"]; sl_mult = cfg["sl_atr_mult"]
+
+            # Priority 3: Bear Bounce MODE B
+            if not entered:
+                should_enter, strategy = check_bounce_entry(snap, dctx, cfg)
+                if should_enter:
+                    entered = True; trade_mode = "bounce"
+                    pos_pct = cfg["bounce_position_pct"]; sl_mult = cfg["bounce_sl_atr"]
+
+            if entered and atr > 0:
+                pos_usd = capital * pos_pct
+                stop    = price - sl_mult * atr
                 position = {
                     "entry_price": price,
                     "stop_price":  stop,
@@ -160,6 +218,7 @@ def _simulate(df: pd.DataFrame, daily_map: Dict[str, dict],
                     "entry_atr":   atr,
                     "pos_usd":     pos_usd,
                     "entry_time":  day,
+                    "mode":        trade_mode,
                 }
                 capital -= pos_usd
 
@@ -182,8 +241,9 @@ def run_backtest(
     mode: str = "default",
     initial_capital: float = 10_000,
 ) -> dict:
-    """Chạy backtest từ file CSV trong ./data/."""
-    cfg, check_entry, check_exit, update_trailing_stop = _load_cfg(symbol, mode)
+    (cfg, check_entry, check_exit, update_trailing_stop,
+     check_bounce_entry, check_bounce_exit, update_bounce_trailing,
+     check_breakout_entry) = _load_cfg(symbol, mode)
 
     f_main = DATA_DIR / f"{symbol}_{interval}_10y.csv"
     f_1d   = DATA_DIR / f"{symbol}_1d_10y.csv"
@@ -201,7 +261,10 @@ def run_backtest(
     elif interval == "1d":
         daily_map = _build_daily_map(df)
 
-    return _simulate(df, daily_map, cfg, check_entry, check_exit, update_trailing_stop,
+    return _simulate(df, daily_map, cfg,
+                     check_entry, check_exit, update_trailing_stop,
+                     check_bounce_entry, check_bounce_exit, update_bounce_trailing,
+                     check_breakout_entry,
                      initial_capital, symbol, interval, mode)
 
 
@@ -213,8 +276,9 @@ def run_backtest_from_df(
     mode: str = "default",
     initial_capital: float = 10_000,
 ) -> dict:
-    """Chạy backtest từ DataFrame (dùng khi user upload CSV)."""
-    cfg, check_entry, check_exit, update_trailing_stop = _load_cfg(symbol, mode)
+    (cfg, check_entry, check_exit, update_trailing_stop,
+     check_bounce_entry, check_bounce_exit, update_bounce_trailing,
+     check_breakout_entry) = _load_cfg(symbol, mode)
 
     if "datetime" not in df_main.columns:
         return {"error": "CSV thiếu cột 'datetime'. Vui lòng kiểm tra định dạng file."}
@@ -236,7 +300,10 @@ def run_backtest_from_df(
     elif interval == "1d":
         daily_map = _build_daily_map(df)
 
-    return _simulate(df, daily_map, cfg, check_entry, check_exit, update_trailing_stop,
+    return _simulate(df, daily_map, cfg,
+                     check_entry, check_exit, update_trailing_stop,
+                     check_bounce_entry, check_bounce_exit, update_bounce_trailing,
+                     check_breakout_entry,
                      initial_capital, symbol, interval, mode)
 
 
@@ -246,6 +313,7 @@ def _make_trade(pos: dict, exit_price: float, exit_date: str, reason: str,
         "entry_date":  pos["entry_time"],
         "exit_date":   exit_date,
         "strategy":    pos["strategy"],
+        "mode":        pos.get("mode", "trend"),
         "entry_price": round(pos["entry_price"], 4),
         "exit_price":  round(exit_price, 4),
         "reason":      reason,
@@ -261,7 +329,8 @@ def _compute_metrics(trades, equity_curve, df, initial_capital, final_capital,
         return {
             "error": None, "symbol": symbol, "interval": interval, "mode": mode,
             "summary": {"total_trades": 0, "total_return_pct": 0},
-            "trades": [], "equity_curve": equity_curve, "exit_reasons": {}, "strategy_counts": {},
+            "trades": [], "equity_curve": equity_curve,
+            "exit_reasons": {}, "strategy_counts": {}, "mode_stats": {},
         }
 
     pnls    = [t["pnl_pct"] for t in trades]
@@ -276,20 +345,17 @@ def _compute_metrics(trades, equity_curve, df, initial_capital, final_capital,
     gross_loss = abs(sum(p for p in net_pnls if p < 0))
     pf = round(gross_win / gross_loss, 3) if gross_loss > 0 else float("inf")
 
-    # Equity curve metrics
     eq_vals = [e["equity"] for e in equity_curve]
     eq_arr  = np.array(eq_vals, dtype=float)
     peak    = np.maximum.accumulate(eq_arr)
     dd      = (eq_arr - peak) / peak * 100
     max_dd  = float(dd.min())
 
-    # Sharpe (per bar)
     ret_arr = np.diff(eq_arr) / eq_arr[:-1]
     ret_arr = ret_arr[np.isfinite(ret_arr)]
     bars_per_year = {"1d": 365, "4h": 365 * 6, "1h": 365 * 24}.get(interval, 365)
     sharpe = float(np.mean(ret_arr) / np.std(ret_arr) * np.sqrt(bars_per_year)) if ret_arr.std() > 0 else 0.0
 
-    # Buy & Hold
     bh_start = float(df.iloc[0]["close"])
     bh_end   = float(df.iloc[-1]["close"])
     bh_ret   = (bh_end - bh_start) / bh_start * 100
@@ -320,6 +386,22 @@ def _compute_metrics(trades, equity_curve, df, initial_capital, final_capital,
         v["avg_pnl"]  = round(v["total_pnl"] / v["count"], 2)
         v["win_rate"] = round(v["wins"] / v["count"] * 100, 1)
 
+    # Mode stats (trend / bounce / breakout)
+    mode_stats: Dict[str, Any] = {}
+    for m in ["trend", "bounce", "breakout"]:
+        mt = [t for t in trades if t.get("mode") == m]
+        if not mt: continue
+        mp = [t["pnl_pct"] for t in mt]
+        mw = [p for p in mp if p > 0]; ml = [p for p in mp if p <= 0]
+        mode_stats[m] = {
+            "trades":        len(mt),
+            "wins":          len(mw),
+            "win_rate":      round(len(mw) / len(mt) * 100, 1),
+            "avg_win":       round(sum(mw) / len(mw), 2) if mw else 0,
+            "avg_loss":      round(sum(ml) / len(ml), 2) if ml else 0,
+            "profit_factor": round(sum(mw) / abs(sum(ml)), 2) if ml else 999,
+        }
+
     # Max consecutive wins/losses
     max_cw = max_cl = cw = cl = 0
     for t in trades:
@@ -328,39 +410,48 @@ def _compute_metrics(trades, equity_curve, df, initial_capital, final_capital,
         else:
             cl += 1; cw = 0; max_cl = max(max_cl, cl)
 
-    # Downsample equity curve for chart (max 500 points)
     step = max(1, len(equity_curve) // 500)
     equity_sampled = equity_curve[::step]
 
     return {
         "error": None,
         "symbol": symbol, "interval": interval, "mode": mode,
-        "config": {k: cfg[k] for k in ["position_pct","sl_atr_mult","buy_score_min","adx_min","commission_pct"]},
-        "summary": {
-            "initial_capital":   initial_capital,
-            "final_capital":     round(final_capital, 2),
-            "total_return_pct":  round(total_return, 1),
-            "buy_hold_return_pct": round(bh_ret, 1),
-            "alpha_pct":         round(total_return - bh_ret, 1),
-            "max_drawdown_pct":  round(max_dd, 1),
-            "sharpe_ratio":      round(sharpe, 3),
-            "profit_factor":     pf,
-            "total_trades":      len(trades),
-            "win_rate_pct":      round(win_rate, 1),
-            "wins":              len(wins),
-            "losses":            len(losses),
-            "avg_win_pct":       round(sum(wins)/len(wins), 2) if wins else 0,
-            "avg_loss_pct":      round(sum(losses)/len(losses), 2) if losses else 0,
-            "best_trade_pct":    round(max(pnls), 2),
-            "worst_trade_pct":   round(min(pnls), 2),
-            "max_win_streak":    max_cw,
-            "max_loss_streak":   max_cl,
-            "period_start":      str(df.iloc[0]["datetime"])[:10],
-            "period_end":        str(df.iloc[-1]["datetime"])[:10],
+        "config": {
+            "position_pct":         cfg.get("position_pct", 0.70),
+            "sl_atr_mult":          cfg.get("sl_atr_mult", 2.0),
+            "buy_score_min":        cfg.get("buy_score_min", 5),
+            "adx_min":              cfg.get("adx_min", 20),
+            "commission_pct":       cfg.get("commission_pct", 0.075),
+            "bounce_position_pct":  cfg.get("bounce_position_pct", 0.30),
+            "breakout_position_pct":cfg.get("breakout_position_pct", 0.50),
+            "breakout_min_bars":    cfg.get("breakout_min_bars", 15),
         },
-        "trades":         trades[-200:],    # last 200 trades for table
+        "summary": {
+            "initial_capital":     initial_capital,
+            "final_capital":       round(final_capital, 2),
+            "total_return_pct":    round(total_return, 1),
+            "buy_hold_return_pct": round(bh_ret, 1),
+            "alpha_pct":           round(total_return - bh_ret, 1),
+            "max_drawdown_pct":    round(max_dd, 1),
+            "sharpe_ratio":        round(sharpe, 3),
+            "profit_factor":       pf,
+            "total_trades":        len(trades),
+            "win_rate_pct":        round(win_rate, 1),
+            "wins":                len(wins),
+            "losses":              len(losses),
+            "avg_win_pct":         round(sum(wins) / len(wins), 2) if wins else 0,
+            "avg_loss_pct":        round(sum(losses) / len(losses), 2) if losses else 0,
+            "best_trade_pct":      round(max(pnls), 2),
+            "worst_trade_pct":     round(min(pnls), 2),
+            "max_win_streak":      max_cw,
+            "max_loss_streak":     max_cl,
+            "period_start":        str(df.iloc[0]["datetime"])[:10],
+            "period_end":          str(df.iloc[-1]["datetime"])[:10],
+        },
+        "trades":             trades[-200:],
         "total_trades_count": len(trades),
-        "equity_curve":   equity_sampled,
-        "exit_reasons":   exit_reasons,
-        "strategy_counts": strategy_counts,
+        "equity_curve":       equity_sampled,
+        "exit_reasons":       exit_reasons,
+        "strategy_counts":    strategy_counts,
+        "mode_stats":         mode_stats,
     }

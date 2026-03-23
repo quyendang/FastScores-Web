@@ -44,6 +44,24 @@ _BASE_CFG = dict(
     trail_tier2    = 2.0,
     trail_tier1    = 1.0,
     breakeven_atr  = 0.3,
+    # MODE B: Bear Bounce
+    bounce_position_pct    = 0.30,
+    bounce_sl_atr          = 1.5,
+    bounce_adx_max_1d      = 35.0,
+    bounce_rsi_min         = 40.0,
+    bounce_rsi_max         = 60.0,
+    bounce_exit_rsi        = 65.0,
+    bounce_exit_sell_score = 3,
+    bounce_exit_rsi_mom    = 55.0,
+    bounce_trail_t2        = 1.5,
+    bounce_trail_t1        = 0.8,
+    bounce_breakeven_atr   = 0.2,
+    # BREAKOUT_BUY
+    breakout_position_pct  = 0.50,
+    breakout_sl_atr        = 2.0,
+    breakout_min_bars      = 15,
+    breakout_rsi_min       = 40.0,
+    breakout_rsi_max       = 68.0,
 )
 
 _OPT_OVERRIDES: Dict[str, dict] = {
@@ -167,6 +185,7 @@ def get_4h_snapshot(symbol: str) -> dict:
     rsi_s   = ind.rsi_series(closes, 14)
     _, _, macd_h = ind.macd_series(closes, 12, 26, 9)
     e34  = ind.ema_series(closes, 34)
+    e50  = ind.ema_series(closes, 50)
     e89  = ind.ema_series(closes, 89)
     e200 = ind.ema_series(closes, 200)
     _, bb_upper, bb_lower = ind.bollinger_bands(closes, 20, 2.0)
@@ -192,7 +211,17 @@ def get_4h_snapshot(symbol: str) -> dict:
     atr_v   = atr_s[-1] if atr_s else 0.0
     stk     = stoch[-1] if stoch else 50.0
     e34_v   = e34[-1]
+    e50_v   = e50[-1]
     e89_v   = e89[-1]
+
+    # Đếm số bar liên tiếp close < EMA200 (trước bar hiện tại)
+    bars_below_ema200 = 0
+    for j in range(len(closes) - 2, -1, -1):
+        if e200[j] is None: break
+        if closes[j] < e200[j]:
+            bars_below_ema200 += 1
+        else:
+            break
 
     bb_pct = None
     if bb_u is not None and bb_l is not None and bb_u > bb_l:
@@ -234,12 +263,13 @@ def get_4h_snapshot(symbol: str) -> dict:
         "adx_14": adx_r["adx"], "di_plus": adx_r["di_plus"], "di_minus": adx_r["di_minus"],
         "stoch_k": stk, "atr_14": atr_v, "bb_pct": bb_pct,
         "bb_upper": bb_u, "bb_lower": bb_l,
-        "ema34": e34_v, "ema89": e89_v, "ema200": e200[-1],
+        "ema34": e34_v, "ema50": e50_v, "ema89": e89_v, "ema200": e200[-1],
         "buy_score": bs, "sell_score": ss,
         "in_buy_zone": in_buy, "in_sell_zone": in_sell,
         "obv_trend": obv_r["obv_trend"],
         "danger_overbought": bb_u is not None and price >= bb_u and rsi_v > 72,
         "dyn_oversold": dyn_os, "dyn_overbought": dyn_ob,
+        "bars_below_ema200": bars_below_ema200,
     }
 
 # ── Entry / Exit checks (v2 algorithm) ───────────────────────────────────────
@@ -290,14 +320,59 @@ def update_trailing_stop(price: float, entry: float, atr: float, current_stop: f
         return max(current_stop, entry)
     return current_stop
 
+def update_bounce_trailing(price: float, entry: float, atr: float, current_stop: float, cfg: dict) -> float:
+    """Trailing stop nhẹ hơn cho MODE B (Bear Bounce)."""
+    if atr <= 0: return current_stop
+    profit_atr = (price - entry) / atr
+    if profit_atr > cfg["bounce_trail_t2"]:
+        return max(current_stop, price - 0.8 * atr)
+    elif profit_atr > cfg["bounce_trail_t1"]:
+        return max(current_stop, price - 1.0 * atr)
+    elif profit_atr > cfg["bounce_breakeven_atr"]:
+        return max(current_stop, entry)
+    return current_stop
+
+def check_bounce_entry(snap: dict, dctx: dict, cfg: dict):
+    """MODE B: Bear Bounce — micro uptrend trong downtrend 1D."""
+    if dctx.get("uptrend", True): return False, ""
+    if dctx.get("adx", 50) >= cfg["bounce_adx_max_1d"]: return False, ""
+    ema34 = snap.get("ema34"); ema50 = snap.get("ema50")
+    if ema34 is None or ema50 is None or ema34 <= ema50: return False, ""
+    if not (snap["macd_rising"] and snap["macd_hist"] > 0): return False, ""
+    if not (cfg["bounce_rsi_min"] < snap["rsi_14"] < cfg["bounce_rsi_max"]): return False, ""
+    return True, "BEAR_BOUNCE"
+
+def check_bounce_exit(snap: dict, dctx: dict, cfg: dict):
+    """Exit cho MODE B (Bear Bounce)."""
+    ema34 = snap.get("ema34"); ema50 = snap.get("ema50")
+    if ema34 is not None and ema50 is not None and ema34 < ema50:
+        return True, "MICRO_LOST"
+    if snap["rsi_14"] > cfg["bounce_exit_rsi"]: return True, "BOUNCE_OB"
+    if snap["sell_score"] >= cfg["bounce_exit_sell_score"]: return True, "BOUNCE_SELL"
+    if not snap["macd_rising"] and snap["macd_hist"] < 0 and snap["rsi_14"] > cfg["bounce_exit_rsi_mom"]:
+        return True, "MOM_FADE"
+    return False, ""
+
+def check_breakout_entry(snap: dict, dctx: dict, bars_below: int, cfg: dict):
+    """BREAKOUT_BUY: giá vừa tái chiếm EMA200 sau downtrend >= breakout_min_bars bar."""
+    if not dctx.get("uptrend"): return False, ""
+    if bars_below < cfg["breakout_min_bars"]: return False, ""
+    if not (snap["macd_rising"] and snap["macd_hist"] > 0): return False, ""
+    if not (cfg["breakout_rsi_min"] <= snap["rsi_14"] <= cfg["breakout_rsi_max"]): return False, ""
+    return True, "BREAKOUT_BUY"
+
 # ── Simulated trade ($10k) ────────────────────────────────────────────────────
 def compute_simulated_trade(symbol: str, snap: dict, dctx: dict, cfg: dict) -> dict:
     price   = snap["price"]
     atr     = snap["atr_14"]
     pos     = _open_positions.get(symbol)
-    pos_usd = 10_000 * cfg["position_pct"]
 
     if pos:
+        trade_mode  = pos.get("mode", "trend")
+        pos_pct     = (cfg["breakout_position_pct"] if trade_mode == "breakout"
+                       else cfg["bounce_position_pct"] if trade_mode == "bounce"
+                       else cfg["position_pct"])
+        pos_usd     = 10_000 * pos_pct
         entry       = pos["entry_price"]
         stop        = pos["stop_price"]
         qty         = pos_usd / entry
@@ -315,6 +390,7 @@ def compute_simulated_trade(symbol: str, snap: dict, dctx: dict, cfg: dict) -> d
         }
         return {
             "status": "IN_TRADE", "strategy": pos.get("strategy", ""),
+            "mode": trade_mode,
             "entry_price": entry, "entry_time": pos.get("entry_time", ""),
             "stop_price": round(stop, 2), "current_price": price,
             "qty": round(qty, 6), "pos_usd": round(pos_usd, 0),
@@ -323,14 +399,30 @@ def compute_simulated_trade(symbol: str, snap: dict, dctx: dict, cfg: dict) -> d
             "trail_tier": tier, "trail_label": tier_labels[tier],
         }
     else:
-        should_enter, strategy = check_entry(snap, dctx, cfg)
-        sl      = price - cfg["sl_atr_mult"] * atr
-        tp_est  = price + cfg["trail_tier2"] * atr
-        sl_pct  = abs(price - sl) / price * 100
-        qty     = pos_usd / price
+        bars_below = snap.get("bars_below_ema200", 0)
+        # Check all modes in priority order
+        entered, strategy = check_breakout_entry(snap, dctx, bars_below, cfg)
+        if entered:
+            pos_pct = cfg["breakout_position_pct"]; sl_mult = cfg["breakout_sl_atr"]
+        else:
+            entered, strategy = check_entry(snap, dctx, cfg)
+            if entered:
+                pos_pct = cfg["position_pct"]; sl_mult = cfg["sl_atr_mult"]
+            else:
+                entered, strategy = check_bounce_entry(snap, dctx, cfg)
+                if entered:
+                    pos_pct = cfg["bounce_position_pct"]; sl_mult = cfg["bounce_sl_atr"]
+                else:
+                    pos_pct = cfg["position_pct"]; sl_mult = cfg["sl_atr_mult"]
+
+        pos_usd  = 10_000 * pos_pct
+        sl       = price - sl_mult * atr
+        tp_est   = price + cfg["trail_tier2"] * atr
+        sl_pct   = abs(price - sl) / price * 100
+        qty      = pos_usd / price
         risk_usd = pos_usd * sl_pct / 100
         return {
-            "status": "SIGNAL" if should_enter else "WATCHING",
+            "status": "SIGNAL" if entered else "WATCHING",
             "strategy": strategy,
             "entry_price": price, "stop_price": round(sl, 2),
             "tp_estimate": round(tp_est, 2),
@@ -364,7 +456,12 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
     if pos:
         entry     = pos["entry_price"]
         old_stop  = pos["stop_price"]
-        new_stop  = update_trailing_stop(price, entry, atr, old_stop, cfg)
+        trade_mode = pos.get("mode", "trend")
+
+        if trade_mode == "bounce":
+            new_stop = update_bounce_trailing(price, entry, atr, old_stop, cfg)
+        else:
+            new_stop = update_trailing_stop(price, entry, atr, old_stop, cfg)
         _open_positions[symbol]["stop_price"] = new_stop
         result["position"] = dict(_open_positions[symbol])
 
@@ -374,10 +471,14 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
             result.update(action="CLOSE", reason="STOP_HIT", pnl_pct=pnl_pct)
             if send_notify and _can_notify(f"{symbol}_CLOSE"):
                 _mark_notified(f"{symbol}_CLOSE")
-                _send_close(symbol, entry, price, atr, pnl_pct, "Stop Loss", pos.get("strategy", ""), cfg)
+                _send_close(symbol, entry, price, atr, pnl_pct, "Stop Loss", pos.get("strategy", ""), cfg, trade_mode)
             return result
 
-        should_exit, exit_reason = check_exit(snap, dctx, cfg)
+        if trade_mode == "bounce":
+            should_exit, exit_reason = check_bounce_exit(snap, dctx, cfg)
+        else:
+            should_exit, exit_reason = check_exit(snap, dctx, cfg)
+
         if should_exit:
             pnl_pct = (price - entry) / entry * 100
             _open_positions.pop(symbol, None)
@@ -385,25 +486,51 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
             if send_notify and _can_notify(f"{symbol}_CLOSE"):
                 _mark_notified(f"{symbol}_CLOSE")
                 emoji = "" if pnl_pct >= 0 else ""
-                _send_close(symbol, entry, price, atr, pnl_pct, f"{emoji} {exit_reason}", pos.get("strategy", ""), cfg)
+                _send_close(symbol, entry, price, atr, pnl_pct, f"{emoji} {exit_reason}", pos.get("strategy", ""), cfg, trade_mode)
             return result
 
         result.update(action="HOLD_POS",
                       reason=f"stop={new_stop:.2f} pnl={((price-entry)/entry*100):+.2f}%")
 
     else:
-        should_enter, strategy = check_entry(snap, dctx, cfg)
+        bars_below = snap.get("bars_below_ema200", 0)
+        entered = False; strategy = ""; mode_str = "trend"
+
+        # Priority 1: BREAKOUT_BUY
+        should_enter, strategy = check_breakout_entry(snap, dctx, bars_below, cfg)
         if should_enter:
-            stop = price - cfg["sl_atr_mult"] * atr
+            entered = True; mode_str = "breakout"
+
+        # Priority 2: Trend MODE A
+        if not entered:
+            should_enter, strategy = check_entry(snap, dctx, cfg)
+            if should_enter:
+                entered = True; mode_str = "trend"
+
+        # Priority 3: Bear Bounce MODE B
+        if not entered:
+            should_enter, strategy = check_bounce_entry(snap, dctx, cfg)
+            if should_enter:
+                entered = True; mode_str = "bounce"
+
+        if entered:
+            pos_pct = (cfg["breakout_position_pct"] if mode_str == "breakout"
+                       else cfg["bounce_position_pct"] if mode_str == "bounce"
+                       else cfg["position_pct"])
+            sl_mult = (cfg["breakout_sl_atr"] if mode_str == "breakout"
+                       else cfg["bounce_sl_atr"] if mode_str == "bounce"
+                       else cfg["sl_atr_mult"])
+            stop = price - sl_mult * atr
             _open_positions[symbol] = {
                 "entry_price": price, "stop_price": stop,
                 "entry_time": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
                 "strategy": strategy, "entry_atr": atr,
+                "mode": mode_str,
             }
             result.update(action="BUY", reason=strategy, strategy=strategy)
             if send_notify and _can_notify(f"{symbol}_BUY"):
                 _mark_notified(f"{symbol}_BUY")
-                _send_entry(symbol, price, stop, atr, strategy, snap, dctx, cfg)
+                _send_entry(symbol, price, stop, atr, strategy, snap, dctx, cfg, mode_str)
         else:
             result.update(action="LOOKING", reason="No entry condition")
 
@@ -415,16 +542,33 @@ _STRAT_LABELS = {
     "DIP_BUY":      "Mua day (Dip Buy)",
     "TREND_FOLLOW": "Theo xu huong",
     "SCORE_BUY":    "Score-based",
+    "BEAR_BOUNCE":  "Bear Bounce",
+    "BREAKOUT_BUY": "Breakout EMA200",
 }
 
-def _send_entry(symbol, price, stop, atr, strategy, snap, dctx, cfg):
+def _send_entry(symbol, price, stop, atr, strategy, snap, dctx, cfg, trade_mode="trend"):
     mode_tag = "Optimized" if BOT_MODE == "optimized" else "Default"
+    # Pos size theo đúng mode
+    pos_pct = (cfg["breakout_position_pct"] if trade_mode == "breakout"
+               else cfg["bounce_position_pct"] if trade_mode == "bounce"
+               else cfg["position_pct"])
     sl_pct   = abs(price - stop) / price * 100
     tp_est   = price + cfg["trail_tier2"] * atr
-    pos_usd  = 10_000 * cfg["position_pct"]
+    pos_usd  = 10_000 * pos_pct
     qty      = pos_usd / price
     risk_usd = pos_usd * sl_pct / 100
     strat    = _STRAT_LABELS.get(strategy, strategy)
+
+    # Mode label
+    mode_labels = {"trend": "Trend", "bounce": "Bear Bounce", "breakout": "Breakout EMA200"}
+    mode_label  = mode_labels.get(trade_mode, trade_mode.capitalize())
+
+    # Extra context cho bounce / breakout
+    extra = ""
+    if trade_mode == "bounce":
+        extra = f"\nEMA34: ${snap.get('ema34', 0):,.2f} | EMA50: ${snap.get('ema50', 0):,.2f}"
+    elif trade_mode == "breakout":
+        extra = f"\nBars below EMA200 truoc day: {snap.get('bars_below_ema200', 0)}"
 
     # Parallel AI macro
     macro      = ind.fetch_macro_snapshot()
@@ -445,25 +589,29 @@ def _send_entry(symbol, price, stop, atr, strategy, snap, dctx, cfg):
     if m2_text: macro_block += f"\nRisk: {m2_text}"
 
     msg = (
-        f"Chien luoc: <b>{strat}</b> ({mode_tag})\n"
+        f"Chien luoc: <b>{strat}</b> [{mode_label}] ({mode_tag})\n"
         f"---\n"
         f"Vao: <b>${price:,.2f}</b>\n"
         f"SL: <b>${stop:,.2f}</b> (-{sl_pct:.1f}%)\n"
         f"TP uoc tinh: <b>${tp_est:,.2f}</b> (+{(tp_est-price)/price*100:.1f}%)\n"
         f"---\n"
         f"Gia lap $10,000\n"
-        f"Vi the: ${pos_usd:,.0f} ({cfg['position_pct']*100:.0f}%)\n"
+        f"Vi the: ${pos_usd:,.0f} ({pos_pct*100:.0f}%)\n"
         f"SL luong: {qty:.4f} {symbol.replace('USDT','')}\n"
         f"Rui ro: ~${risk_usd:,.0f}\n"
         f"---\n"
         f"RSI: {snap['rsi_14']:.1f} | ADX: {snap['adx_14']:.1f} | ATR: ${atr:,.2f}\n"
         f"1D: {'Uptrend' if dctx['uptrend'] else 'Downtrend'}"
+        f"{extra}"
         f"{macro_block}"
     )
     telegram_notify(f"{symbol} - TIN HIEU MUA", msg)
 
-def _send_close(symbol, entry, exit_price, atr, pnl_pct, reason_label, strategy, cfg):
-    pos_usd  = 10_000 * cfg["position_pct"]
+def _send_close(symbol, entry, exit_price, atr, pnl_pct, reason_label, strategy, cfg, trade_mode="trend"):
+    pos_pct = (cfg["breakout_position_pct"] if trade_mode == "breakout"
+               else cfg["bounce_position_pct"] if trade_mode == "bounce"
+               else cfg["position_pct"])
+    pos_usd  = 10_000 * pos_pct
     pnl_usd  = pos_usd * pnl_pct / 100
     strat    = _STRAT_LABELS.get(strategy, strategy)
     msg = (
@@ -478,10 +626,14 @@ def _send_close(symbol, entry, exit_price, atr, pnl_pct, reason_label, strategy,
 # ── Background job (called by scheduler) ─────────────────────────────────────
 def _db_record_buy(supabase, symbol: str, result: dict):
     """Insert a new BUY trade row into signal_history."""
-    snap    = result.get("snapshot", {})
-    cfg     = get_bot_config(symbol)
-    price   = result.get("price") or snap.get("price")
-    pos_usd = 10_000 * cfg["position_pct"]
+    snap       = result.get("snapshot", {})
+    cfg        = get_bot_config(symbol)
+    price      = result.get("price") or snap.get("price")
+    trade_mode = result.get("position", {}).get("mode", "trend") if result.get("position") else "trend"
+    pos_pct    = (cfg["breakout_position_pct"] if trade_mode == "breakout"
+                  else cfg["bounce_position_pct"] if trade_mode == "bounce"
+                  else cfg["position_pct"])
+    pos_usd = 10_000 * pos_pct
     supabase.table("signal_history").insert({
         "symbol":        symbol,
         "signal_type":   "BUY",
