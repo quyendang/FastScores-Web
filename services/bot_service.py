@@ -1,6 +1,8 @@
 """
-bot_service.py — Multi-Timeframe crypto bot (v2 algorithm).
+bot_service.py — Multi-Timeframe crypto bot (v6 algorithm).
   1D trend filter + 4H entry signals + ATR trailing stop.
+
+  v6 vs v5: bounce_rsi 30-65 (was 40-60), breakeven 0.1xATR (was 0.3/0.2)
 
 BOT_MODE=default    -> pos=70%, sl=2.0xATR, score>=5, adx>=20
 BOT_MODE=optimized  -> pos=50%, sl=1.5xATR, score>=4, adx>=22(BTC)/18(ETH)
@@ -43,19 +45,19 @@ _BASE_CFG = dict(
     trail_tier3    = 3.0,
     trail_tier2    = 2.0,
     trail_tier1    = 1.0,
-    breakeven_atr  = 0.3,
+    breakeven_atr  = 0.1,
     # MODE B: Bear Bounce
     bounce_position_pct    = 0.30,
     bounce_sl_atr          = 1.5,
     bounce_adx_max_1d      = 35.0,
-    bounce_rsi_min         = 40.0,
-    bounce_rsi_max         = 60.0,
+    bounce_rsi_min         = 30.0,
+    bounce_rsi_max         = 65.0,
     bounce_exit_rsi        = 65.0,
     bounce_exit_sell_score = 3,
     bounce_exit_rsi_mom    = 55.0,
     bounce_trail_t2        = 1.5,
     bounce_trail_t1        = 0.8,
-    bounce_breakeven_atr   = 0.2,
+    bounce_breakeven_atr   = 0.1,
     # BREAKOUT_BUY
     breakout_position_pct  = 0.50,
     breakout_sl_atr        = 2.0,

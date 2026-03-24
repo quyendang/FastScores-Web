@@ -1,5 +1,5 @@
 """
-bot_backtest.py — Backtest engine v5 (Trend + Bear Bounce + Breakout).
+bot_backtest.py — Backtest engine v6 (Trend + Bear Bounce + Breakout).
 
 Dùng CSV data từ ./data/ (được tạo bởi data.py).
 Reuse hoàn toàn logic từ bot_service.py → kết quả nhất quán 100% với bot thực.
