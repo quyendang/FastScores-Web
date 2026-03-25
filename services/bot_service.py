@@ -1081,8 +1081,71 @@ def _handle_check_command(chat_id: str, symbol: str, direction: str = "buy"):
             pass
 
 
+# ── /all broadcast command ────────────────────────────────────────────────────
+_ADMIN_IDS: Optional[set] = None  # lazily built
+
+def _get_admin_ids() -> set:
+    global _ADMIN_IDS
+    if _ADMIN_IDS is None:
+        ids = set(TELEGRAM_CHAT_IDS)
+        extra = os.getenv("ADMIN_CHAT_IDS", "")
+        if extra:
+            ids |= {c.strip() for c in extra.split(",") if c.strip()}
+        _ADMIN_IDS = ids
+    return _ADMIN_IDS
+
+
+def _handle_all_command(sender_id: str, broadcast_text: str):
+    """Broadcast a message from an admin to all bot users."""
+    url_send = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+    def _reply(text: str):
+        try:
+            requests.post(url_send, json={"chat_id": sender_id, "text": text}, timeout=10)
+        except Exception:
+            pass
+
+    if sender_id not in _get_admin_ids():
+        _reply("⛔ Bạn không có quyền sử dụng lệnh này.")
+        return
+
+    if not broadcast_text.strip():
+        _reply("❌ Thiếu nội dung.\nCú pháp: /all [tin nhắn]\nVí dụ: /all Thị trường đang biến động mạnh!")
+        return
+
+    all_ids = get_dynamic_chat_ids()
+    if not all_ids:
+        _reply("⚠️ Không tìm thấy người dùng nào.")
+        return
+
+    msg = f"📢 <b>Thông báo</b>\n\n{broadcast_text}"
+    sent = failed = 0
+    for cid in all_ids:
+        try:
+            r = requests.post(
+                url_send,
+                json={"chat_id": cid, "text": msg, "parse_mode": "HTML"},
+                timeout=10,
+            )
+            if r.ok:
+                sent += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+
+    logging.info(f"[ALL] broadcast from {sender_id}: {sent} OK, {failed} failed")
+    status = f"✅ Đã gửi đến <b>{sent}/{sent + failed}</b> người dùng"
+    if failed:
+        status += f" ({failed} thất bại)"
+    try:
+        requests.post(url_send, json={"chat_id": sender_id, "text": status, "parse_mode": "HTML"}, timeout=10)
+    except Exception:
+        pass
+
+
 def poll_telegram_commands():
-    """Poll getUpdates for /check <symbol> commands and reply. Called every 30s by scheduler."""
+    """Poll getUpdates for /check and /all commands. Called every 30s by scheduler."""
     global _cmd_update_offset
     if not TELEGRAM_BOT_TOKEN:
         return
@@ -1101,15 +1164,10 @@ def poll_telegram_commands():
             msg = upd.get("message") or {}
             text    = (msg.get("text") or "").strip()
             chat_id = str((msg.get("chat") or {}).get("id", ""))
-            if chat_id and text.lower().startswith("/check"):
+            cmd = text.split()[0].lower().split("@")[0] if text else ""  # strip @botname
+            if chat_id and cmd == "/check":
                 parts = text.split()
-                # parts[0] = "/check" or "/check@botname"
-                # parts[1] = symbol (optional)
-                # parts[2] = direction: buy/sell/long/short/mua/ban (optional)
                 raw_sym = parts[1].upper() if len(parts) >= 2 else ""
-                # Strip @botname from symbol if user typed wrong slot
-                if raw_sym.startswith("@"):
-                    raw_sym = parts[2].upper() if len(parts) >= 3 else ""
                 symbol = raw_sym
                 direction = "buy"
                 if len(parts) >= 3:
@@ -1121,6 +1179,11 @@ def poll_telegram_commands():
                 if symbol:
                     logging.info(f"[CMD] /check {symbol} {direction} from {chat_id}")
                     _handle_check_command(chat_id, symbol, direction)
+            elif chat_id and cmd == "/all":
+                # Everything after the first token is the broadcast message
+                broadcast = text[len(text.split()[0]):].strip()
+                logging.info(f"[CMD] /all from {chat_id}: {broadcast[:50]}")
+                _handle_all_command(chat_id, broadcast)
             if update_id + 1 > _cmd_update_offset:
                 _cmd_update_offset = update_id + 1
     except Exception as e:
