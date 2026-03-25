@@ -767,11 +767,14 @@ def _trend_str(uptrend: bool) -> str:
     return "✅ Tăng" if uptrend else "⚠️ Giảm"
 
 
-def _handle_check_command(chat_id: str, symbol: str):
-    """Process /check <symbol>: multi-timeframe analysis + 4-AI panel vote, reply to chat_id."""
+def _handle_check_command(chat_id: str, symbol: str, direction: str = "buy"):
+    """Process /check <symbol> [buy|sell]: multi-timeframe analysis + 4-AI panel vote."""
     url_send = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     if not symbol.endswith("USDT"):
         symbol = symbol + "USDT"
+    direction = direction.lower()
+    if direction not in ("buy", "sell"):
+        direction = "buy"
 
     try:
         # ── Parallel data fetching ────────────────────────────────────────────
@@ -858,9 +861,10 @@ def _handle_check_command(chat_id: str, symbol: str):
 
         mode_tag = "Optimized" if BOT_MODE == "optimized" else "Default"
         atr_pct  = (atr / price * 100) if price else 0
+        dir_tag  = "📈 BUY" if direction == "buy" else "📉 SELL"
 
         msg = (
-            f"📊 <b>{symbol}</b> /check [{mode_tag}]\n"
+            f"📊 <b>{symbol}</b> /check [{dir_tag}] [{mode_tag}]\n"
             f"━━━━━━━━━━━━━━━\n"
             f"{sig_emoji} <b>{sig_label}</b>\n"
             f"Giá: <b>${price:,.2f}</b> | ATR: ${atr:,.2f} (±{atr_pct:.1f}%)\n"
@@ -1018,7 +1022,7 @@ def _handle_check_command(chat_id: str, symbol: str):
                     extra_sr += (f"Zone {tf_lbl}: Mua ${z['buy_low']:,.0f}–${z['buy_high']:,.0f} | "
                                  f"Bán ${z['sell_low']:,.0f}–${z['sell_high']:,.0f}\n")
 
-            votes = run_ai_panel_vote(symbol, "4h", ai_snap, extra_ctx=extra_sr)
+            votes = run_ai_panel_vote(symbol, "4h", ai_snap, extra_ctx=extra_sr, direction=direction)
         except Exception:
             votes = []
 
@@ -1030,7 +1034,8 @@ def _handle_check_command(chat_id: str, symbol: str):
 
             _vote_emoji = {"MUA": "✅", "BÁN": "📉", "CHỜ": "⏳"}
             vote_icons  = ["🔵", "🟣", "🟠", "🔴"]
-            msg += "━━━━━━━━━━━━━━━\n🤖 <b>HỘI ĐỒNG AI ĐÁNH GIÁ</b>\n\n"
+            dir_label   = "CHIỀU MUA 📈" if direction == "buy" else "CHIỀU BÁN 📉"
+            msg += f"━━━━━━━━━━━━━━━\n🤖 <b>HỘI ĐỒNG AI — {dir_label}</b>\n\n"
             for i, v in enumerate(votes):
                 icon     = vote_icons[i] if i < len(vote_icons) else "⚫"
                 label    = v.get("label", f"AI {i+1}")
@@ -1042,19 +1047,25 @@ def _handle_check_command(chat_id: str, symbol: str):
                     msg += f"  └ {detail}\n"
                 msg += "\n"
 
-            # Verdict
-            if buy_count >= 3:
-                verdict = f"✅ NÊN MUA NGAY ({buy_count}/{total} đồng ý)"
-            elif sell_count >= 3:
-                verdict = f"📉 NÊN BÁN/SHORT NGAY ({sell_count}/{total} đồng ý)"
-            elif buy_count >= 2 and sell_count == 0:
-                verdict = f"⚠️ NGHIÊNG VỀ MUA — Thận trọng ({buy_count}/{total})"
-            elif sell_count >= 2 and buy_count == 0:
-                verdict = f"⚠️ NGHIÊNG VỀ BÁN — Thận trọng ({sell_count}/{total})"
-            elif buy_count > 0 and sell_count > 0:
-                verdict = f"🔀 Ý KIẾN TRÁI CHIỀU — Chờ tín hiệu rõ hơn"
-            else:
-                verdict = f"⏳ ĐỢI THÊM — {wait_count}/{total} AI khuyên chờ"
+            # Verdict — differs by direction
+            if direction == "sell":
+                if sell_count >= 3:
+                    verdict = f"✅ NÊN BÁN/SHORT NGAY ({sell_count}/{total} đồng ý)"
+                elif sell_count == 2:
+                    verdict = f"⚠️ NGHIÊNG VỀ BÁN — Thận trọng ({sell_count}/{total})"
+                elif buy_count >= 2:
+                    verdict = f"❌ KHÔNG NÊN BÁN — Tín hiệu mua mạnh hơn ({buy_count}/{total} nói MUA)"
+                else:
+                    verdict = f"⏳ ĐỢI THÊM — Chưa đủ điều kiện bán ({wait_count}/{total} AI khuyên chờ)"
+            else:  # buy
+                if buy_count >= 3:
+                    verdict = f"✅ NÊN MUA NGAY ({buy_count}/{total} đồng ý)"
+                elif buy_count == 2:
+                    verdict = f"⚠️ NGHIÊNG VỀ MUA — Thận trọng ({buy_count}/{total})"
+                elif sell_count >= 2:
+                    verdict = f"❌ KHÔNG NÊN MUA — Tín hiệu bán mạnh hơn ({sell_count}/{total} nói BÁN)"
+                else:
+                    verdict = f"⏳ ĐỢI THÊM — Chưa đủ điều kiện mua ({wait_count}/{total} AI khuyên chờ)"
             msg += f"📊 <b>Kết quả: {verdict}</b>\n"
 
         requests.post(url_send, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}, timeout=15)
@@ -1091,11 +1102,25 @@ def poll_telegram_commands():
             text    = (msg.get("text") or "").strip()
             chat_id = str((msg.get("chat") or {}).get("id", ""))
             if chat_id and text.lower().startswith("/check"):
-                parts  = text.split()
-                symbol = parts[1].upper() if len(parts) >= 2 else ""
+                parts = text.split()
+                # parts[0] = "/check" or "/check@botname"
+                # parts[1] = symbol (optional)
+                # parts[2] = direction: buy/sell/long/short/mua/ban (optional)
+                raw_sym = parts[1].upper() if len(parts) >= 2 else ""
+                # Strip @botname from symbol if user typed wrong slot
+                if raw_sym.startswith("@"):
+                    raw_sym = parts[2].upper() if len(parts) >= 3 else ""
+                symbol = raw_sym
+                direction = "buy"
+                if len(parts) >= 3:
+                    d = parts[2].lower()
+                    if d in ("sell", "short", "bán", "ban", "s"):
+                        direction = "sell"
+                    elif d in ("buy", "long", "mua", "b"):
+                        direction = "buy"
                 if symbol:
-                    logging.info(f"[CMD] /check {symbol} from {chat_id}")
-                    _handle_check_command(chat_id, symbol)
+                    logging.info(f"[CMD] /check {symbol} {direction} from {chat_id}")
+                    _handle_check_command(chat_id, symbol, direction)
             if update_id + 1 > _cmd_update_offset:
                 _cmd_update_offset = update_id + 1
     except Exception as e:

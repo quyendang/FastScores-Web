@@ -126,8 +126,12 @@ def _model_short_label(model_id: str) -> str:
     return model_id.split("/")[-1].split(":")[0][:12]
 
 
-def _call_vote(model: str, symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> dict:
-    """Ask a single AI model: MUA / BÁN / CHỜ with a specific price condition."""
+def _call_vote(model: str, symbol: str, tf: str, snap: dict,
+               extra_ctx: str = "", direction: str = "buy") -> dict:
+    """Ask a single AI model: MUA / BÁN / CHỜ with specific price level.
+    direction='buy'  → focus on long entry evaluation.
+    direction='sell' → focus on short/sell entry evaluation.
+    """
     if not OPENROUTER_API_KEY or not model:
         return {}
 
@@ -156,22 +160,42 @@ def _call_vote(model: str, symbol: str, tf: str, snap: dict, extra_ctx: str = ""
     )
     zone_str = "vùng MUA" if in_buy else ("vùng BÁN" if in_sell else "giữa hai vùng")
 
+    if direction == "sell":
+        question = (
+            f"Người dùng muốn BÁN/SHORT {symbol}. Đánh giá: Có nên BÁN ngay không?\n\n"
+        )
+        detail_hint = (
+            f"nếu BÁN ngay thì SL (stop-loss) và TP (chốt lời) đề xuất là bao nhiêu; "
+            f"nếu CHỜ thì chờ giá lên vùng bán nào; "
+            f"nếu KHÔNG BÁN thì lý do (giá quá thấp, tín hiệu tăng mạnh...)"
+        )
+        key_metrics = f"Sell Score: {sell_score}/13 (quan trọng) | Buy Score: {buy_score}/13"
+    else:
+        question = (
+            f"Người dùng muốn MUA/LONG {symbol}. Đánh giá: Có nên MUA ngay không?\n\n"
+        )
+        detail_hint = (
+            f"nếu MUA ngay thì SL (stop-loss) và TP (chốt lời) đề xuất là bao nhiêu; "
+            f"nếu CHỜ thì chờ giá về vùng mua nào; "
+            f"nếu KHÔNG MUA thì lý do (giá quá cao, tín hiệu giảm mạnh...)"
+        )
+        key_metrics = f"Buy Score: {buy_score}/13 (quan trọng) | Sell Score: {sell_score}/13"
+
     prompt = (
-        f"Trader chuyên nghiệp phân tích {symbol} khung {tf}. Quyết định: MUA ngay / BÁN ngay / CHỜ?\n\n"
+        f"Trader chuyên nghiệp phân tích {symbol} khung {tf}.\n"
+        f"{question}"
         f"Dữ liệu:\n"
         f"Giá: ${price:,.2f} | Xu hướng H1={h1_str} H4={h4_str} D1={d1_str}\n"
         f"RSI {rsi:.0f} ({rsi_label}) | Stoch {stoch:.0f} | ADX {adx:.0f} | "
         f"MACD {'↑' if macd_rising else '↓'}\n"
-        f"Điểm mua/bán: {buy_score}/{sell_score} (thang 13) | Vị trí: {zone_str}\n"
+        f"{key_metrics} | Vị trí: {zone_str}\n"
         f"{extra_ctx}"
-        f"\nYêu cầu: Trả lời ĐÚNG định dạng sau, không thêm gì:\n"
+        f"\nTrả lời ĐÚNG định dạng, không thêm gì:\n"
         f"QUYẾT ĐỊNH: [MUA hoặc BÁN hoặc CHỜ]\n"
-        f"CHI TIẾT: [Nêu MỨC GIÁ cụ thể — nếu CHỜ MUA thì chờ giá về đâu, "
-        f"nếu CHỜ BÁN thì điều kiện gì, nếu MUA/BÁN ngay thì SL và TP gần nhất. "
-        f"Tối đa 25 từ tiếng Việt.]"
+        f"CHI TIẾT: [{detail_hint}. Tối đa 25 từ tiếng Việt, nêu MỨC GIÁ cụ thể.]"
     )
 
-    raw = _call(model, [{"role": "user", "content": prompt}], temperature=0.25, max_tokens=120)
+    raw = _call(model, [{"role": "user", "content": prompt}], temperature=0.25, max_tokens=130)
     if not raw:
         return {}
 
@@ -182,9 +206,9 @@ def _call_vote(model: str, symbol: str, tf: str, snap: dict, extra_ctx: str = ""
         u    = line.upper()
         if u.startswith("QUYẾT ĐỊNH:") or u.startswith("QUYET DINH:") or u.startswith("QUYẾT DINH:"):
             val = line.split(":", 1)[-1].strip().upper()
-            if   "MUA" in val or "BUY" in val:                   decision = "MUA"
-            elif "BÁN" in val or "BAN" in val or "SELL" in val:  decision = "BÁN"
-            else:                                                  decision = "CHỜ"
+            if   "MUA" in val or "BUY" in val or "LONG" in val:          decision = "MUA"
+            elif "BÁN" in val or "BAN" in val or "SELL" in val or "SHORT" in val: decision = "BÁN"
+            else:                                                          decision = "CHỜ"
         elif u.startswith("CHI TIẾT:") or u.startswith("CHI TIET:") or u.startswith("CHI TIÉT:"):
             detail = line.split(":", 1)[-1].strip()
 
@@ -194,8 +218,9 @@ def _call_vote(model: str, symbol: str, tf: str, snap: dict, extra_ctx: str = ""
     return {"vote": decision, "reason": detail, "label": _model_short_label(model)}
 
 
-def run_ai_panel_vote(symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> List[dict]:
-    """Run up to 4 AI models in parallel to vote on trade entry. Returns list of vote dicts."""
+def run_ai_panel_vote(symbol: str, tf: str, snap: dict,
+                      extra_ctx: str = "", direction: str = "buy") -> List[dict]:
+    """Run up to 4 AI models in parallel. direction='buy' or 'sell'."""
     if not OPENROUTER_API_KEY:
         return []
 
@@ -203,7 +228,7 @@ def run_ai_panel_vote(symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> 
     if not models:
         return []
 
-    cache_key = f"vote_{symbol}_{tf}"
+    cache_key = f"vote_{symbol}_{tf}_{direction}"
     now = time.time()
     if cache_key in _cache and now - _cache[cache_key][0] < AI_CACHE_TTL:
         return _cache[cache_key][1]
@@ -211,7 +236,7 @@ def run_ai_panel_vote(symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> 
     results: list = [None] * len(models)
 
     def _fetch(idx: int, model: str):
-        results[idx] = _call_vote(model, symbol, tf, snap, extra_ctx)
+        results[idx] = _call_vote(model, symbol, tf, snap, extra_ctx, direction)
 
     threads = [threading.Thread(target=_fetch, args=(i, m)) for i, m in enumerate(models)]
     for t in threads:
