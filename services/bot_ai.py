@@ -127,7 +127,7 @@ def _model_short_label(model_id: str) -> str:
 
 
 def _call_vote(model: str, symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> dict:
-    """Ask a single AI model to vote CÓ/KHÔNG on entering a long trade right now."""
+    """Ask a single AI model: MUA / BÁN / CHỜ with a specific price condition."""
     if not OPENROUTER_API_KEY or not model:
         return {}
 
@@ -137,72 +137,61 @@ def _call_vote(model: str, symbol: str, tf: str, snap: dict, extra_ctx: str = ""
     rsi         = snap.get("rsi_14", 50)
     stoch       = snap.get("stoch_k", 50)
     adx         = snap.get("adx_14", 0)
+    price       = snap.get("price", 0)
     buy_score   = snap.get("buy_score", 0)
     sell_score  = snap.get("sell_score", 0)
     in_buy      = snap.get("in_buy_zone", False)
     in_sell     = snap.get("in_sell_zone", False)
 
-    if h1_uptrend is True:
-        h1_str = "Tăng ✅"
-    elif h1_uptrend is False:
-        h1_str = "Giảm ⚠️"
-    else:
-        h1_str = "Không rõ"
-
-    h4_str = "Tăng ✅" if (macd_rising and rsi > 50) else "Giảm ⚠️"
-    d1_str = "Tăng ✅" if uptrend_d1 else "Giảm ⚠️"
-
-    if in_buy:
-        zone_note = "đang trong VÙNG MUA 🟢"
-    elif in_sell:
-        zone_note = "đang trong VÙNG BÁN 🔴"
-    else:
-        zone_note = "ngoài vùng mua/bán"
+    h1_str = "Tăng" if h1_uptrend is True else ("Giảm" if h1_uptrend is False else "?")
+    h4_str = "Tăng" if (macd_rising and rsi > 50) else "Giảm"
+    d1_str = "Tăng" if uptrend_d1 else "Giảm"
 
     rsi_label = (
-        "Quá bán" if rsi < 30 else
-        "Thấp" if rsi < 45 else
-        "Trung tính" if rsi < 55 else
-        "Cao" if rsi < 70 else
-        "Quá mua"
+        "quá bán" if rsi < 30 else
+        "thấp"    if rsi < 45 else
+        "trung tính" if rsi < 55 else
+        "cao"     if rsi < 70 else
+        "quá mua"
     )
-    stoch_label = "Quá mua ⚠️" if stoch > 80 else ("Quá bán" if stoch < 20 else "Bình thường")
+    zone_str = "vùng MUA" if in_buy else ("vùng BÁN" if in_sell else "giữa hai vùng")
 
     prompt = (
-        f"Bạn là trader chuyên nghiệp. Phân tích {symbol} khung {tf} và cho biết CÓ nên vào lệnh MUA ngay bây giờ không?\n\n"
-        f"DỮ LIỆU KỸ THUẬT:\n"
-        f"• Xu hướng: H1={h1_str} | H4={h4_str} | D1={d1_str}\n"
-        f"• RSI(14): {rsi:.1f} ({rsi_label}) | Stoch: {stoch:.1f} ({stoch_label})\n"
-        f"• ADX: {adx:.1f} | MACD: {'Tăng ↑' if macd_rising else 'Giảm ↓'}\n"
-        f"• Buy Score: {buy_score}/13 | Sell Score: {sell_score}/13\n"
-        f"• Vị trí: {zone_note}\n"
+        f"Trader chuyên nghiệp phân tích {symbol} khung {tf}. Quyết định: MUA ngay / BÁN ngay / CHỜ?\n\n"
+        f"Dữ liệu:\n"
+        f"Giá: ${price:,.2f} | Xu hướng H1={h1_str} H4={h4_str} D1={d1_str}\n"
+        f"RSI {rsi:.0f} ({rsi_label}) | Stoch {stoch:.0f} | ADX {adx:.0f} | "
+        f"MACD {'↑' if macd_rising else '↓'}\n"
+        f"Điểm mua/bán: {buy_score}/{sell_score} (thang 13) | Vị trí: {zone_str}\n"
         f"{extra_ctx}"
-        f"\nTRẢ LỜI đúng định dạng (không thêm gì khác):\n"
-        f"VOTE: [CÓ hoặc KHÔNG]\n"
-        f"LÝ DO: [tối đa 25 từ, tiếng Việt]"
+        f"\nYêu cầu: Trả lời ĐÚNG định dạng sau, không thêm gì:\n"
+        f"QUYẾT ĐỊNH: [MUA hoặc BÁN hoặc CHỜ]\n"
+        f"CHI TIẾT: [Nêu MỨC GIÁ cụ thể — nếu CHỜ MUA thì chờ giá về đâu, "
+        f"nếu CHỜ BÁN thì điều kiện gì, nếu MUA/BÁN ngay thì SL và TP gần nhất. "
+        f"Tối đa 25 từ tiếng Việt.]"
     )
 
-    raw = _call(model, [{"role": "user", "content": prompt}], temperature=0.25, max_tokens=100)
+    raw = _call(model, [{"role": "user", "content": prompt}], temperature=0.25, max_tokens=120)
     if not raw:
         return {}
 
-    vote = "KHÔNG"
-    reason = ""
+    decision = "CHỜ"
+    detail   = ""
     for line in raw.split("\n"):
         line = line.strip()
-        u = line.upper()
-        if u.startswith("VOTE:"):
-            val = line[5:].strip().upper()
-            if any(x in val for x in ("CÓ", "CO", "YES", "ĐỒNG Ý", "DONG Y")):
-                vote = "CÓ"
-        elif u.startswith("LÝ DO:") or u.startswith("LY DO:") or u.startswith("LÍ DO:"):
-            reason = line.split(":", 1)[-1].strip()
+        u    = line.upper()
+        if u.startswith("QUYẾT ĐỊNH:") or u.startswith("QUYET DINH:") or u.startswith("QUYẾT DINH:"):
+            val = line.split(":", 1)[-1].strip().upper()
+            if   "MUA" in val or "BUY" in val:                   decision = "MUA"
+            elif "BÁN" in val or "BAN" in val or "SELL" in val:  decision = "BÁN"
+            else:                                                  decision = "CHỜ"
+        elif u.startswith("CHI TIẾT:") or u.startswith("CHI TIET:") or u.startswith("CHI TIÉT:"):
+            detail = line.split(":", 1)[-1].strip()
 
-    if not reason:
-        # fallback: use whole response, truncated
-        reason = raw[:120]
+    if not detail:
+        detail = raw[:150]
 
-    return {"vote": vote, "reason": reason, "label": _model_short_label(model)}
+    return {"vote": decision, "reason": detail, "label": _model_short_label(model)}
 
 
 def run_ai_panel_vote(symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> List[dict]:

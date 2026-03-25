@@ -981,38 +981,58 @@ def _handle_check_command(chat_id: str, symbol: str):
                 "entry_strategy": sim.get("strategy") or tracker.get("reason", ""),
                 "ema34": ema34, "ema50": ema50, "bars_below_ema200": bars_below,
             }
+            # Pass key price levels as context so AI can give specific prices
             extra_sr = ""
-            if res_d1:
-                extra_sr += f"• Kháng cự gần nhất: ${res_d1[0]:,.0f}\n"
+            if sup_4h:
+                extra_sr += f"HT 4H gần: ${sup_4h[0]:,.0f}" + (f", ${sup_4h[1]:,.0f}" if len(sup_4h) > 1 else "") + "\n"
+            if res_4h:
+                extra_sr += f"KC 4H gần: ${res_4h[0]:,.0f}" + (f", ${res_4h[1]:,.0f}" if len(res_4h) > 1 else "") + "\n"
             if sup_d1:
-                extra_sr += f"• Hỗ trợ gần nhất: ${sup_d1[0]:,.0f}\n"
+                extra_sr += f"HT 1D gần: ${sup_d1[0]:,.0f}\n"
+            if res_d1:
+                extra_sr += f"KC 1D gần: ${res_d1[0]:,.0f}\n"
+            bz_lo = zones.get("buy_low"); bz_hi = zones.get("buy_high")
+            sz_lo = zones.get("sell_low"); sz_hi = zones.get("sell_high")
+            if bz_lo:
+                extra_sr += f"Buy Zone: ${bz_lo:,.0f}–${bz_hi:,.0f} | Sell Zone: ${sz_lo:,.0f}–${sz_hi:,.0f}\n"
 
             votes = run_ai_panel_vote(symbol, "4h", ai_snap, extra_ctx=extra_sr)
         except Exception:
             votes = []
 
         if votes:
-            yes_count = sum(1 for v in votes if v.get("vote") == "CÓ")
-            total     = len(votes)
-            vote_icons = ["🔵", "🟣", "🟠", "🔴"]
-            msg += "━━━━━━━━━━━━━━━\n🤖 <b>HỘI ĐỒNG AI BỎ PHIẾU</b>\n\n"
+            buy_count  = sum(1 for v in votes if v.get("vote") == "MUA")
+            sell_count = sum(1 for v in votes if v.get("vote") == "BÁN")
+            wait_count = sum(1 for v in votes if v.get("vote") == "CHỜ")
+            total      = len(votes)
+
+            _vote_emoji = {"MUA": "✅", "BÁN": "📉", "CHỜ": "⏳"}
+            vote_icons  = ["🔵", "🟣", "🟠", "🔴"]
+            msg += "━━━━━━━━━━━━━━━\n🤖 <b>HỘI ĐỒNG AI ĐÁNH GIÁ</b>\n\n"
             for i, v in enumerate(votes):
-                icon    = vote_icons[i] if i < len(vote_icons) else "⚫"
-                label   = v.get("label", f"AI {i+1}")
-                vote    = v.get("vote", "KHÔNG")
-                reason  = v.get("reason", "")
-                v_emoji = "✅" if vote == "CÓ" else "❌"
-                msg += f"{icon} <b>{label}:</b> {v_emoji} {vote}\n"
-                if reason:
-                    msg += f"  └ {reason}\n"
+                icon     = vote_icons[i] if i < len(vote_icons) else "⚫"
+                label    = v.get("label", f"AI {i+1}")
+                decision = v.get("vote", "CHỜ")
+                detail   = v.get("reason", "")
+                d_emoji  = _vote_emoji.get(decision, "⏳")
+                msg += f"{icon} <b>{label}:</b> {d_emoji} {decision}\n"
+                if detail:
+                    msg += f"  └ {detail}\n"
                 msg += "\n"
 
-            if yes_count >= 3:
-                verdict = f"✅ NÊN VÀO LỆNH ({yes_count}/{total} đồng ý)"
-            elif yes_count == 2:
-                verdict = f"⚠️ CÒN PHÂN VÂN ({yes_count}/{total} đồng ý) — Thận trọng"
+            # Verdict
+            if buy_count >= 3:
+                verdict = f"✅ NÊN MUA NGAY ({buy_count}/{total} đồng ý)"
+            elif sell_count >= 3:
+                verdict = f"📉 NÊN BÁN/SHORT NGAY ({sell_count}/{total} đồng ý)"
+            elif buy_count >= 2 and sell_count == 0:
+                verdict = f"⚠️ NGHIÊNG VỀ MUA — Thận trọng ({buy_count}/{total})"
+            elif sell_count >= 2 and buy_count == 0:
+                verdict = f"⚠️ NGHIÊNG VỀ BÁN — Thận trọng ({sell_count}/{total})"
+            elif buy_count > 0 and sell_count > 0:
+                verdict = f"🔀 Ý KIẾN TRÁI CHIỀU — Chờ tín hiệu rõ hơn"
             else:
-                verdict = f"❌ CHƯA NÊN VÀO LỆNH ({yes_count}/{total} đồng ý)"
+                verdict = f"⏳ ĐỢI THÊM — {wait_count}/{total} AI khuyên chờ"
             msg += f"📊 <b>Kết quả: {verdict}</b>\n"
 
         requests.post(url_send, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}, timeout=15)
