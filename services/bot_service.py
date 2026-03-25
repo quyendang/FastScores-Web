@@ -786,11 +786,15 @@ def _handle_check_command(chat_id: str, symbol: str):
         def _sr_4h():    sr_4h_res["v"]   = ind.find_support_resistance(symbol, "4h", limit=100, pivot_strength=2)
         def _h1():       h1_res["v"]      = get_1h_trend(symbol)
         def _zones():
-            try:
-                sl, sh, bl, bh, _, _ = ind.compute_zones(symbol, "4h", lookback=60)
-                zones_res["v"] = {"sell_low": sl, "sell_high": sh, "buy_low": bl, "buy_high": bh}
-            except Exception:
-                zones_res["v"] = {}
+            """Compute buy/sell zones for H1, H4, D1 in one shot."""
+            result = {}
+            for tf, lookback in [("1h", 72), ("4h", 60), ("1d", 90)]:
+                try:
+                    sl, sh, bl, bh, _, _ = ind.compute_zones(symbol, tf, lookback=lookback)
+                    result[tf] = {"buy_low": bl, "buy_high": bh, "sell_low": sl, "sell_high": sh}
+                except Exception:
+                    pass
+            zones_res["v"] = result
 
         threads = [
             threading.Thread(target=_tracker),
@@ -803,11 +807,11 @@ def _handle_check_command(chat_id: str, symbol: str):
         threads[0].join(timeout=30)
         for t in threads[1:]: t.join(timeout=15)
 
-        tracker = tracker_res.get("v", {})
-        sr_d1   = sr_d1_res.get("v", {"supports": [], "resistances": []})
-        sr_4h   = sr_4h_res.get("v", {"supports": [], "resistances": []})
-        h1_ctx  = h1_res.get("v", {})
-        zones   = zones_res.get("v", {})
+        tracker    = tracker_res.get("v", {})
+        sr_d1      = sr_d1_res.get("v", {"supports": [], "resistances": []})
+        sr_4h      = sr_4h_res.get("v", {"supports": [], "resistances": []})
+        h1_ctx     = h1_res.get("v", {})
+        zones_all  = zones_res.get("v", {})   # {"1h": {...}, "4h": {...}, "1d": {...}}
 
         snap   = tracker.get("snapshot", {})
         dctx   = tracker.get("daily_context", {})
@@ -827,9 +831,20 @@ def _handle_check_command(chat_id: str, symbol: str):
         bars_below = snap.get("bars_below_ema200", 0)
         buy_score  = snap.get("buy_score", 0)
         sell_score = snap.get("sell_score", 0)
-        in_buy     = snap.get("in_buy_zone", False)
-        in_sell    = snap.get("in_sell_zone", False)
         uptrend_d1 = dctx.get("uptrend", False)
+
+        # Recompute in_buy/in_sell per timeframe from zones_all
+        def _in_zone(tf: str, side: str) -> bool:
+            z = zones_all.get(tf, {})
+            lo = z.get(f"{side}_low"); hi = z.get(f"{side}_high")
+            return bool(lo and hi and lo <= price <= hi)
+
+        in_buy_h1 = _in_zone("1h", "buy");  in_sell_h1 = _in_zone("1h", "sell")
+        in_buy_h4 = _in_zone("4h", "buy");  in_sell_h4 = _in_zone("4h", "sell")
+        in_buy_d1 = _in_zone("1d", "buy");  in_sell_d1 = _in_zone("1d", "sell")
+        # For AI snap: use H4 as primary (the trading timeframe)
+        in_buy  = in_buy_h4
+        in_sell = in_sell_h4
 
         # ── Signal header ─────────────────────────────────────────────────────
         if action == "BUY":
@@ -885,36 +900,42 @@ def _handle_check_command(chat_id: str, symbol: str):
         res_4h = sr_4h.get("resistances", [])
         sup_4h = sr_4h.get("supports", [])
 
-        msg += "━━━━━━━━━━━━━━━\n📌 <b>VÙNG GIÁ QUAN TRỌNG</b>\n"
+        msg += "━━━━━━━━━━━━━━━\n📌 <b>VÙNG GIÁ ĐA KHUNG</b>\n"
 
-        # Dynamic buy/sell zones
-        bz_lo = zones.get("buy_low"); bz_hi = zones.get("buy_high")
-        sz_lo = zones.get("sell_low"); sz_hi = zones.get("sell_high")
-        if bz_lo and bz_hi:
-            if in_buy:
-                zone_note = " ← <b>Giá đang trong vùng mua! 🎯</b>"
-            elif price < bz_lo:
-                zone_note = " ← Giá đang dưới vùng mua"
-            else:
-                zone_note = ""
-            msg += f"🟢 <b>Vùng mua (Buy Zone):</b> ${bz_lo:,.0f} – ${bz_hi:,.0f}{zone_note}\n"
-        if sz_lo and sz_hi:
-            if in_sell:
-                zone_note = " ← <b>Giá đang trong vùng bán! ⚠️</b>"
-            else:
-                zone_note = ""
-            msg += f"🔴 <b>Vùng bán (Sell Zone):</b> ${sz_lo:,.0f} – ${sz_hi:,.0f}{zone_note}\n"
+        # Helper: build one zone row with in-zone callout
+        def _zone_row(label: str, z: dict, in_b: bool, in_s: bool) -> str:
+            bl = z.get("buy_low"); bh = z.get("buy_high")
+            sl = z.get("sell_low"); sh = z.get("sell_high")
+            if not (bl and bh and sl and sh):
+                return ""
+            buy_note  = " 🎯" if in_b else (" ↑" if price < bl else "")
+            sell_note = " ⚠️" if in_s else (" ↓" if price > sh else "")
+            return (
+                f"<b>{label}</b>  "
+                f"🟢 ${bl:,.0f}–${bh:,.0f}{buy_note}  "
+                f"🔴 ${sl:,.0f}–${sh:,.0f}{sell_note}\n"
+            )
+
+        for tf_key, tf_label, in_b, in_s in [
+            ("1h", "H1 (3 ngày):", in_buy_h1, in_sell_h1),
+            ("4h", "H4 (10 ngày):", in_buy_h4, in_sell_h4),
+            ("1d", "D1 (3 tháng):", in_buy_d1, in_sell_d1),
+        ]:
+            row = _zone_row(tf_label, zones_all.get(tf_key, {}), in_b, in_s)
+            if row:
+                msg += row
 
         # S/R levels
         if res_d1 or sup_d1 or res_4h or sup_4h:
+            msg += "\n"
             if res_d1:
-                msg += f"🔴 Kháng cự 1D: {' | '.join(f'${v:,.2f}' for v in res_d1)}\n"
+                msg += f"🔴 KC 1D: {' | '.join(f'${v:,.2f}' for v in res_d1)}\n"
             if sup_d1:
-                msg += f"🟢 Hỗ trợ 1D:   {' | '.join(f'${v:,.2f}' for v in sup_d1)}\n"
+                msg += f"🟢 HT 1D: {' | '.join(f'${v:,.2f}' for v in sup_d1)}\n"
             if res_4h:
-                msg += f"🟠 Kháng cự 4H: {' | '.join(f'${v:,.2f}' for v in res_4h)}\n"
+                msg += f"🟠 KC 4H: {' | '.join(f'${v:,.2f}' for v in res_4h)}\n"
             if sup_4h:
-                msg += f"🔵 Hỗ trợ 4H:   {' | '.join(f'${v:,.2f}' for v in sup_4h)}\n"
+                msg += f"🔵 HT 4H: {' | '.join(f'${v:,.2f}' for v in sup_4h)}\n"
 
         # ── Technical indicators ──────────────────────────────────────────────
         stoch_label = "⚠️ Quá mua" if stoch > 80 else ("🟢 Quá bán" if stoch < 20 else "Bình thường")
@@ -981,20 +1002,21 @@ def _handle_check_command(chat_id: str, symbol: str):
                 "entry_strategy": sim.get("strategy") or tracker.get("reason", ""),
                 "ema34": ema34, "ema50": ema50, "bars_below_ema200": bars_below,
             }
-            # Pass key price levels as context so AI can give specific prices
+            # Pass multi-TF price levels as context so AI can give specific prices
             extra_sr = ""
             if sup_4h:
-                extra_sr += f"HT 4H gần: ${sup_4h[0]:,.0f}" + (f", ${sup_4h[1]:,.0f}" if len(sup_4h) > 1 else "") + "\n"
+                extra_sr += f"HT 4H: ${sup_4h[0]:,.0f}" + (f", ${sup_4h[1]:,.0f}" if len(sup_4h) > 1 else "") + "\n"
             if res_4h:
-                extra_sr += f"KC 4H gần: ${res_4h[0]:,.0f}" + (f", ${res_4h[1]:,.0f}" if len(res_4h) > 1 else "") + "\n"
+                extra_sr += f"KC 4H: ${res_4h[0]:,.0f}" + (f", ${res_4h[1]:,.0f}" if len(res_4h) > 1 else "") + "\n"
             if sup_d1:
-                extra_sr += f"HT 1D gần: ${sup_d1[0]:,.0f}\n"
+                extra_sr += f"HT 1D: ${sup_d1[0]:,.0f}\n"
             if res_d1:
-                extra_sr += f"KC 1D gần: ${res_d1[0]:,.0f}\n"
-            bz_lo = zones.get("buy_low"); bz_hi = zones.get("buy_high")
-            sz_lo = zones.get("sell_low"); sz_hi = zones.get("sell_high")
-            if bz_lo:
-                extra_sr += f"Buy Zone: ${bz_lo:,.0f}–${bz_hi:,.0f} | Sell Zone: ${sz_lo:,.0f}–${sz_hi:,.0f}\n"
+                extra_sr += f"KC 1D: ${res_d1[0]:,.0f}\n"
+            for tf_key, tf_lbl in [("1h", "H1"), ("4h", "H4"), ("1d", "D1")]:
+                z = zones_all.get(tf_key, {})
+                if z.get("buy_low"):
+                    extra_sr += (f"Zone {tf_lbl}: Mua ${z['buy_low']:,.0f}–${z['buy_high']:,.0f} | "
+                                 f"Bán ${z['sell_low']:,.0f}–${z['sell_high']:,.0f}\n")
 
             votes = run_ai_panel_vote(symbol, "4h", ai_snap, extra_ctx=extra_sr)
         except Exception:
