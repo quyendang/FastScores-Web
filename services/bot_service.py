@@ -152,6 +152,32 @@ def telegram_notify(title: str, message: str):
         except Exception:
             pass
 
+# ── 1H trend (for multi-timeframe display) ───────────────────────────────────
+def get_1h_trend(symbol: str) -> dict:
+    """Fetch 1H klines and return simplified trend info."""
+    try:
+        klines = ind.fetch_klines(symbol, "1h", limit=150)
+        closes = [float(k[4]) for k in klines]
+        highs  = [float(k[2]) for k in klines]
+        lows   = [float(k[3]) for k in klines]
+
+        e34  = ind.ema_series(closes, 34)
+        e89  = ind.ema_series(closes, 89)
+        rsi  = ind.rsi_series(closes, 14)
+        _, _, macd_h = ind.macd_series(closes, 12, 26, 9)
+
+        rsi_v = rsi[-1] if rsi else 50.0
+        mh    = macd_h[-1] if macd_h else 0.0
+        mh_p  = macd_h[-2] if len(macd_h) >= 2 else 0.0
+        macd_rising = mh > mh_p
+        ema_bull = bool(e34[-1] and e89[-1] and e34[-1] > e89[-1])
+        uptrend  = ema_bull and macd_rising
+
+        return {"uptrend": uptrend, "rsi": rsi_v, "macd_rising": macd_rising, "ema_bull": ema_bull}
+    except Exception as e:
+        logging.warning(f"[1H] {symbol}: {e}")
+        return {}
+
 # ── 1D context ────────────────────────────────────────────────────────────────
 def get_daily_context(symbol: str) -> dict:
     klines = ind.fetch_klines(symbol, "1d", limit=250)
@@ -723,128 +749,191 @@ def symbols_tracker_job(supabase=None):
             logging.error(f"[JOB] {symbol}: {e}")
 
 # ── /check Telegram command handler ──────────────────────────────────────────
+
+def _rsi_label(rsi: float) -> str:
+    if rsi < 30:   return "Quá bán 🟢"
+    if rsi < 45:   return "Thấp"
+    if rsi < 55:   return "Trung tính"
+    if rsi < 70:   return "Cao"
+    return "Quá mua 🔴"
+
+def _adx_label(adx: float) -> str:
+    if adx < 20:   return "Sideway"
+    if adx < 25:   return "Xu hướng yếu"
+    if adx < 40:   return "Xu hướng vừa"
+    return "Xu hướng mạnh"
+
+def _trend_str(uptrend: bool) -> str:
+    return "✅ Tăng" if uptrend else "⚠️ Giảm"
+
+
 def _handle_check_command(chat_id: str, symbol: str):
-    """Process /check <symbol>: run v5 tracker + AI and reply to chat_id."""
+    """Process /check <symbol>: multi-timeframe analysis + 4-AI panel vote, reply to chat_id."""
     url_send = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    # Ensure USDT suffix
     if not symbol.endswith("USDT"):
         symbol = symbol + "USDT"
 
     try:
-        # Fetch tracker + S/R levels in parallel threads
+        # ── Parallel data fetching ────────────────────────────────────────────
         tracker_res: Dict[str, Any] = {}
         sr_d1_res:   Dict[str, Any] = {}
         sr_4h_res:   Dict[str, Any] = {}
+        h1_res:      Dict[str, Any] = {}
+        zones_res:   Dict[str, Any] = {}
 
         def _tracker():  tracker_res["v"] = run_symbol_tracker_once(symbol, send_notify=False)
         def _sr_d1():    sr_d1_res["v"]   = ind.find_support_resistance(symbol, "1d", limit=120)
         def _sr_4h():    sr_4h_res["v"]   = ind.find_support_resistance(symbol, "4h", limit=100, pivot_strength=2)
+        def _h1():       h1_res["v"]      = get_1h_trend(symbol)
+        def _zones():
+            try:
+                sl, sh, bl, bh, _, _ = ind.compute_zones(symbol, "4h", lookback=60)
+                zones_res["v"] = {"sell_low": sl, "sell_high": sh, "buy_low": bl, "buy_high": bh}
+            except Exception:
+                zones_res["v"] = {}
 
-        t_tr = threading.Thread(target=_tracker)
-        t_d1 = threading.Thread(target=_sr_d1)
-        t_4h = threading.Thread(target=_sr_4h)
-        t_tr.start(); t_d1.start(); t_4h.start()
-        t_tr.join(timeout=30); t_d1.join(timeout=15); t_4h.join(timeout=15)
+        threads = [
+            threading.Thread(target=_tracker),
+            threading.Thread(target=_sr_d1),
+            threading.Thread(target=_sr_4h),
+            threading.Thread(target=_h1),
+            threading.Thread(target=_zones),
+        ]
+        for t in threads: t.start()
+        threads[0].join(timeout=30)
+        for t in threads[1:]: t.join(timeout=15)
 
         tracker = tracker_res.get("v", {})
         sr_d1   = sr_d1_res.get("v", {"supports": [], "resistances": []})
         sr_4h   = sr_4h_res.get("v", {"supports": [], "resistances": []})
+        h1_ctx  = h1_res.get("v", {})
+        zones   = zones_res.get("v", {})
 
-        snap  = tracker.get("snapshot", {})
-        dctx  = tracker.get("daily_context", {})
-        sim   = tracker.get("simulated_trade", {})
+        snap   = tracker.get("snapshot", {})
+        dctx   = tracker.get("daily_context", {})
+        sim    = tracker.get("simulated_trade", {})
         action = tracker.get("action", "HOLD")
 
-        price    = snap.get("price", 0)
-        rsi      = snap.get("rsi_14", 50)
-        adx      = snap.get("adx_14", 0)
-        macd_h   = snap.get("macd_hist", 0)
-        rising   = snap.get("macd_rising", False)
-        atr      = snap.get("atr_14", 0)
-        ema34    = snap.get("ema34") or 0
-        ema50    = snap.get("ema50") or 0
-        ema200   = snap.get("ema200") or 0
+        price      = snap.get("price", 0)
+        rsi        = snap.get("rsi_14", 50)
+        stoch      = snap.get("stoch_k", 50)
+        adx        = snap.get("adx_14", 0)
+        macd_h     = snap.get("macd_hist", 0)
+        rising     = snap.get("macd_rising", False)
+        atr        = snap.get("atr_14", 0)
+        ema34      = snap.get("ema34") or 0
+        ema50      = snap.get("ema50") or 0
+        ema200     = snap.get("ema200") or 0
         bars_below = snap.get("bars_below_ema200", 0)
         buy_score  = snap.get("buy_score", 0)
         sell_score = snap.get("sell_score", 0)
-        trend_str  = "Uptrend ✅" if dctx.get("uptrend") else "Downtrend ⚠️"
+        in_buy     = snap.get("in_buy_zone", False)
+        in_sell    = snap.get("in_sell_zone", False)
+        uptrend_d1 = dctx.get("uptrend", False)
 
+        # ── Signal header ─────────────────────────────────────────────────────
         if action == "BUY":
-            signal_emoji = "🟢"
-            signal_label = f"MUA — {tracker.get('reason', '')}"
+            sig_emoji = "🟢"; sig_label = f"MUA — {tracker.get('reason', '')}"
         elif action == "HOLD_POS":
-            signal_emoji = "🔄"
-            signal_label = "Đang giữ lệnh"
+            sig_emoji = "🔄"; sig_label = "Đang giữ lệnh"
         elif action == "CLOSE":
-            signal_emoji = "🔴"
-            signal_label = f"Đóng lệnh — {tracker.get('reason', '')}"
+            sig_emoji = "🔴"; sig_label = f"Đóng lệnh — {tracker.get('reason', '')}"
         else:
-            signal_emoji = "⚪"
-            signal_label = "Chờ tín hiệu"
-
-        # AI analysis
-        ai_snap = {
-            "price": price, "rsi_14": rsi, "adx_14": adx,
-            "macd_hist": macd_h, "macd_rising": rising,
-            "stoch_k": snap.get("stoch_k", 50), "uptrend": dctx.get("uptrend"),
-            "entry_strategy": sim.get("strategy") or tracker.get("reason", ""),
-            "ema34": ema34, "ema50": ema50,
-            "bars_below_ema200": bars_below,
-            "entry_mode": sim.get("mode", ""),
-        }
-        ai1 = ai2 = ""
-        try:
-            from services.bot_ai import call_openrouter_analysis, call_openrouter_analysis_model2
-            ai_results: Dict[str, str] = {}
-            def _m1(): ai_results["m1"] = call_openrouter_analysis(symbol, "4h", ai_snap)
-            def _m2(): ai_results["m2"] = call_openrouter_analysis_model2(symbol, "4h", ai_snap)
-            t1 = threading.Thread(target=_m1); t2 = threading.Thread(target=_m2)
-            t1.start(); t2.start(); t1.join(timeout=25); t2.join(timeout=25)
-            ai1 = ai_results.get("m1", ""); ai2 = ai_results.get("m2", "")
-        except Exception:
-            pass
+            sig_emoji = "⚪"; sig_label = "Chờ tín hiệu"
 
         mode_tag = "Optimized" if BOT_MODE == "optimized" else "Default"
+        atr_pct  = (atr / price * 100) if price else 0
 
         msg = (
             f"📊 <b>{symbol}</b> /check [{mode_tag}]\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"{signal_emoji} <b>{signal_label}</b>\n"
-            f"Giá: <b>${price:,.2f}</b> | ATR: ${atr:,.2f}\n"
-            f"1D: {trend_str}\n"
-            f"━━━━━━━━━━━━━━━\n"
-            f"RSI: {rsi:.1f} | ADX: {adx:.1f}\n"
-            f"MACD: {'↑ Tăng' if rising else '↓ Giảm'} (hist: {macd_h:+.4f})\n"
-            f"Buy Score: {buy_score} | Sell Score: {sell_score}\n"
-            f"EMA34: ${ema34:,.2f} | EMA50: ${ema50:,.2f}"
-            + (f" | EMA200: ${ema200:,.2f}" if ema200 else "") + "\n"
+            f"{sig_emoji} <b>{sig_label}</b>\n"
+            f"Giá: <b>${price:,.2f}</b> | ATR: ${atr:,.2f} (±{atr_pct:.1f}%)\n"
         )
 
-        if bars_below >= 15:
-            msg += f"⚡ Bars below EMA200: <b>{bars_below}</b> (Breakout Watch)\n"
-        elif bars_below > 0:
-            msg += f"Bars below EMA200: {bars_below}\n"
+        # ── Multi-timeframe trend ─────────────────────────────────────────────
+        h1_up   = h1_ctx.get("uptrend")
+        h1_rsi  = h1_ctx.get("rsi", 50)
+        h1_macd = h1_ctx.get("macd_rising", False)
+        h4_up   = (rising and rsi > 50)  # proxy from 4H snap
+        d1_up   = uptrend_d1
 
-        # S/R levels block
+        # Align count: how many of 3 timeframes are bullish
+        bull_count = sum([bool(h1_up), bool(h4_up), bool(d1_up)])
+        if bull_count >= 3:
+            tf_summary = "Tất cả khung đều tăng → Xu hướng tăng mạnh"
+        elif bull_count == 2:
+            tf_summary = "2/3 khung tăng → Xu hướng tăng vừa"
+        elif bull_count == 1:
+            tf_summary = "1/3 khung tăng → Xu hướng không rõ"
+        else:
+            tf_summary = "Tất cả khung đều giảm → Xu hướng giảm mạnh"
+
+        h1_str = _trend_str(h1_up) if h1_up is not None else "Không rõ"
+        msg += (
+            f"━━━━━━━━━━━━━━━\n"
+            f"📈 <b>XU HƯỚNG ĐA KHUNG</b>\n"
+            f"H1:  {h1_str} (RSI {h1_rsi:.0f}, MACD {'↑' if h1_macd else '↓'})\n"
+            f"H4:  {_trend_str(h4_up)} (RSI {rsi:.0f}, MACD {'↑' if rising else '↓'})\n"
+            f"D1:  {_trend_str(d1_up)} (xu hướng chính)\n"
+            f"→ {tf_summary}\n"
+        )
+
+        # ── Price zones ───────────────────────────────────────────────────────
         res_d1 = sr_d1.get("resistances", [])
         sup_d1 = sr_d1.get("supports", [])
         res_4h = sr_4h.get("resistances", [])
         sup_4h = sr_4h.get("supports", [])
-        if res_d1 or sup_d1 or res_4h or sup_4h:
-            msg += "━━━━━━━━━━━━━━━\n📌 <b>Vùng S/R</b>\n"
-            if res_d1:
-                levels = " | ".join(f"${v:,.2f}" for v in res_d1)
-                msg += f"🔴 Kháng cự 1D: {levels}\n"
-            if sup_d1:
-                levels = " | ".join(f"${v:,.2f}" for v in sup_d1)
-                msg += f"🟢 Hỗ trợ 1D:   {levels}\n"
-            if res_4h:
-                levels = " | ".join(f"${v:,.2f}" for v in res_4h)
-                msg += f"🟠 Kháng cự 4H: {levels}\n"
-            if sup_4h:
-                levels = " | ".join(f"${v:,.2f}" for v in sup_4h)
-                msg += f"🔵 Hỗ trợ 4H:   {levels}\n"
 
+        msg += "━━━━━━━━━━━━━━━\n📌 <b>VÙNG GIÁ QUAN TRỌNG</b>\n"
+
+        # Dynamic buy/sell zones
+        bz_lo = zones.get("buy_low"); bz_hi = zones.get("buy_high")
+        sz_lo = zones.get("sell_low"); sz_hi = zones.get("sell_high")
+        if bz_lo and bz_hi:
+            if in_buy:
+                zone_note = " ← <b>Giá đang trong vùng mua! 🎯</b>"
+            elif price < bz_lo:
+                zone_note = " ← Giá đang dưới vùng mua"
+            else:
+                zone_note = ""
+            msg += f"🟢 <b>Vùng mua (Buy Zone):</b> ${bz_lo:,.0f} – ${bz_hi:,.0f}{zone_note}\n"
+        if sz_lo and sz_hi:
+            if in_sell:
+                zone_note = " ← <b>Giá đang trong vùng bán! ⚠️</b>"
+            else:
+                zone_note = ""
+            msg += f"🔴 <b>Vùng bán (Sell Zone):</b> ${sz_lo:,.0f} – ${sz_hi:,.0f}{zone_note}\n"
+
+        # S/R levels
+        if res_d1 or sup_d1 or res_4h or sup_4h:
+            if res_d1:
+                msg += f"🔴 Kháng cự 1D: {' | '.join(f'${v:,.2f}' for v in res_d1)}\n"
+            if sup_d1:
+                msg += f"🟢 Hỗ trợ 1D:   {' | '.join(f'${v:,.2f}' for v in sup_d1)}\n"
+            if res_4h:
+                msg += f"🟠 Kháng cự 4H: {' | '.join(f'${v:,.2f}' for v in res_4h)}\n"
+            if sup_4h:
+                msg += f"🔵 Hỗ trợ 4H:   {' | '.join(f'${v:,.2f}' for v in sup_4h)}\n"
+
+        # ── Technical indicators ──────────────────────────────────────────────
+        stoch_label = "⚠️ Quá mua" if stoch > 80 else ("🟢 Quá bán" if stoch < 20 else "Bình thường")
+        msg += (
+            f"━━━━━━━━━━━━━━━\n"
+            f"📊 <b>CHỈ SỐ KỸ THUẬT</b>\n"
+            f"RSI: {rsi:.1f} ({_rsi_label(rsi)}) | Stoch: {stoch:.1f} ({stoch_label})\n"
+            f"MACD: {'↑ Tăng' if rising else '↓ Giảm'} | ADX: {adx:.1f} ({_adx_label(adx)})\n"
+            f"Buy: {buy_score}/13 | Sell: {sell_score}/13\n"
+            f"EMA34 ${ema34:,.2f} | EMA50 ${ema50:,.2f}"
+            + (f" | EMA200 ${ema200:,.2f}" if ema200 else "") + "\n"
+        )
+
+        if bars_below >= 15:
+            msg += f"⚡ <b>Breakout Watch:</b> {bars_below} nến dưới EMA200\n"
+        elif bars_below > 0:
+            msg += f"Dưới EMA200: {bars_below} nến\n"
+
+        # ── Open position / signal ─────────────────────────────────────────────
         sim_status = sim.get("status", "WATCHING")
         strategy   = sim.get("strategy", "") or tracker.get("reason", "")
         strat_label = _STRAT_LABELS.get(strategy, strategy)
@@ -855,31 +944,76 @@ def _handle_check_command(chat_id: str, symbol: str):
             pnl_pct = sim.get("pnl_pct", 0)
             pos_usd = sim.get("pos_usd", 0)
             trail   = sim.get("trail_label", "")
+            pnl_emoji = "🟢" if pnl_pct >= 0 else "🔴"
             msg += (
                 f"━━━━━━━━━━━━━━━\n"
                 f"🔄 <b>Lệnh đang mở</b> ({strat_label})\n"
                 f"Vào: ${entry_p:,.2f} → Hiện: ${price:,.2f}\n"
-                f"Stop: ${stop_p:,.2f} | {trail}\n"
-                f"P&amp;L: <b>{pnl_pct:+.2f}%</b> | Vị thế: ${pos_usd:,.0f}\n"
+                f"Cắt lỗ (SL): ${stop_p:,.2f} | {trail}\n"
+                f"{pnl_emoji} Lãi/lỗ: <b>{pnl_pct:+.2f}%</b> | Vị thế: ${pos_usd:,.0f}\n"
             )
         elif sim_status == "SIGNAL":
             stop_p  = sim.get("stop_price", 0)
             tp_p    = sim.get("tp_estimate", 0)
             pos_usd = sim.get("pos_usd", 0)
             sl_pct  = sim.get("sl_pct", 0)
+            rr      = abs((tp_p - price) / (price - stop_p)) if stop_p and tp_p and price != stop_p else 0
             msg += (
                 f"━━━━━━━━━━━━━━━\n"
                 f"🚀 <b>Tín hiệu vào lệnh</b> ({strat_label})\n"
-                f"Entry: ${price:,.2f}\n"
-                f"SL: ${stop_p:,.2f} (-{sl_pct:.1f}%)\n"
-                f"TP ước tính: ${tp_p:,.2f}\n"
-                f"Vị thế: ${pos_usd:,.0f}\n"
+                f"Vào: ${price:,.2f}\n"
+                f"Cắt lỗ (SL): ${stop_p:,.2f} (-{sl_pct:.1f}%)\n"
+                f"Chốt lời (TP): ${tp_p:,.2f}"
+                + (f" | R/R ≈ 1:{rr:.1f}" if rr > 0 else "") + "\n"
+                f"Vốn đề xuất: ${pos_usd:,.0f}\n"
             )
 
-        if ai1:
-            msg += f"━━━━━━━━━━━━━━━\n🤖 <b>AI Phân tích:</b>\n{ai1}\n"
-        if ai2:
-            msg += f"⚠️ <b>AI Rủi ro:</b>\n{ai2}\n"
+        # ── 4-AI panel vote ───────────────────────────────────────────────────
+        try:
+            from services.bot_ai import run_ai_panel_vote
+            ai_snap = {
+                "price": price, "rsi_14": rsi, "adx_14": adx, "atr_14": atr,
+                "macd_hist": macd_h, "macd_rising": rising,
+                "stoch_k": stoch, "uptrend": uptrend_d1,
+                "h1_uptrend": h1_ctx.get("uptrend"),
+                "in_buy_zone": in_buy, "in_sell_zone": in_sell,
+                "buy_score": buy_score, "sell_score": sell_score,
+                "entry_strategy": sim.get("strategy") or tracker.get("reason", ""),
+                "ema34": ema34, "ema50": ema50, "bars_below_ema200": bars_below,
+            }
+            extra_sr = ""
+            if res_d1:
+                extra_sr += f"• Kháng cự gần nhất: ${res_d1[0]:,.0f}\n"
+            if sup_d1:
+                extra_sr += f"• Hỗ trợ gần nhất: ${sup_d1[0]:,.0f}\n"
+
+            votes = run_ai_panel_vote(symbol, "4h", ai_snap, extra_ctx=extra_sr)
+        except Exception:
+            votes = []
+
+        if votes:
+            yes_count = sum(1 for v in votes if v.get("vote") == "CÓ")
+            total     = len(votes)
+            vote_icons = ["🔵", "🟣", "🟠", "🔴"]
+            msg += "━━━━━━━━━━━━━━━\n🤖 <b>HỘI ĐỒNG AI BỎ PHIẾU</b>\n\n"
+            for i, v in enumerate(votes):
+                icon    = vote_icons[i] if i < len(vote_icons) else "⚫"
+                label   = v.get("label", f"AI {i+1}")
+                vote    = v.get("vote", "KHÔNG")
+                reason  = v.get("reason", "")
+                v_emoji = "✅" if vote == "CÓ" else "❌"
+                msg += f"{icon} <b>{label}:</b> {v_emoji} {vote}\n"
+                if reason:
+                    msg += f"  └ {reason}\n"
+                msg += "\n"
+
+            if yes_count >= 3:
+                verdict = f"✅ NÊN VÀO LỆNH ({yes_count}/{total} đồng ý)"
+            elif yes_count == 2:
+                verdict = f"⚠️ CÒN PHÂN VÂN ({yes_count}/{total} đồng ý) — Thận trọng"
+            else:
+                verdict = f"❌ CHƯA NÊN VÀO LỆNH ({yes_count}/{total} đồng ý)"
+            msg += f"📊 <b>Kết quả: {verdict}</b>\n"
 
         requests.post(url_send, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}, timeout=15)
 

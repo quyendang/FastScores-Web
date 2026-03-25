@@ -1,15 +1,17 @@
 """
-bot_ai.py — AI analysis for crypto bot (simplified).
-Dual-model macro brief + dashboard analysis.
+bot_ai.py — AI analysis for crypto bot.
+4-model panel vote for /check command + dashboard analysis.
 """
-import os, time, logging
-from typing import Dict
+import os, time, logging, threading
+from typing import Dict, List
 
 import requests
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL   = os.getenv("OPENROUTER_MODEL",  "google/gemini-flash-1.5")
 OPENROUTER_MODEL2  = os.getenv("OPENROUTER_MODEL2", "")
+OPENROUTER_MODEL3  = os.getenv("OPENROUTER_MODEL3", "meta-llama/llama-3.1-8b-instruct:free")
+OPENROUTER_MODEL4  = os.getenv("OPENROUTER_MODEL4", "mistralai/mistral-7b-instruct:free")
 
 _cache: Dict[str, tuple] = {}
 AI_CACHE_TTL = 600  # 10 min
@@ -87,11 +89,147 @@ def call_openrouter_analysis_model2(symbol: str, tf: str, snap: dict) -> str:
         return _cache[cache_key][1]
 
     prompt = (
-        f"Ph\u00e2n t\u00edch r\u1ee7i ro (\u226480 t\u1eeb, ti\u1ebfng Vi\u1ec7t) cho {symbol} {tf}:\n"
+        f"Ph\u00e2n t\u00edch r\u1ee7i ro (\u2264100 t\u1eeb, ti\u1ebfng Vi\u1ec7t) cho {symbol} {tf}:\n"
         f"Chi\u1ebfn l\u01b0\u1ee3c: {snap.get('entry_strategy', 'Kh\u00f4ng c\u00f3 t\u00edn hi\u1ec7u')} | "
         f"RSI: {snap.get('rsi_14', 50):.1f} | Stoch: {snap.get('stoch_k', 50):.1f}\n"
-        f"Nguy c\u01a1 ch\u00ednh v\u00e0 \u0111i\u1ec1u ki\u1ec7n v\u00f4 hi\u1ec7u t\u00edn hi\u1ec7u l\u00e0 g\u00ec?"
+        f"Nguy c\u01a1 ch\u00ednh v\u00e0 \u0111i\u1ec1u ki\u1ec7n v\u00f4 hi\u1ec7u t\u00edn hi\u1ec7u l\u00e0 g\u00ec? "
+        f"Vi\u1ebft \u0111\u1ea7y \u0111\u1ee7 kh\u00f4ng c\u1eaft gi\u1eefa c\u00e2u."
     )
-    result = _call(OPENROUTER_MODEL2, [{"role": "user", "content": prompt}], temperature=0.4, max_tokens=150)
+    result = _call(OPENROUTER_MODEL2, [{"role": "user", "content": prompt}], temperature=0.4, max_tokens=200)
     _cache[cache_key] = (now, result)
     return result
+
+
+# ── 4-model panel vote ────────────────────────────────────────────────────────
+
+def _model_short_label(model_id: str) -> str:
+    """Extract a short display label from a model ID string."""
+    if not model_id:
+        return "AI"
+    name = model_id.split("/")[-1].split(":")[0].lower()
+    mapping = [
+        ("gemini-2.5", "Gemini 2.5"), ("gemini-2", "Gemini 2"),
+        ("gemini-flash", "Gemini"), ("gemini-pro", "Gemini Pro"),
+        ("gpt-4o", "GPT-4o"), ("gpt-4", "GPT-4"), ("gpt-3", "GPT-3"),
+        ("claude-3-opus", "Claude Opus"), ("claude-3-sonnet", "Claude Sonnet"),
+        ("claude-3-haiku", "Claude Haiku"), ("claude", "Claude"),
+        ("llama-3.3", "Llama 3.3"), ("llama-3.1", "Llama 3.1"), ("llama", "Llama"),
+        ("mistral-large", "Mistral Lg"), ("mistral-small", "Mistral Sm"), ("mistral", "Mistral"),
+        ("deepseek-r1", "DeepSeek R1"), ("deepseek", "DeepSeek"),
+        ("qwen2.5", "Qwen 2.5"), ("qwen", "Qwen"),
+        ("phi-3", "Phi-3"),
+    ]
+    for key, label in mapping:
+        if key in name:
+            return label
+    # fallback: take first 12 chars of raw name
+    return model_id.split("/")[-1].split(":")[0][:12]
+
+
+def _call_vote(model: str, symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> dict:
+    """Ask a single AI model to vote CÓ/KHÔNG on entering a long trade right now."""
+    if not OPENROUTER_API_KEY or not model:
+        return {}
+
+    uptrend_d1  = snap.get("uptrend", False)
+    h1_uptrend  = snap.get("h1_uptrend", None)
+    macd_rising = snap.get("macd_rising", False)
+    rsi         = snap.get("rsi_14", 50)
+    stoch       = snap.get("stoch_k", 50)
+    adx         = snap.get("adx_14", 0)
+    buy_score   = snap.get("buy_score", 0)
+    sell_score  = snap.get("sell_score", 0)
+    in_buy      = snap.get("in_buy_zone", False)
+    in_sell     = snap.get("in_sell_zone", False)
+
+    if h1_uptrend is True:
+        h1_str = "Tăng ✅"
+    elif h1_uptrend is False:
+        h1_str = "Giảm ⚠️"
+    else:
+        h1_str = "Không rõ"
+
+    h4_str = "Tăng ✅" if (macd_rising and rsi > 50) else "Giảm ⚠️"
+    d1_str = "Tăng ✅" if uptrend_d1 else "Giảm ⚠️"
+
+    if in_buy:
+        zone_note = "đang trong VÙNG MUA 🟢"
+    elif in_sell:
+        zone_note = "đang trong VÙNG BÁN 🔴"
+    else:
+        zone_note = "ngoài vùng mua/bán"
+
+    rsi_label = (
+        "Quá bán" if rsi < 30 else
+        "Thấp" if rsi < 45 else
+        "Trung tính" if rsi < 55 else
+        "Cao" if rsi < 70 else
+        "Quá mua"
+    )
+    stoch_label = "Quá mua ⚠️" if stoch > 80 else ("Quá bán" if stoch < 20 else "Bình thường")
+
+    prompt = (
+        f"Bạn là trader chuyên nghiệp. Phân tích {symbol} khung {tf} và cho biết CÓ nên vào lệnh MUA ngay bây giờ không?\n\n"
+        f"DỮ LIỆU KỸ THUẬT:\n"
+        f"• Xu hướng: H1={h1_str} | H4={h4_str} | D1={d1_str}\n"
+        f"• RSI(14): {rsi:.1f} ({rsi_label}) | Stoch: {stoch:.1f} ({stoch_label})\n"
+        f"• ADX: {adx:.1f} | MACD: {'Tăng ↑' if macd_rising else 'Giảm ↓'}\n"
+        f"• Buy Score: {buy_score}/13 | Sell Score: {sell_score}/13\n"
+        f"• Vị trí: {zone_note}\n"
+        f"{extra_ctx}"
+        f"\nTRẢ LỜI đúng định dạng (không thêm gì khác):\n"
+        f"VOTE: [CÓ hoặc KHÔNG]\n"
+        f"LÝ DO: [tối đa 25 từ, tiếng Việt]"
+    )
+
+    raw = _call(model, [{"role": "user", "content": prompt}], temperature=0.25, max_tokens=100)
+    if not raw:
+        return {}
+
+    vote = "KHÔNG"
+    reason = ""
+    for line in raw.split("\n"):
+        line = line.strip()
+        u = line.upper()
+        if u.startswith("VOTE:"):
+            val = line[5:].strip().upper()
+            if any(x in val for x in ("CÓ", "CO", "YES", "ĐỒNG Ý", "DONG Y")):
+                vote = "CÓ"
+        elif u.startswith("LÝ DO:") or u.startswith("LY DO:") or u.startswith("LÍ DO:"):
+            reason = line.split(":", 1)[-1].strip()
+
+    if not reason:
+        # fallback: use whole response, truncated
+        reason = raw[:120]
+
+    return {"vote": vote, "reason": reason, "label": _model_short_label(model)}
+
+
+def run_ai_panel_vote(symbol: str, tf: str, snap: dict, extra_ctx: str = "") -> List[dict]:
+    """Run up to 4 AI models in parallel to vote on trade entry. Returns list of vote dicts."""
+    if not OPENROUTER_API_KEY:
+        return []
+
+    models = [m for m in [OPENROUTER_MODEL, OPENROUTER_MODEL2, OPENROUTER_MODEL3, OPENROUTER_MODEL4] if m]
+    if not models:
+        return []
+
+    cache_key = f"vote_{symbol}_{tf}"
+    now = time.time()
+    if cache_key in _cache and now - _cache[cache_key][0] < AI_CACHE_TTL:
+        return _cache[cache_key][1]
+
+    results: list = [None] * len(models)
+
+    def _fetch(idx: int, model: str):
+        results[idx] = _call_vote(model, symbol, tf, snap, extra_ctx)
+
+    threads = [threading.Thread(target=_fetch, args=(i, m)) for i, m in enumerate(models)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+
+    votes = [r for r in results if r]
+    _cache[cache_key] = (now, votes)
+    return votes
