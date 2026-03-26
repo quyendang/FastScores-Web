@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 
-from routers import report, student, send
+from routers import report, student, send, feedbacks
 from routers import bot as bot_router
 
 load_dotenv()
@@ -43,6 +43,7 @@ app.include_router(report.router)
 app.include_router(student.router)
 app.include_router(bot_router.router)
 app.include_router(send.router)
+app.include_router(feedbacks.router)
 
 
 # ── Static pages ──────────────────────────────────────────────────────────────
