@@ -51,32 +51,7 @@
   }
 
   /* ── Language picker ─────────────────────────────────────── */
-  .lang-picker { display: flex; gap: .5rem; }
-  .lang-btn {
-    flex: 1;
-    display: flex; align-items: center; justify-content: center; gap: .5rem;
-    padding: .65rem 1rem;
-    border: 2px solid var(--bs-border-color);
-    border-radius: 12px;
-    background: transparent;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: .9rem;
-    transition: all .18s ease;
-    color: var(--bs-body-color);
-  }
-  .lang-btn .flag { font-size: 1.25rem; line-height: 1; }
-  .lang-btn:hover { border-color: #6366f1; background: rgba(99,102,241,.06); }
-  .lang-btn.active {
-    border-color: #6366f1;
-    background: rgba(99,102,241,.1);
-    color: #6366f1;
-  }
-  [data-bs-theme="dark"] .lang-btn.active {
-    background: rgba(99,102,241,.18);
-    color: #a5b4fc;
-    border-color: #a5b4fc;
-  }
+  select.form-control { cursor: pointer; }
 
   /* ── Inputs ───────────────────────────────────────────────── */
   .form-label { font-weight: 600; font-size: .875rem; margin-bottom: .4rem; }
@@ -329,16 +304,13 @@
         <!-- Language target -->
         <div class="mb-4">
           <p class="section-label">Target Audience</p>
-          <label class="form-label">Language</label>
-          <div class="lang-picker">
-            <button type="button" class="lang-btn active" data-lang="en" id="btnEN">
-              <span class="flag">🇺🇸</span> English users
-            </button>
-            <button type="button" class="lang-btn" data-lang="vi" id="btnVI">
-              <span class="flag">🇻🇳</span> Người dùng tiếng Việt
-            </button>
-          </div>
-          <input type="hidden" id="selectedLang" value="en">
+          <label class="form-label" for="selectedLang">
+            <i class="bi bi-translate me-1 text-primary"></i>Language
+          </label>
+          <select class="form-control" id="selectedLang">
+            <option value="en">🇺🇸 English users</option>
+            <option value="vi">🇻🇳 Người dùng tiếng Việt</option>
+          </select>
         </div>
 
         <!-- Message content -->
@@ -458,8 +430,6 @@
   const toggleKey  = document.getElementById('toggleKey');
   const eyeIcon    = document.getElementById('eyeIcon');
   const selectedLang = document.getElementById('selectedLang');
-  const btnEN      = document.getElementById('btnEN');
-  const btnVI      = document.getElementById('btnVI');
   const notifTitle = document.getElementById('notifTitle');
   const notifMsg   = document.getElementById('notifMessage');
   const titleCtr   = document.getElementById('titleCounter');
@@ -479,6 +449,17 @@
   const phoneClock = document.getElementById('phoneClock');
   const phoneDate  = document.getElementById('phoneDate');
 
+  // ── Restore saved anon key ────────────────────────────────────
+  const STORAGE_KEY = 'classpro_anon_key';
+  const savedKey = localStorage.getItem(STORAGE_KEY);
+  if (savedKey) { anonKey.value = savedKey; updateSendBtn(); }
+
+  anonKey.addEventListener('change', () => {
+    const val = anonKey.value.trim();
+    if (val.length > 20) localStorage.setItem(STORAGE_KEY, val);
+    else localStorage.removeItem(STORAGE_KEY);
+  });
+
   // ── Live clock on phone ───────────────────────────────────────
   function updateClock() {
     const now = new Date();
@@ -495,12 +476,9 @@
     eyeIcon.className = isHidden ? 'bi bi-eye-fill' : 'bi bi-eye-slash-fill';
   });
 
-  // ── Language picker ───────────────────────────────────────────
-  function setLang(lang) {
-    selectedLang.value = lang;
-    btnEN.classList.toggle('active', lang === 'en');
-    btnVI.classList.toggle('active', lang === 'vi');
-
+  // ── Language dropdown ─────────────────────────────────────────
+  function updateLangPreview() {
+    const lang = selectedLang.value;
     if (lang === 'en') {
       previewLangBadge.className = 'preview-lang-badge en';
       previewLangBadge.innerHTML = '🇺🇸 Sending to English users';
@@ -511,8 +489,7 @@
     updateSendBtn();
   }
 
-  btnEN.addEventListener('click', () => setLang('en'));
-  btnVI.addEventListener('click', () => setLang('vi'));
+  selectedLang.addEventListener('change', updateLangPreview);
 
   // ── Char counters ─────────────────────────────────────────────
   function updateCounter(input, counter, max) {
@@ -534,7 +511,7 @@
     updateSendBtn();
   });
 
-  anonKey.addEventListener('input', updateSendBtn);
+  anonKey.addEventListener('input', () => { updateSendBtn(); });
 
   // ── Enable/disable send button ────────────────────────────────
   function updateSendBtn() {
@@ -547,7 +524,7 @@
   // ── Send ──────────────────────────────────────────────────────
   sendBtn.addEventListener('click', async () => {
     const key   = anonKey.value.trim();
-    const lang  = selectedLang.value;
+    const lang  = selectedLang.options[selectedLang.selectedIndex].value;
     const title = notifTitle.value.trim();
     const msg   = notifMsg.value.trim();
 
