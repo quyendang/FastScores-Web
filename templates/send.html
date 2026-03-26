@@ -1,0 +1,653 @@
+{% extends "base.html" %}
+{% block title %}Send Notification — FastScores{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* ── Page layout ─────────────────────────────────────────── */
+  .send-page { min-height: calc(100vh - 130px); }
+
+  .send-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border-radius: 20px;
+    padding: 2rem 2.5rem;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  .send-header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+  }
+  .send-header::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: 40%;
+    width: 240px; height: 240px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.05);
+  }
+  .send-header h1 { font-size: 1.6rem; font-weight: 700; margin: 0; position: relative; z-index: 1; }
+  .send-header p  { margin: .35rem 0 0; opacity: .8; font-size: .9375rem; position: relative; z-index: 1; }
+  .send-badge {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: rgba(255,255,255,.15); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 50px; padding: .25rem .75rem;
+    font-size: .8rem; font-weight: 600; color: #fff;
+    position: relative; z-index: 1;
+  }
+
+  /* ── Form card ────────────────────────────────────────────── */
+  .form-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 16px;
+    padding: 1.75rem;
+  }
+
+  /* ── Language picker ─────────────────────────────────────── */
+  .lang-picker { display: flex; gap: .5rem; }
+  .lang-btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    padding: .65rem 1rem;
+    border: 2px solid var(--bs-border-color);
+    border-radius: 12px;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: .9rem;
+    transition: all .18s ease;
+    color: var(--bs-body-color);
+  }
+  .lang-btn .flag { font-size: 1.25rem; line-height: 1; }
+  .lang-btn:hover { border-color: #6366f1; background: rgba(99,102,241,.06); }
+  .lang-btn.active {
+    border-color: #6366f1;
+    background: rgba(99,102,241,.1);
+    color: #6366f1;
+  }
+  [data-bs-theme="dark"] .lang-btn.active {
+    background: rgba(99,102,241,.18);
+    color: #a5b4fc;
+    border-color: #a5b4fc;
+  }
+
+  /* ── Inputs ───────────────────────────────────────────────── */
+  .form-label { font-weight: 600; font-size: .875rem; margin-bottom: .4rem; }
+  .form-control, .form-select {
+    border-radius: 10px;
+    padding: .65rem .9rem;
+    font-size: .9375rem;
+    border: 1.5px solid var(--bs-border-color);
+    transition: border-color .15s, box-shadow .15s;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+  }
+  .form-control:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+  }
+  textarea.form-control { resize: vertical; min-height: 110px; }
+
+  /* password eye toggle */
+  .input-icon-wrap { position: relative; }
+  .input-icon-wrap .form-control { padding-right: 2.6rem; }
+  .input-eye {
+    position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
+    cursor: pointer; color: var(--bs-secondary-color);
+    background: none; border: none; padding: 0;
+    transition: color .15s;
+  }
+  .input-eye:hover { color: #6366f1; }
+
+  /* char counter */
+  .char-counter {
+    font-size: .78rem;
+    color: var(--bs-secondary-color);
+    text-align: right;
+    margin-top: .2rem;
+    transition: color .15s;
+  }
+  .char-counter.warn  { color: #f59e0b; }
+  .char-counter.over  { color: #ef4444; }
+
+  /* ── Send button ─────────────────────────────────────────── */
+  .btn-send {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: .75rem 2rem;
+    width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    transition: opacity .2s, transform .15s;
+    cursor: pointer;
+    letter-spacing: .01em;
+  }
+  .btn-send:hover:not(:disabled)  { opacity: .9; transform: translateY(-1px); }
+  .btn-send:active:not(:disabled) { transform: translateY(0); opacity: .95; }
+  .btn-send:disabled { opacity: .6; cursor: not-allowed; }
+
+  /* spinner inside button */
+  .btn-spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── iOS Notification Preview ────────────────────────────── */
+  .preview-col { position: sticky; top: 80px; }
+
+  .preview-phone {
+    background: linear-gradient(160deg, #1c1c1e 0%, #2c2c2e 100%);
+    border-radius: 36px;
+    padding: 1.5rem 1.1rem 2rem;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  /* status bar */
+  .phone-statusbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 .5rem .75rem;
+    font-size: .7rem; color: rgba(255,255,255,.75); font-weight: 600;
+  }
+  .phone-statusbar .dot-island {
+    width: 88px; height: 28px;
+    background: #000;
+    border-radius: 50px;
+    margin: 0 auto;
+    position: absolute; left: 50%; transform: translateX(-50%);
+  }
+
+  /* wallpaper area */
+  .phone-screen {
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-radius: 22px;
+    min-height: 280px;
+    padding: 2.5rem .75rem 1rem;
+    position: relative;
+  }
+
+  /* time on wallpaper */
+  .phone-time {
+    text-align: center;
+    color: rgba(255,255,255,.9);
+    margin-bottom: 1.5rem;
+  }
+  .phone-time .big { font-size: 3rem; font-weight: 200; line-height: 1; }
+  .phone-time .sub { font-size: .7rem; opacity: .6; margin-top: .1rem; }
+
+  /* notification bubble */
+  .ios-notif {
+    background: rgba(255,255,255,.18);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 16px;
+    padding: .75rem .9rem;
+    display: flex; gap: .65rem; align-items: flex-start;
+    box-shadow: 0 4px 20px rgba(0,0,0,.3);
+    transition: all .25s ease;
+  }
+
+  .ios-notif-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    border-radius: 9px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ios-notif-icon i { color: #fff; font-size: .95rem; }
+
+  .ios-notif-content { flex: 1; min-width: 0; }
+  .ios-notif-app {
+    display: flex; justify-content: space-between;
+    font-size: .65rem; font-weight: 600;
+    color: rgba(255,255,255,.6);
+    text-transform: uppercase; letter-spacing: .04em;
+    margin-bottom: .2rem;
+  }
+  .ios-notif-title {
+    font-size: .82rem; font-weight: 700;
+    color: rgba(255,255,255,.95);
+    line-height: 1.25;
+    margin-bottom: .15rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ios-notif-body {
+    font-size: .75rem;
+    color: rgba(255,255,255,.7);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* lang badge on preview */
+  .preview-lang-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-size: .72rem; font-weight: 600;
+    padding: .2rem .55rem;
+    border-radius: 50px;
+    margin-top: .6rem;
+  }
+  .preview-lang-badge.en { background: rgba(59,130,246,.15); color: #3b82f6; }
+  .preview-lang-badge.vi { background: rgba(239,68,68,.12);  color: #ef4444; }
+
+  /* ── Result panel ─────────────────────────────────────────── */
+  .result-panel {
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    display: none;
+    animation: fadeSlideUp .3s ease;
+  }
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .result-panel.success {
+    background: rgba(16,185,129,.08);
+    border: 1.5px solid rgba(16,185,129,.3);
+  }
+  .result-panel.error {
+    background: rgba(239,68,68,.07);
+    border: 1.5px solid rgba(239,68,68,.25);
+  }
+  .result-stat {
+    text-align: center;
+    padding: .5rem .75rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,.5);
+  }
+  [data-bs-theme="dark"] .result-stat { background: rgba(255,255,255,.07); }
+  .result-stat .num { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+  .result-stat .lbl { font-size: .72rem; color: var(--bs-secondary-color); margin-top: .1rem; }
+
+  /* ── Divider label ────────────────────────────────────────── */
+  .section-label {
+    font-size: .72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em;
+    color: var(--bs-secondary-color);
+    margin-bottom: .6rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container send-page py-2">
+
+  <!-- Header -->
+  <div class="send-header">
+    <div class="mb-2">
+      <span class="send-badge"><i class="bi bi-bell-fill"></i> Push Notification</span>
+    </div>
+    <h1>Send Notification</h1>
+    <p>Broadcast a message to all ClassPro users by language</p>
+  </div>
+
+  <div class="row g-4 align-items-start">
+
+    <!-- ── Left: Form ──────────────────────────────────────── -->
+    <div class="col-lg-7">
+      <div class="form-card">
+
+        <!-- API Key -->
+        <div class="mb-4">
+          <p class="section-label">Authentication</p>
+          <label class="form-label" for="anonKey">
+            <i class="bi bi-key-fill me-1 text-primary"></i>Supabase Anon Key
+          </label>
+          <div class="input-icon-wrap">
+            <input type="password" class="form-control" id="anonKey"
+                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
+                   autocomplete="off">
+            <button class="input-eye" id="toggleKey" type="button" tabindex="-1"
+                    title="Show / hide key">
+              <i class="bi bi-eye-slash-fill" id="eyeIcon"></i>
+            </button>
+          </div>
+          <div class="mt-1" style="font-size:.78rem;color:var(--bs-secondary-color);">
+            <i class="bi bi-shield-lock me-1"></i>Sent over HTTPS. Not stored on server.
+          </div>
+        </div>
+
+        <!-- Language target -->
+        <div class="mb-4">
+          <p class="section-label">Target Audience</p>
+          <label class="form-label">Language</label>
+          <div class="lang-picker">
+            <button type="button" class="lang-btn active" data-lang="en" id="btnEN">
+              <span class="flag">🇺🇸</span> English users
+            </button>
+            <button type="button" class="lang-btn" data-lang="vi" id="btnVI">
+              <span class="flag">🇻🇳</span> Người dùng tiếng Việt
+            </button>
+          </div>
+          <input type="hidden" id="selectedLang" value="en">
+        </div>
+
+        <!-- Message content -->
+        <div class="mb-4">
+          <p class="section-label">Content</p>
+
+          <!-- Title -->
+          <div class="mb-3">
+            <label class="form-label" for="notifTitle">
+              <i class="bi bi-fonts me-1 text-primary"></i>Title
+            </label>
+            <input type="text" class="form-control" id="notifTitle"
+                   placeholder="e.g. Happy New Year 🎉"
+                   maxlength="65">
+            <div class="char-counter" id="titleCounter">0 / 65</div>
+          </div>
+
+          <!-- Message -->
+          <div>
+            <label class="form-label" for="notifMessage">
+              <i class="bi bi-chat-text me-1 text-primary"></i>Message
+            </label>
+            <textarea class="form-control" id="notifMessage" rows="3"
+                      placeholder="e.g. ClassPro wishes you a wonderful new year!"
+                      maxlength="240"></textarea>
+            <div class="char-counter" id="msgCounter">0 / 240</div>
+          </div>
+        </div>
+
+        <!-- Result panel -->
+        <div class="result-panel mb-4" id="resultPanel">
+          <div class="d-flex align-items-center gap-2 mb-3" id="resultHeader">
+            <i class="bi bi-check-circle-fill fs-5"></i>
+            <span class="fw-semibold" id="resultTitle"></span>
+          </div>
+          <div class="row g-2 mb-3" id="resultStats"></div>
+          <div id="failedList"></div>
+        </div>
+
+        <!-- Send button -->
+        <button class="btn-send" id="sendBtn" type="button" disabled>
+          <div class="btn-spinner" id="btnSpinner"></div>
+          <i class="bi bi-send-fill" id="btnIcon"></i>
+          <span id="btnText">Send Notification</span>
+        </button>
+
+        <!-- Warning -->
+        <p class="text-center mt-2 mb-0" style="font-size:.78rem;color:var(--bs-secondary-color);">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          This will push to <strong>all</strong> users with the selected language.
+        </p>
+
+      </div>
+    </div>
+
+    <!-- ── Right: Preview ─────────────────────────────────── -->
+    <div class="col-lg-5 preview-col">
+
+      <!-- Phone mockup -->
+      <div class="preview-phone">
+        <!-- status bar -->
+        <div class="phone-statusbar" style="position:relative;">
+          <span>9:41</span>
+          <div class="dot-island"></div>
+          <div class="d-flex gap-1 align-items-center">
+            <i class="bi bi-wifi" style="font-size:.7rem;color:rgba(255,255,255,.75);"></i>
+            <i class="bi bi-battery-half" style="font-size:.7rem;color:rgba(255,255,255,.75);"></i>
+          </div>
+        </div>
+
+        <!-- screen -->
+        <div class="phone-screen">
+          <div class="phone-time">
+            <div class="big" id="phoneClock">9:41</div>
+            <div class="sub" id="phoneDate">Tuesday, March 26</div>
+          </div>
+
+          <!-- notification bubble -->
+          <div class="ios-notif">
+            <div class="ios-notif-icon">
+              <i class="bi bi-book-fill"></i>
+            </div>
+            <div class="ios-notif-content">
+              <div class="ios-notif-app">
+                <span>ClassPro</span>
+                <span id="previewTime">now</span>
+              </div>
+              <div class="ios-notif-title" id="previewTitle">Your notification title</div>
+              <div class="ios-notif-body" id="previewBody">Your notification message will appear here…</div>
+            </div>
+          </div>
+
+        </div><!-- /phone-screen -->
+      </div><!-- /preview-phone -->
+
+      <!-- Meta info below phone -->
+      <div class="text-center mt-3">
+        <span class="preview-lang-badge en" id="previewLangBadge">
+          🇺🇸 Sending to English users
+        </span>
+        <p class="mt-2 mb-0" style="font-size:.78rem;color:var(--bs-secondary-color);">
+          Live preview — how it appears on iOS
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+
+  // ── Refs ─────────────────────────────────────────────────────
+  const anonKey    = document.getElementById('anonKey');
+  const toggleKey  = document.getElementById('toggleKey');
+  const eyeIcon    = document.getElementById('eyeIcon');
+  const selectedLang = document.getElementById('selectedLang');
+  const btnEN      = document.getElementById('btnEN');
+  const btnVI      = document.getElementById('btnVI');
+  const notifTitle = document.getElementById('notifTitle');
+  const notifMsg   = document.getElementById('notifMessage');
+  const titleCtr   = document.getElementById('titleCounter');
+  const msgCtr     = document.getElementById('msgCounter');
+  const sendBtn    = document.getElementById('sendBtn');
+  const btnSpinner = document.getElementById('btnSpinner');
+  const btnIcon    = document.getElementById('btnIcon');
+  const btnText    = document.getElementById('btnText');
+  const resultPanel= document.getElementById('resultPanel');
+  const resultTitle= document.getElementById('resultTitle');
+  const resultHeader=document.getElementById('resultHeader');
+  const resultStats= document.getElementById('resultStats');
+  const failedList = document.getElementById('failedList');
+  const previewTitle = document.getElementById('previewTitle');
+  const previewBody  = document.getElementById('previewBody');
+  const previewLangBadge = document.getElementById('previewLangBadge');
+  const phoneClock = document.getElementById('phoneClock');
+  const phoneDate  = document.getElementById('phoneDate');
+
+  // ── Live clock on phone ───────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    phoneClock.textContent = now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12: false });
+    phoneDate.textContent  = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  }
+  updateClock();
+  setInterval(updateClock, 30000);
+
+  // ── Show/hide key ─────────────────────────────────────────────
+  toggleKey.addEventListener('click', () => {
+    const isHidden = anonKey.type === 'password';
+    anonKey.type = isHidden ? 'text' : 'password';
+    eyeIcon.className = isHidden ? 'bi bi-eye-fill' : 'bi bi-eye-slash-fill';
+  });
+
+  // ── Language picker ───────────────────────────────────────────
+  function setLang(lang) {
+    selectedLang.value = lang;
+    btnEN.classList.toggle('active', lang === 'en');
+    btnVI.classList.toggle('active', lang === 'vi');
+
+    if (lang === 'en') {
+      previewLangBadge.className = 'preview-lang-badge en';
+      previewLangBadge.innerHTML = '🇺🇸 Sending to English users';
+    } else {
+      previewLangBadge.className = 'preview-lang-badge vi';
+      previewLangBadge.innerHTML = '🇻🇳 Gửi đến người dùng tiếng Việt';
+    }
+    updateSendBtn();
+  }
+
+  btnEN.addEventListener('click', () => setLang('en'));
+  btnVI.addEventListener('click', () => setLang('vi'));
+
+  // ── Char counters ─────────────────────────────────────────────
+  function updateCounter(input, counter, max) {
+    const len = input.value.length;
+    counter.textContent = `${len} / ${max}`;
+    counter.className = 'char-counter' +
+      (len > max * .85 ? (len >= max ? ' over' : ' warn') : '');
+  }
+
+  notifTitle.addEventListener('input', () => {
+    updateCounter(notifTitle, titleCtr, 65);
+    previewTitle.textContent = notifTitle.value || 'Your notification title';
+    updateSendBtn();
+  });
+
+  notifMsg.addEventListener('input', () => {
+    updateCounter(notifMsg, msgCtr, 240);
+    previewBody.textContent = notifMsg.value || 'Your notification message will appear here…';
+    updateSendBtn();
+  });
+
+  anonKey.addEventListener('input', updateSendBtn);
+
+  // ── Enable/disable send button ────────────────────────────────
+  function updateSendBtn() {
+    const ok = anonKey.value.trim().length > 20 &&
+               notifTitle.value.trim().length > 0 &&
+               notifMsg.value.trim().length > 0;
+    sendBtn.disabled = !ok;
+  }
+
+  // ── Send ──────────────────────────────────────────────────────
+  sendBtn.addEventListener('click', async () => {
+    const key   = anonKey.value.trim();
+    const lang  = selectedLang.value;
+    const title = notifTitle.value.trim();
+    const msg   = notifMsg.value.trim();
+
+    if (!key || !title || !msg) return;
+
+    // Loading state
+    sendBtn.disabled = true;
+    btnSpinner.style.display = 'block';
+    btnIcon.style.display    = 'none';
+    btnText.textContent      = 'Sending…';
+    resultPanel.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('anon_key', key);
+    formData.append('lang',     lang);
+    formData.append('title',    title);
+    formData.append('message',  msg);
+
+    try {
+      const res  = await fetch('/send/push', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      // Show result
+      resultPanel.style.display = 'block';
+
+      if (res.ok && data.sent !== undefined) {
+        const failed = data.failed ?? [];
+
+        // Success style
+        resultPanel.className = 'result-panel success mb-4';
+        resultHeader.innerHTML = `
+          <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+          <span class="fw-semibold text-success">Notification sent!</span>
+        `;
+
+        resultStats.innerHTML = `
+          <div class="col-4">
+            <div class="result-stat">
+              <div class="num text-success">${data.sent}</div>
+              <div class="lbl">Sent</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="result-stat">
+              <div class="num text-danger">${failed.length}</div>
+              <div class="lbl">Failed</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="result-stat">
+              <div class="num">${data.total ?? (data.sent + failed.length)}</div>
+              <div class="lbl">Total</div>
+            </div>
+          </div>
+        `;
+
+        // Failed detail
+        if (failed.length > 0) {
+          failedList.innerHTML = `
+            <details class="mt-2">
+              <summary style="font-size:.8rem;cursor:pointer;color:var(--bs-secondary-color);">
+                Show ${failed.length} failed token(s)
+              </summary>
+              <pre style="font-size:.72rem;margin-top:.5rem;padding:.5rem;border-radius:8px;
+                          background:rgba(0,0,0,.04);overflow:auto;max-height:120px;">${JSON.stringify(failed, null, 2)}</pre>
+            </details>`;
+        } else {
+          failedList.innerHTML = '';
+        }
+
+      } else {
+        // Error style
+        resultPanel.className = 'result-panel error mb-4';
+        resultHeader.innerHTML = `
+          <i class="bi bi-x-circle-fill fs-5 text-danger"></i>
+          <span class="fw-semibold text-danger">Failed to send</span>
+        `;
+        resultStats.innerHTML = '';
+        failedList.innerHTML  = `
+          <pre style="font-size:.78rem;padding:.5rem;border-radius:8px;
+                      background:rgba(0,0,0,.04);margin:0;">${JSON.stringify(data, null, 2)}</pre>`;
+      }
+
+    } catch (err) {
+      resultPanel.style.display = 'block';
+      resultPanel.className = 'result-panel error mb-4';
+      resultHeader.innerHTML = `
+        <i class="bi bi-x-circle-fill fs-5 text-danger"></i>
+        <span class="fw-semibold text-danger">Network error</span>
+      `;
+      resultStats.innerHTML = '';
+      failedList.innerHTML  = `<p class="mb-0 small text-danger">${err.message}</p>`;
+    } finally {
+      btnSpinner.style.display = 'none';
+      btnIcon.style.display    = '';
+      btnText.textContent      = 'Send Notification';
+      updateSendBtn();
+    }
+  });
+
+})();
+</script>
+{% endblock %}
