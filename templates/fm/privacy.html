@@ -1,0 +1,109 @@
+{% extends "fm/base.html" %}
+
+{% block title %}Privacy Policy — FastMoments{% endblock %}
+{% block description %}FastMoments Privacy Policy — how we handle your data.{% endblock %}
+{% block og_title %}Privacy Policy — FastMoments{% endblock %}
+
+{% block head_extra %}
+<style>
+  .fm-policy-hero {
+    background: linear-gradient(135deg, #fff5f8 0%, #f0fdf4 100%);
+    padding: 56px 0 40px;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+  }
+  .fm-policy-body {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .fm-policy-body h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-top: 2rem;
+    margin-bottom: .5rem;
+  }
+  .fm-policy-body p, .fm-policy-body li {
+    color: #444;
+    line-height: 1.75;
+    font-size: .9375rem;
+  }
+  .fm-policy-body ul { padding-left: 1.25rem; }
+  .fm-policy-body li { margin-bottom: .4rem; }
+  .fm-last-updated {
+    display: inline-block;
+    background: rgba(244,114,182,.1);
+    color: #db2777;
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-size: .8rem;
+    font-weight: 600;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="fm-policy-hero">
+  <div class="container text-center">
+    <span style="font-size:2.5rem;">🔒</span>
+    <h1 class="fw-800 mt-2" style="font-weight:800;font-size:2rem;">Privacy Policy</h1>
+    <p class="text-muted mb-2">FastMoments iOS App</p>
+    <span class="fm-last-updated">Last updated: March 2026</span>
+  </div>
+</section>
+
+<section class="py-5">
+  <div class="container">
+    <div class="fm-policy-body">
+
+      <p>FastMoments ("we", "our", or "the app") is an iOS application that helps you track and celebrate life milestones. We are committed to protecting your privacy. This policy explains what data we collect, how we use it, and your rights.</p>
+
+      <h2>1. Data We Collect</h2>
+      <p>FastMoments is designed with privacy in mind. The data you create stays with you:</p>
+      <ul>
+        <li><strong>Event data</strong> — titles, dates, notes, and settings you enter into the app are stored locally on your device and optionally synced via your personal iCloud account.</li>
+        <li><strong>Notification preferences</strong> — stored locally on your device using iOS UserDefaults.</li>
+        <li><strong>App usage</strong> — a local session counter used only to decide when to show an in-app review prompt (never sent to us).</li>
+      </ul>
+
+      <h2>2. Data We Do NOT Collect</h2>
+      <ul>
+        <li>We do <strong>not</strong> collect any personal information (name, email, phone number).</li>
+        <li>We do <strong>not</strong> use advertising SDKs or analytics trackers.</li>
+        <li>We do <strong>not</strong> have access to your iCloud data — it syncs directly between Apple's servers and your devices.</li>
+        <li>We do <strong>not</strong> sell or share any data with third parties.</li>
+      </ul>
+
+      <h2>3. iCloud Sync</h2>
+      <p>If you have iCloud enabled on your device, FastMoments uses Apple's CloudKit framework to sync your events across your Apple devices. This data is protected by your Apple ID credentials and governed by <a href="https://www.apple.com/privacy/" target="_blank" class="text-decoration-none" style="color:var(--fm-pink);">Apple's Privacy Policy</a>. We do not have access to this data.</p>
+
+      <h2>4. Local Notifications</h2>
+      <p>FastMoments can send local notifications (reminders) based on dates and intervals you configure. These notifications are scheduled entirely on your device and are never transmitted to any server.</p>
+
+      <h2>5. App Store &amp; Analytics</h2>
+      <p>Apple may collect aggregated, anonymized analytics about app usage through the App Store (e.g., crash reports, download counts). This is governed by Apple's privacy policy and we receive only aggregated data with no personally identifiable information.</p>
+
+      <h2>6. Children's Privacy</h2>
+      <p>FastMoments does not knowingly collect information from children under 13. The app contains no social features, accounts, or user-generated content shared with others.</p>
+
+      <h2>7. Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. The "last updated" date at the top of this page will reflect any changes. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+
+      <h2>8. Contact</h2>
+      <p>If you have any questions about this Privacy Policy, please contact us at:</p>
+      <p>
+        <a href="mailto:dangtkhuong@gmail.com" style="color:var(--fm-pink);font-weight:600;text-decoration:none;">
+          <i class="bi bi-envelope-fill me-1"></i>dangtkhuong@gmail.com
+        </a>
+      </p>
+
+      <hr class="my-4" style="opacity:.1;" />
+      <p class="text-muted" style="font-size:.85rem;">
+        This app is not affiliated with or endorsed by Apple Inc. Apple and App Store are trademarks of Apple Inc.
+      </p>
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}

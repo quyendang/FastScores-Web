@@ -1,0 +1,229 @@
+{% extends "fm/base.html" %}
+
+{% block title %}Support — FastMoments{% endblock %}
+{% block description %}Get help with FastMoments — FAQ and contact support.{% endblock %}
+{% block og_title %}Support — FastMoments{% endblock %}
+
+{% block head_extra %}
+<style>
+  .fm-support-hero {
+    background: linear-gradient(135deg, #fffbeb 0%, #fff5f8 100%);
+    padding: 56px 0 40px;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+  }
+  .fm-faq-item {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: box-shadow .2s;
+  }
+  .fm-faq-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); }
+  .fm-faq-q {
+    font-weight: 600;
+    font-size: .9375rem;
+    color: #1a1a2e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .fm-faq-a {
+    color: #555;
+    font-size: .9rem;
+    line-height: 1.7;
+    margin-top: 12px;
+    display: none;
+  }
+  .fm-faq-item.open .fm-faq-a { display: block; }
+  .fm-faq-item.open .fm-faq-chevron { transform: rotate(180deg); }
+  .fm-faq-chevron { transition: transform .2s; flex-shrink: 0; color: #aaa; }
+
+  .fm-contact-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2d1b4e 100%);
+    border-radius: 24px;
+    padding: 40px 36px;
+    color: #fff;
+  }
+  .fm-contact-card h3 { font-size: 1.4rem; font-weight: 700; }
+  .fm-contact-card p  { opacity: .75; font-size: .9375rem; }
+  .fm-email-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--fm-pink);
+    color: #fff;
+    border-radius: 14px;
+    padding: 12px 24px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: .9375rem;
+    transition: opacity .15s, transform .15s;
+  }
+  .fm-email-btn:hover { color: #fff; opacity: .9; transform: translateY(-2px); }
+
+  .fm-tip-card {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 16px;
+    padding: 20px;
+    height: 100%;
+  }
+  .fm-tip-icon { font-size: 1.75rem; margin-bottom: 10px; }
+  .fm-tip-title { font-weight: 700; font-size: .9375rem; color: #1a1a2e; margin-bottom: 6px; }
+  .fm-tip-desc  { color: #666; font-size: .875rem; line-height: 1.6; margin: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="fm-support-hero">
+  <div class="container text-center">
+    <span style="font-size:2.5rem;">💬</span>
+    <h1 class="fw-800 mt-2" style="font-weight:800;font-size:2rem;">Support</h1>
+    <p class="text-muted mb-0">We're here to help with FastMoments</p>
+  </div>
+</section>
+
+<!-- ── Quick Tips ─────────────────────────────────────────── -->
+<section class="py-5">
+  <div class="container">
+    <h2 class="fw-bold mb-4" style="font-size:1.4rem;">Quick Tips</h2>
+    <div class="row g-3">
+      <div class="col-sm-6 col-lg-3">
+        <div class="fm-tip-card">
+          <div class="fm-tip-icon">📌</div>
+          <div class="fm-tip-title">Pin a moment</div>
+          <p class="fm-tip-desc">Long press any event on the home screen, or tap ··· → Pin in the detail view.</p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="fm-tip-card">
+          <div class="fm-tip-icon">📱</div>
+          <div class="fm-tip-title">Add a widget</div>
+          <p class="fm-tip-desc">Long press your home screen → tap + → search "FastMoments" → choose a widget size.</p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="fm-tip-card">
+          <div class="fm-tip-icon">🔔</div>
+          <div class="fm-tip-title">Set reminders</div>
+          <p class="fm-tip-desc">When creating or editing an event, tap "Reminders" to choose intervals or set a custom repeat.</p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="fm-tip-card">
+          <div class="fm-tip-icon">☁️</div>
+          <div class="fm-tip-title">iCloud sync</div>
+          <p class="fm-tip-desc">Make sure iCloud is enabled in iOS Settings → your Apple ID → iCloud → FastMoments.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ───────────────────────────────────────────────── -->
+<section class="py-2 pb-5" style="background:#f8f8fc;">
+  <div class="container py-4">
+    <h2 class="fw-bold mb-4" style="font-size:1.4rem;">Frequently Asked Questions</h2>
+    <div style="max-width:700px;">
+
+      <div class="fm-faq-item">
+        <div class="fm-faq-q">
+          Why aren't my widgets updating?
+          <i class="bi bi-chevron-down fm-faq-chevron"></i>
+        </div>
+        <div class="fm-faq-a">
+          Widgets refresh automatically throughout the day. If a widget appears stuck, try long-pressing it → Edit Widget → re-select the event and tap Done. You can also delete and re-add the widget.
+        </div>
+      </div>
+
+      <div class="fm-faq-item">
+        <div class="fm-faq-q">
+          My notifications aren't arriving. What should I check?
+          <i class="bi bi-chevron-down fm-faq-chevron"></i>
+        </div>
+        <div class="fm-faq-a">
+          Go to iOS Settings → FastMoments → Notifications and make sure they are enabled. Inside the app, check Settings → Notifications toggle is ON. Reminders are only scheduled when an event has at least one reminder configured.
+        </div>
+      </div>
+
+      <div class="fm-faq-item">
+        <div class="fm-faq-q">
+          How do I move a moment to another device?
+          <i class="bi bi-chevron-down fm-faq-chevron"></i>
+        </div>
+        <div class="fm-faq-a">
+          FastMoments uses iCloud to automatically sync across all your Apple devices signed in with the same Apple ID. Make sure iCloud is enabled on both devices and wait a few moments for sync to complete.
+        </div>
+      </div>
+
+      <div class="fm-faq-item">
+        <div class="fm-faq-q">
+          Can I recover a deleted moment?
+          <i class="bi bi-chevron-down fm-faq-chevron"></i>
+        </div>
+        <div class="fm-faq-a">
+          Currently FastMoments does not have a trash/recovery feature. Deleted moments are permanently removed. We recommend using Archive instead of Delete if you want to keep the data but hide it from the home screen.
+        </div>
+      </div>
+
+      <div class="fm-faq-item">
+        <div class="fm-faq-q">
+          What is the "Braces Journey" category?
+          <i class="bi bi-chevron-down fm-faq-chevron"></i>
+        </div>
+        <div class="fm-faq-a">
+          Braces Journey is a special category for tracking orthodontic treatment. It counts up from your start date and supports custom repeat reminders (e.g., every 14 days for check-up reminders) along with 100-day and 1-year milestone alerts.
+        </div>
+      </div>
+
+      <div class="fm-faq-item">
+        <div class="fm-faq-q">
+          How does the Yearly Recurring mode work?
+          <i class="bi bi-chevron-down fm-faq-chevron"></i>
+        </div>
+        <div class="fm-faq-a">
+          Yearly Recurring counts down to the next occurrence of a date each year — perfect for birthdays, anniversaries, and traditions. The counter resets every year automatically.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Contact ───────────────────────────────────────────── -->
+<section class="py-5">
+  <div class="container">
+    <div class="fm-contact-card" style="max-width:600px;margin:0 auto;text-align:center;">
+      <div style="font-size:2.5rem;">✉️</div>
+      <h3 class="mt-3">Still need help?</h3>
+      <p class="mb-4">
+        Can't find the answer you're looking for? Send us an email and we'll get back to you as soon as possible.
+      </p>
+      <a href="mailto:dangtkhuong@gmail.com" class="fm-email-btn">
+        <i class="bi bi-envelope-fill" style="font-size:1.1rem;"></i>
+        dangtkhuong@gmail.com
+      </a>
+      <p class="mt-4 mb-0" style="font-size:.8125rem;opacity:.5;">
+        We typically respond within 1–2 business days.
+      </p>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.fm-faq-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.fm-faq-item').forEach(i => i.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
+    });
+  });
+</script>
+{% endblock %}
