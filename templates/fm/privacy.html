@@ -1,8 +1,14 @@
 {% extends "fm/base.html" %}
 
+{% if lang == 'vi' %}
+{% block title %}Chính Sách Bảo Mật — FastMoments{% endblock %}
+{% block description %}Chính sách bảo mật ứng dụng FastMoments — cách chúng tôi xử lý dữ liệu của bạn.{% endblock %}
+{% block og_title %}Chính Sách Bảo Mật — FastMoments{% endblock %}
+{% else %}
 {% block title %}Privacy Policy — FastMoments{% endblock %}
 {% block description %}FastMoments Privacy Policy — how we handle your data.{% endblock %}
 {% block og_title %}Privacy Policy — FastMoments{% endblock %}
+{% endif %}
 
 {% block head_extra %}
 <style>
@@ -46,15 +52,69 @@
 <section class="fm-policy-hero">
   <div class="container text-center">
     <span style="font-size:2.5rem;">🔒</span>
-    <h1 class="fw-800 mt-2" style="font-weight:800;font-size:2rem;">Privacy Policy</h1>
+    <h1 class="fw-800 mt-2" style="font-weight:800;font-size:2rem;">
+      {% if lang == 'vi' %}Chính Sách Bảo Mật{% else %}Privacy Policy{% endif %}
+    </h1>
     <p class="text-muted mb-2">FastMoments iOS App</p>
-    <span class="fm-last-updated">Last updated: March 2026</span>
+    <span class="fm-last-updated">
+      {% if lang == 'vi' %}Cập nhật: Tháng 3, 2026{% else %}Last updated: March 2026{% endif %}
+    </span>
   </div>
 </section>
 
 <section class="py-5">
   <div class="container">
     <div class="fm-policy-body">
+
+      {% if lang == 'vi' %}
+
+      <p>FastMoments ("chúng tôi" hoặc "ứng dụng") là ứng dụng iOS giúp bạn theo dõi và ăn mừng các cột mốc cuộc sống. Chúng tôi cam kết bảo vệ quyền riêng tư của bạn. Chính sách này giải thích dữ liệu nào chúng tôi thu thập, cách sử dụng và quyền của bạn.</p>
+
+      <h2>1. Dữ liệu chúng tôi thu thập</h2>
+      <p>FastMoments được thiết kế hướng tới quyền riêng tư. Dữ liệu bạn tạo ra luôn thuộc về bạn:</p>
+      <ul>
+        <li><strong>Dữ liệu sự kiện</strong> — tiêu đề, ngày tháng, ghi chú và cài đặt bạn nhập vào ứng dụng được lưu cục bộ trên thiết bị và tùy chọn đồng bộ qua tài khoản iCloud cá nhân của bạn.</li>
+        <li><strong>Tùy chọn thông báo</strong> — được lưu cục bộ trên thiết bị bằng iOS UserDefaults.</li>
+        <li><strong>Sử dụng ứng dụng</strong> — bộ đếm phiên cục bộ chỉ dùng để quyết định thời điểm hiển thị lời nhắc đánh giá ứng dụng (không bao giờ được gửi cho chúng tôi).</li>
+      </ul>
+
+      <h2>2. Dữ liệu chúng tôi KHÔNG thu thập</h2>
+      <ul>
+        <li>Chúng tôi <strong>không</strong> thu thập thông tin cá nhân (tên, email, số điện thoại).</li>
+        <li>Chúng tôi <strong>không</strong> sử dụng SDK quảng cáo hoặc công cụ theo dõi phân tích.</li>
+        <li>Chúng tôi <strong>không</strong> có quyền truy cập vào dữ liệu iCloud của bạn — dữ liệu đồng bộ trực tiếp giữa máy chủ Apple và thiết bị của bạn.</li>
+        <li>Chúng tôi <strong>không</strong> bán hoặc chia sẻ bất kỳ dữ liệu nào với bên thứ ba.</li>
+      </ul>
+
+      <h2>3. Đồng bộ iCloud</h2>
+      <p>Nếu bạn đã bật iCloud trên thiết bị, FastMoments sử dụng framework CloudKit của Apple để đồng bộ sự kiện trên các thiết bị Apple của bạn. Dữ liệu này được bảo vệ bởi Apple ID và tuân theo <a href="https://www.apple.com/privacy/" target="_blank" class="text-decoration-none" style="color:var(--fm-pink);">Chính sách bảo mật của Apple</a>. Chúng tôi không có quyền truy cập vào dữ liệu này.</p>
+
+      <h2>4. Thông báo cục bộ</h2>
+      <p>FastMoments có thể gửi thông báo cục bộ (nhắc nhở) dựa trên ngày và khoảng thời gian bạn cấu hình. Những thông báo này được lên lịch hoàn toàn trên thiết bị và không bao giờ được truyền tới bất kỳ máy chủ nào.</p>
+
+      <h2>5. App Store &amp; Phân tích</h2>
+      <p>Apple có thể thu thập phân tích tổng hợp, ẩn danh về việc sử dụng ứng dụng qua App Store (ví dụ: báo cáo sự cố, số lượt tải xuống). Điều này được điều chỉnh bởi chính sách bảo mật của Apple và chúng tôi chỉ nhận dữ liệu tổng hợp không có thông tin nhận dạng cá nhân.</p>
+
+      <h2>6. Quyền riêng tư của trẻ em</h2>
+      <p>FastMoments không cố tình thu thập thông tin từ trẻ em dưới 13 tuổi. Ứng dụng không có tính năng xã hội, tài khoản, hoặc nội dung do người dùng tạo ra được chia sẻ với người khác.</p>
+
+      <h2>7. Thay đổi chính sách</h2>
+      <p>Chúng tôi có thể cập nhật Chính sách Bảo mật này theo thời gian. Ngày "cập nhật lần cuối" ở đầu trang sẽ phản ánh mọi thay đổi. Tiếp tục sử dụng ứng dụng sau khi thay đổi đồng nghĩa với việc chấp nhận chính sách được cập nhật.</p>
+
+      <h2>8. Liên hệ</h2>
+      <p>Nếu bạn có câu hỏi về Chính sách Bảo mật này, vui lòng liên hệ chúng tôi qua:</p>
+      <p>
+        <a href="mailto:dangtkhuong@gmail.com" style="color:var(--fm-pink);font-weight:600;text-decoration:none;">
+          <i class="bi bi-envelope-fill me-1"></i>dangtkhuong@gmail.com
+        </a>
+      </p>
+
+      <hr class="my-4" style="opacity:.1;" />
+      <p class="text-muted" style="font-size:.85rem;">
+        Ứng dụng này không liên kết hoặc được chứng thực bởi Apple Inc. Apple và App Store là thương hiệu của Apple Inc.
+      </p>
+
+      {% else %}
 
       <p>FastMoments ("we", "our", or "the app") is an iOS application that helps you track and celebrate life milestones. We are committed to protecting your privacy. This policy explains what data we collect, how we use it, and your rights.</p>
 
@@ -101,6 +161,8 @@
       <p class="text-muted" style="font-size:.85rem;">
         This app is not affiliated with or endorsed by Apple Inc. Apple and App Store are trademarks of Apple Inc.
       </p>
+
+      {% endif %}
 
     </div>
   </div>

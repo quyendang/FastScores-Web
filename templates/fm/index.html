@@ -1,9 +1,16 @@
 {% extends "fm/base.html" %}
 
+{% if lang == 'vi' %}
+{% block title %}FastMoments — Theo Dõi Mọi Cột Mốc Cuộc Đời{% endblock %}
+{% block description %}Đếm lên, đếm xuống, ăn mừng. FastMoments biến những ngày ý nghĩa thành bộ đếm sống động trên iPhone.{% endblock %}
+{% block og_title %}FastMoments — Theo Dõi Mọi Cột Mốc Cuộc Đời{% endblock %}
+{% block og_description %}Theo dõi tình yêu, thói quen, mục tiêu và mọi cột mốc trong cuộc sống của bạn.{% endblock %}
+{% else %}
 {% block title %}FastMoments — Track Every Milestone That Matters{% endblock %}
 {% block description %}Count up, count down, celebrate. FastMoments turns your most meaningful dates into living countdowns on iPhone.{% endblock %}
 {% block og_title %}FastMoments — Track Every Milestone That Matters{% endblock %}
 {% block og_description %}Count up, count down, celebrate. Track love stories, streaks, goals, and every milestone in your life.{% endblock %}
+{% endif %}
 
 {% block head_extra %}
 <style>
@@ -168,55 +175,70 @@
 
       <div class="col-lg-6">
         <div class="fm-hero-badge">
-          <span>🎉</span> Available on iOS
+          <span>🎉</span>
+          {% if lang == 'vi' %}Có mặt trên iOS{% else %}Available on iOS{% endif %}
         </div>
         <h1 class="fm-hero-title mb-3">
-          Count the days<br>that <span class="highlight">mean the most</span>
+          {% if lang == 'vi' %}
+            Đếm những ngày<br>thực sự <span class="highlight">ý nghĩa</span>
+          {% else %}
+            Count the days<br>that <span class="highlight">mean the most</span>
+          {% endif %}
         </h1>
         <p class="fm-hero-subtitle mb-4">
-          Track love stories, streaks, goals, anniversaries and every milestone in your life — beautifully.
+          {% if lang == 'vi' %}
+            Theo dõi tình yêu, thói quen, mục tiêu, kỷ niệm và mọi cột mốc trong cuộc sống — đẹp và đơn giản.
+          {% else %}
+            Track love stories, streaks, goals, anniversaries and every milestone in your life — beautifully.
+          {% endif %}
         </p>
         <div class="d-flex flex-wrap gap-3 align-items-center">
           <a href="https://apps.apple.com/us/app/fastmoments-day-counter/id6761330949" class="fm-app-badge" target="_blank">
             <i class="bi bi-apple" style="font-size:1.4rem;"></i>
             <div>
-              <div class="sub">Download on the</div>
+              <div class="sub">{% if lang == 'vi' %}Tải về từ{% else %}Download on the{% endif %}</div>
               <div>App Store</div>
             </div>
           </a>
-          <span class="text-muted small">Free · iPhone & iPad</span>
+          <span class="text-muted small">{% if lang == 'vi' %}Miễn phí · iPhone & iPad{% else %}Free · iPhone & iPad{% endif %}</span>
         </div>
       </div>
 
       <div class="col-lg-6 d-flex justify-content-center">
         <div class="fm-mockup-card">
-          <!-- Pinata mascot -->
           <div class="text-center mb-4">
             <span style="font-size:3.5rem;">🎉</span>
-            <div class="fw-semibold mt-1" style="font-size:.85rem;color:#888;">Your milestones</div>
+            <div class="fw-semibold mt-1" style="font-size:.85rem;color:#888;">
+              {% if lang == 'vi' %}Cột mốc của bạn{% else %}Your milestones{% endif %}
+            </div>
           </div>
-          <!-- Sample events -->
           <div class="fm-event-row">
             <div class="fm-event-icon" style="background:#fce7f3;">❤️</div>
             <div>
-              <div class="fw-semibold" style="font-size:.875rem;">Our Love Story</div>
-              <div style="font-size:.75rem;color:#888;">days together</div>
+              <div class="fw-semibold" style="font-size:.875rem;">
+                {% if lang == 'vi' %}Chuyện tình của chúng mình{% else %}Our Love Story{% endif %}
+              </div>
+              <div style="font-size:.75rem;color:#888;">{% if lang == 'vi' %}ngày bên nhau{% else %}days together{% endif %}</div>
             </div>
             <div class="fm-event-count" style="color:#F472B6;">127</div>
           </div>
           <div class="fm-event-row">
             <div class="fm-event-icon" style="background:#ecfdf5;">😁</div>
             <div>
-              <div class="fw-semibold" style="font-size:.875rem;">Braces Journey</div>
-              <div style="font-size:.75rem;color:#888;">days in</div>
+              <div class="fw-semibold" style="font-size:.875rem;">
+                {% if lang == 'vi' %}Hành trình niềng răng{% else %}Braces Journey{% endif %}
+              </div>
+              <div style="font-size:.75rem;color:#888;">{% if lang == 'vi' %}ngày đã niềng{% else %}days in{% endif %}</div>
             </div>
             <div class="fm-event-count" style="color:#10b981;">45</div>
           </div>
           <div class="fm-event-row">
             <div class="fm-event-icon" style="background:#fffbeb;">✈️</div>
             <div>
-              <div class="fw-semibold" style="font-size:.875rem;">Japan Trip</div>
-              <div style="font-size:.75rem;color:#888;">days to go</div>
+              <div class="fw-semibold" style="font-size:.875rem;">
+                {% if lang == 'vi' %}Chuyến đi Nhật{% else %}Japan Trip{% endif %}
+              </div>
+              <div style="font-size:.75rem;color:#888;">{% if lang == 'vi' %}ngày nữa{% else %}days to go{% endif %}</div>
             </div>
             <div class="fm-event-count" style="color:#f59e0b;">60</div>
           </div>
@@ -231,13 +253,26 @@
 <section class="py-5">
   <div class="container">
     <div class="text-center mb-4">
-      <h2 class="fm-section-title">One app, three ways to count</h2>
-      <p class="text-muted">Works for any kind of milestone</p>
+      <h2 class="fm-section-title">
+        {% if lang == 'vi' %}Một app, ba cách đếm{% else %}One app, three ways to count{% endif %}
+      </h2>
+      <p class="text-muted">
+        {% if lang == 'vi' %}Phù hợp với mọi loại cột mốc{% else %}Works for any kind of milestone{% endif %}
+      </p>
     </div>
     <div class="d-flex flex-wrap justify-content-center gap-3">
-      <div class="fm-mode-pill"><span style="color:#F472B6;">⬆️</span> Count Up — since a past date</div>
-      <div class="fm-mode-pill"><span style="color:#60A5FA;">⬇️</span> Count Down — to a future event</div>
-      <div class="fm-mode-pill"><span style="color:#FCD34D;">🔁</span> Yearly — birthdays & anniversaries</div>
+      <div class="fm-mode-pill">
+        <span style="color:#F472B6;">⬆️</span>
+        {% if lang == 'vi' %}Đếm lên — từ một ngày đã qua{% else %}Count Up — since a past date{% endif %}
+      </div>
+      <div class="fm-mode-pill">
+        <span style="color:#60A5FA;">⬇️</span>
+        {% if lang == 'vi' %}Đếm xuống — đến một sự kiện{% else %}Count Down — to a future event{% endif %}
+      </div>
+      <div class="fm-mode-pill">
+        <span style="color:#FCD34D;">🔁</span>
+        {% if lang == 'vi' %}Hàng năm — sinh nhật & kỷ niệm{% else %}Yearly — birthdays & anniversaries{% endif %}
+      </div>
     </div>
   </div>
 </section>
@@ -246,39 +281,57 @@
 <section class="py-5" style="background:#f4f4f8;">
   <div class="container">
     <div class="text-center mb-5">
-      <h2 class="fm-section-title">Everything you need</h2>
+      <h2 class="fm-section-title">
+        {% if lang == 'vi' %}Đầy đủ tính năng{% else %}Everything you need{% endif %}
+      </h2>
     </div>
     <div class="row g-4">
 
       <div class="col-sm-6 col-lg-3">
         <div class="fm-feature-card">
           <div class="fm-feature-icon" style="background:#fce7f3;">📱</div>
-          <div class="fm-feature-title">Home & Lock Screen Widgets</div>
-          <p class="fm-feature-desc">Glance your milestones without opening the app — multiple sizes supported.</p>
+          <div class="fm-feature-title">
+            {% if lang == 'vi' %}Widget màn hình chính & khóa{% else %}Home & Lock Screen Widgets{% endif %}
+          </div>
+          <p class="fm-feature-desc">
+            {% if lang == 'vi' %}Xem cột mốc ngay mà không cần mở app — hỗ trợ nhiều kích thước.{% else %}Glance your milestones without opening the app — multiple sizes supported.{% endif %}
+          </p>
         </div>
       </div>
 
       <div class="col-sm-6 col-lg-3">
         <div class="fm-feature-card">
           <div class="fm-feature-icon" style="background:#ecfdf5;">🔔</div>
-          <div class="fm-feature-title">Smart Reminders</div>
-          <p class="fm-feature-desc">Get notified at 7 days, 30 days, 1 year, or set a custom repeat every N days.</p>
+          <div class="fm-feature-title">
+            {% if lang == 'vi' %}Nhắc nhở thông minh{% else %}Smart Reminders{% endif %}
+          </div>
+          <p class="fm-feature-desc">
+            {% if lang == 'vi' %}Nhận thông báo lúc 7 ngày, 30 ngày, 1 năm hoặc tùy chỉnh lặp lại mỗi N ngày.{% else %}Get notified at 7 days, 30 days, 1 year, or set a custom repeat every N days.{% endif %}
+          </p>
         </div>
       </div>
 
       <div class="col-sm-6 col-lg-3">
         <div class="fm-feature-card">
           <div class="fm-feature-icon" style="background:#fffbeb;">🎊</div>
-          <div class="fm-feature-title">Milestone Celebrations</div>
-          <p class="fm-feature-desc">Confetti animation at 7, 30, 100, 365 days and more — celebrate every win.</p>
+          <div class="fm-feature-title">
+            {% if lang == 'vi' %}Ăn mừng cột mốc{% else %}Milestone Celebrations{% endif %}
+          </div>
+          <p class="fm-feature-desc">
+            {% if lang == 'vi' %}Hiệu ứng confetti tại 7, 30, 100, 365 ngày — ăn mừng từng thành tích nhỏ.{% else %}Confetti animation at 7, 30, 100, 365 days and more — celebrate every win.{% endif %}
+          </p>
         </div>
       </div>
 
       <div class="col-sm-6 col-lg-3">
         <div class="fm-feature-card">
           <div class="fm-feature-icon" style="background:#ede9fe;">☁️</div>
-          <div class="fm-feature-title">iCloud Sync</div>
-          <p class="fm-feature-desc">Your moments sync automatically across all your Apple devices. No account needed.</p>
+          <div class="fm-feature-title">
+            {% if lang == 'vi' %}Đồng bộ iCloud{% else %}iCloud Sync{% endif %}
+          </div>
+          <p class="fm-feature-desc">
+            {% if lang == 'vi' %}Dữ liệu tự đồng bộ trên tất cả thiết bị Apple. Không cần tài khoản.{% else %}Your moments sync automatically across all your Apple devices. No account needed.{% endif %}
+          </p>
         </div>
       </div>
 
@@ -290,19 +343,35 @@
 <section class="py-5">
   <div class="container">
     <div class="text-center mb-4">
-      <h2 class="fm-section-title">Built for your life</h2>
-      <p class="text-muted">10+ categories to match every milestone</p>
+      <h2 class="fm-section-title">
+        {% if lang == 'vi' %}Dành cho cuộc sống của bạn{% else %}Built for your life{% endif %}
+      </h2>
+      <p class="text-muted">
+        {% if lang == 'vi' %}10+ danh mục cho mọi cột mốc{% else %}10+ categories to match every milestone{% endif %}
+      </p>
     </div>
     <div class="d-flex flex-wrap justify-content-center gap-2">
-      {% for cat in [
-        ("❤️","Love"),("🎂","Birthday"),("💍","Wedding"),("👶","Baby"),
-        ("😁","Braces"),("💪","Fitness"),("🌿","Health"),("💧","Sobriety"),
-        ("💰","Finance"),("✈️","Travel"),("📚","Study"),("🎮","Gaming")
-      ] %}
-      <span class="badge rounded-pill text-dark fw-normal px-3 py-2" style="background:#fff;border:1.5px solid #eee;font-size:.875rem;">
-        {{ cat[0] }} {{ cat[1] }}
-      </span>
-      {% endfor %}
+      {% if lang == 'vi' %}
+        {% for cat in [
+          ("❤️","Tình yêu"),("🎂","Sinh nhật"),("💍","Đám cưới"),("👶","Em bé"),
+          ("😁","Niềng răng"),("💪","Thể dục"),("🌿","Sức khỏe"),("💧","Cai nghiện"),
+          ("💰","Tài chính"),("✈️","Du lịch"),("📚","Học tập"),("🎮","Gaming")
+        ] %}
+        <span class="badge rounded-pill text-dark fw-normal px-3 py-2" style="background:#fff;border:1.5px solid #eee;font-size:.875rem;">
+          {{ cat[0] }} {{ cat[1] }}
+        </span>
+        {% endfor %}
+      {% else %}
+        {% for cat in [
+          ("❤️","Love"),("🎂","Birthday"),("💍","Wedding"),("👶","Baby"),
+          ("😁","Braces"),("💪","Fitness"),("🌿","Health"),("💧","Sobriety"),
+          ("💰","Finance"),("✈️","Travel"),("📚","Study"),("🎮","Gaming")
+        ] %}
+        <span class="badge rounded-pill text-dark fw-normal px-3 py-2" style="background:#fff;border:1.5px solid #eee;font-size:.875rem;">
+          {{ cat[0] }} {{ cat[1] }}
+        </span>
+        {% endfor %}
+      {% endif %}
     </div>
   </div>
 </section>
@@ -312,12 +381,16 @@
   <div class="container">
     <div class="fm-cta">
       <div style="font-size:3rem;">🎉</div>
-      <h2 class="mt-3">Start counting what matters</h2>
-      <p class="mb-4">Free to download. No account required.</p>
+      <h2 class="mt-3">
+        {% if lang == 'vi' %}Bắt đầu đếm những gì quan trọng{% else %}Start counting what matters{% endif %}
+      </h2>
+      <p class="mb-4">
+        {% if lang == 'vi' %}Miễn phí. Không cần tài khoản.{% else %}Free to download. No account required.{% endif %}
+      </p>
       <a href="https://apps.apple.com/us/app/fastmoments-day-counter/id6761330949" class="fm-app-badge" target="_blank">
         <i class="bi bi-apple" style="font-size:1.4rem;"></i>
         <div>
-          <div class="sub">Download on the</div>
+          <div class="sub">{% if lang == 'vi' %}Tải về từ{% else %}Download on the{% endif %}</div>
           <div>App Store</div>
         </div>
       </a>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -33,6 +33,22 @@
     }
     .fm-brand { font-weight: 800; font-size: 1.1rem; color: #1a1a2e !important; }
     .fm-brand span { color: var(--fm-pink); }
+    .fm-lang-btn {
+      font-size: .75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1.5px solid rgba(0,0,0,.15);
+      text-decoration: none;
+      color: #555;
+      transition: all .15s;
+    }
+    .fm-lang-btn.active {
+      background: #1a1a2e;
+      color: #fff;
+      border-color: #1a1a2e;
+    }
+    .fm-lang-btn:not(.active):hover { border-color: #888; color: #1a1a2e; }
     .fm-footer {
       background: #f8f8fc;
       border-top: 1px solid rgba(0,0,0,.06);
@@ -49,14 +65,21 @@
 
   <nav class="navbar sticky-top fm-navbar">
     <div class="container">
-      <a class="navbar-brand fm-brand d-flex align-items-center gap-2" href="/fm">
+      <a class="navbar-brand fm-brand d-flex align-items-center gap-2" href="/fm?lang={{ lang }}">
         <span style="font-size:1.4rem;">🎉</span>
         Fast<span>Moments</span>
       </a>
-      <div class="d-flex gap-2">
-        <a href="/fm/support" class="btn btn-sm btn-outline-secondary rounded-pill px-3" style="font-size:.8125rem;">Support</a>
+      <div class="d-flex align-items-center gap-2">
+        <!-- Language switcher -->
+        <div class="d-flex gap-1 me-1">
+          <a href="{{ request.url.path }}?lang=en" class="fm-lang-btn {% if lang == 'en' %}active{% endif %}">EN</a>
+          <a href="{{ request.url.path }}?lang=vi" class="fm-lang-btn {% if lang == 'vi' %}active{% endif %}">VI</a>
+        </div>
+        <a href="/fm/support?lang={{ lang }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3" style="font-size:.8125rem;">
+          {% if lang == 'vi' %}Hỗ trợ{% else %}Support{% endif %}
+        </a>
         <a href="https://apps.apple.com/us/app/fastmoments-day-counter/id6761330949" class="btn btn-sm btn-dark rounded-pill px-3" style="font-size:.8125rem;" target="_blank">
-          <i class="bi bi-apple me-1"></i>Download
+          <i class="bi bi-apple me-1"></i>{% if lang == 'vi' %}Tải về{% else %}Download{% endif %}
         </a>
       </div>
     </div>
@@ -67,11 +90,11 @@
   <footer class="fm-footer py-4 mt-5">
     <div class="container text-center">
       <div class="mb-2">
-        <a href="/fm">Home</a>
+        <a href="/fm?lang={{ lang }}">{% if lang == 'vi' %}Trang chủ{% else %}Home{% endif %}</a>
         <span class="mx-2">·</span>
-        <a href="/fm/privacy">Privacy Policy</a>
+        <a href="/fm/privacy?lang={{ lang }}">{% if lang == 'vi' %}Chính sách bảo mật{% else %}Privacy Policy{% endif %}</a>
         <span class="mx-2">·</span>
-        <a href="/fm/support">Support</a>
+        <a href="/fm/support?lang={{ lang }}">{% if lang == 'vi' %}Hỗ trợ{% else %}Support{% endif %}</a>
       </div>
       <div>FastMoments &copy; <span id="fmYear"></span> · Made with ❤️</div>
     </div>
