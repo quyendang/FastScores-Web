@@ -1,14 +1,8 @@
 {% extends "fm/base.html" %}
 
-{% if lang == 'vi' %}
-{% block title %}Hỗ Trợ — FastMoments{% endblock %}
-{% block description %}Nhận trợ giúp với FastMoments — FAQ và liên hệ hỗ trợ.{% endblock %}
-{% block og_title %}Hỗ Trợ — FastMoments{% endblock %}
-{% else %}
-{% block title %}Support — FastMoments{% endblock %}
-{% block description %}Get help with FastMoments — FAQ and contact support.{% endblock %}
-{% block og_title %}Support — FastMoments{% endblock %}
-{% endif %}
+{% block title %}{% if lang == 'vi' %}Hỗ Trợ — FastMoments{% else %}Support — FastMoments{% endif %}{% endblock %}
+{% block description %}{% if lang == 'vi' %}Nhận trợ giúp với FastMoments — FAQ và liên hệ hỗ trợ.{% else %}Get help with FastMoments — FAQ and contact support.{% endif %}{% endblock %}
+{% block og_title %}{% if lang == 'vi' %}Hỗ Trợ — FastMoments{% else %}Support — FastMoments{% endif %}{% endblock %}
 
 {% block head_extra %}
 <style>

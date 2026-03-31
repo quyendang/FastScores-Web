@@ -1,16 +1,9 @@
 {% extends "fm/base.html" %}
 
-{% if lang == 'vi' %}
-{% block title %}FastMoments — Theo Dõi Mọi Cột Mốc Cuộc Đời{% endblock %}
-{% block description %}Đếm lên, đếm xuống, ăn mừng. FastMoments biến những ngày ý nghĩa thành bộ đếm sống động trên iPhone.{% endblock %}
-{% block og_title %}FastMoments — Theo Dõi Mọi Cột Mốc Cuộc Đời{% endblock %}
-{% block og_description %}Theo dõi tình yêu, thói quen, mục tiêu và mọi cột mốc trong cuộc sống của bạn.{% endblock %}
-{% else %}
-{% block title %}FastMoments — Track Every Milestone That Matters{% endblock %}
-{% block description %}Count up, count down, celebrate. FastMoments turns your most meaningful dates into living countdowns on iPhone.{% endblock %}
-{% block og_title %}FastMoments — Track Every Milestone That Matters{% endblock %}
-{% block og_description %}Count up, count down, celebrate. Track love stories, streaks, goals, and every milestone in your life.{% endblock %}
-{% endif %}
+{% block title %}{% if lang == 'vi' %}FastMoments — Theo Dõi Mọi Cột Mốc Cuộc Đời{% else %}FastMoments — Track Every Milestone That Matters{% endif %}{% endblock %}
+{% block description %}{% if lang == 'vi' %}Đếm lên, đếm xuống, ăn mừng. FastMoments biến những ngày ý nghĩa thành bộ đếm sống động trên iPhone.{% else %}Count up, count down, celebrate. FastMoments turns your most meaningful dates into living countdowns on iPhone.{% endif %}{% endblock %}
+{% block og_title %}{% if lang == 'vi' %}FastMoments — Theo Dõi Mọi Cột Mốc Cuộc Đời{% else %}FastMoments — Track Every Milestone That Matters{% endif %}{% endblock %}
+{% block og_description %}{% if lang == 'vi' %}Theo dõi tình yêu, thói quen, mục tiêu và mọi cột mốc trong cuộc sống của bạn.{% else %}Count up, count down, celebrate. Track love stories, streaks, goals, and every milestone in your life.{% endif %}{% endblock %}
 
 {% block head_extra %}
 <style>

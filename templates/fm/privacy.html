@@ -1,14 +1,8 @@
 {% extends "fm/base.html" %}
 
-{% if lang == 'vi' %}
-{% block title %}Chính Sách Bảo Mật — FastMoments{% endblock %}
-{% block description %}Chính sách bảo mật ứng dụng FastMoments — cách chúng tôi xử lý dữ liệu của bạn.{% endblock %}
-{% block og_title %}Chính Sách Bảo Mật — FastMoments{% endblock %}
-{% else %}
-{% block title %}Privacy Policy — FastMoments{% endblock %}
-{% block description %}FastMoments Privacy Policy — how we handle your data.{% endblock %}
-{% block og_title %}Privacy Policy — FastMoments{% endblock %}
-{% endif %}
+{% block title %}{% if lang == 'vi' %}Chính Sách Bảo Mật — FastMoments{% else %}Privacy Policy — FastMoments{% endif %}{% endblock %}
+{% block description %}{% if lang == 'vi' %}Chính sách bảo mật ứng dụng FastMoments — cách chúng tôi xử lý dữ liệu của bạn.{% else %}FastMoments Privacy Policy — how we handle your data.{% endif %}{% endblock %}
+{% block og_title %}{% if lang == 'vi' %}Chính Sách Bảo Mật — FastMoments{% else %}Privacy Policy — FastMoments{% endif %}{% endblock %}
 
 {% block head_extra %}
 <style>
