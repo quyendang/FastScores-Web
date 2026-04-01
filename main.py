@@ -11,7 +11,6 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 
 from routers import report, student, send, feedbacks, fm as fm_router
-from routers import bot as bot_router
 
 load_dotenv()
 
@@ -41,7 +40,6 @@ templates.env.filters["comma"] = comma_format
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(report.router)
 app.include_router(student.router)
-app.include_router(bot_router.router)
 app.include_router(send.router)
 app.include_router(feedbacks.router)
 app.include_router(fm_router.router)
@@ -71,20 +69,13 @@ async def health():
 # ── Background scheduler (crypto bot) ────────────────────────────────────────
 @app.on_event("startup")
 def start_bot_scheduler():
-    from services.supabase_client import get_bot_supabase
-    from services.bot_service import symbols_tracker_job, poll_telegram_commands
+    from services.bot_service import symbols_tracker_job
 
     def _job():
         try:
-            symbols_tracker_job(get_bot_supabase())
+            symbols_tracker_job()
         except Exception as e:
             logging.error(f"[SCHEDULER] symbols_tracker_job error: {e}")
-
-    def _cmd_job():
-        try:
-            poll_telegram_commands()
-        except Exception as e:
-            logging.error(f"[SCHEDULER] poll_telegram_commands error: {e}")
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(
@@ -95,12 +86,5 @@ def start_bot_scheduler():
         replace_existing=True,
         next_run_time=datetime.utcnow(),
     )
-    scheduler.add_job(
-        _cmd_job,
-        "interval",
-        seconds=30,
-        id="telegram_command_handler",
-        replace_existing=True,
-    )
     scheduler.start()
-    logging.info("[SCHEDULER] Bot scheduler started (tracker: 10 min, cmd poll: 30s)")
+    logging.info("[SCHEDULER] Bot scheduler started (tracker: 10 min)")
