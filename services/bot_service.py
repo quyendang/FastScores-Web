@@ -26,6 +26,9 @@ import requests
 from services import bot_indicators as ind
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_IDS = [
+    cid.strip() for cid in os.getenv("TELEGRAM_CHAT_IDS", "").split(",") if cid.strip()
+]
 FIXED_SYMBOLS = ["BTCUSDT", "ETHUSDT"]
 ADX_MIN = float(os.getenv("BOT_ADX_MIN", "25"))
 RR_MIN = float(os.getenv("BOT_RR_MIN", "1.5"))
@@ -67,7 +70,7 @@ def _closed_hlcv(symbol: str, interval: str, limit: int) -> Optional[dict]:
 
 def _get_dynamic_chat_ids() -> List[str]:
     if not TELEGRAM_BOT_TOKEN:
-        return []
+        return TELEGRAM_CHAT_IDS
 
     now = time.time()
     if now - _chat_ids_cache["fetched_at"] < CHAT_IDS_CACHE_TTL and _chat_ids_cache["ids"]:
@@ -110,31 +113,39 @@ def _get_dynamic_chat_ids() -> List[str]:
         logging.warning(f"[TELEGRAM] getUpdates failed: {e}")
 
     if chat_ids:
-        ids = list(chat_ids)
+        ids = list(chat_ids | set(TELEGRAM_CHAT_IDS))
         _chat_ids_cache.update({"ids": ids, "fetched_at": now})
         return ids
 
-    return _chat_ids_cache["ids"] or []
+    return _chat_ids_cache["ids"] or TELEGRAM_CHAT_IDS
 
 
-def _telegram_notify(title: str, message: str) -> None:
+def _telegram_notify(title: str, message: str) -> int:
     if not TELEGRAM_BOT_TOKEN:
-        return
+        logging.warning("[TELEGRAM] Missing TELEGRAM_BOT_TOKEN, skip notify")
+        return 0
     chat_ids = _get_dynamic_chat_ids()
     if not chat_ids:
-        return
+        logging.warning("[TELEGRAM] No chat_id found from getUpdates/TELEGRAM_CHAT_IDS")
+        return 0
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     text = f"<b>{title}</b>\n{message}"
+    sent = 0
     for cid in chat_ids:
         try:
-            requests.post(
+            resp = requests.post(
                 url,
                 json={"chat_id": cid, "text": text, "parse_mode": "HTML"},
                 timeout=15,
             )
+            if resp.ok:
+                sent += 1
+            else:
+                logging.warning(f"[TELEGRAM] sendMessage failed for {cid}: {resp.text[:200]}")
         except Exception:
-            pass
+            logging.exception(f"[TELEGRAM] sendMessage exception for {cid}")
+    return sent
 
 
 def _is_bullish_confirmation(opens: List[float], highs: List[float], closes: List[float]) -> bool:
@@ -337,7 +348,8 @@ def send_startup_market_analysis() -> None:
         "Bot vua khoi dong. Tong hop phan tich thi truong hien tai (nen da dong):\n\n"
         + "\n\n".join(parts)
     )
-    _telegram_notify("STARTUP MARKET ANALYSIS", message)
+    sent = _telegram_notify("STARTUP MARKET ANALYSIS", message)
+    logging.info(f"[TELEGRAM] Startup market analysis sent to {sent} chat(s)")
 
 
 def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
