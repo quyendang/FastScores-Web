@@ -35,6 +35,7 @@ RR_MIN = float(os.getenv("BOT_RR_MIN", "1.5"))
 ATR_SL_MULT = float(os.getenv("BOT_ATR_SL_MULT", "1.0"))
 PULLBACK_LOOKBACK = int(os.getenv("BOT_PULLBACK_LOOKBACK", "8"))
 SIGNAL_COOLDOWN_MINUTES = int(os.getenv("BOT_SIGNAL_COOLDOWN_MINUTES", "120"))
+MIN_ATR_PCT = float(os.getenv("BOT_MIN_ATR_PCT", "0.003"))
 
 _last_signal_time: Dict[str, float] = {}
 _last_signal_candle: Dict[str, int] = {}
@@ -64,6 +65,7 @@ def _closed_hlcv(symbol: str, interval: str, limit: int) -> Optional[dict]:
         "high": [float(k[2]) for k in rows],
         "low": [float(k[3]) for k in rows],
         "close": [float(k[4]) for k in rows],
+        "volume": [float(k[5]) for k in rows],
         "close_time": [int(k[6]) for k in rows],
     }
 
@@ -148,51 +150,31 @@ def _telegram_notify(title: str, message: str) -> int:
     return sent
 
 
-def _is_bullish_confirmation(opens: List[float], highs: List[float], closes: List[float]) -> bool:
-    if len(closes) < 2:
-        return False
-    return closes[-1] > opens[-1] and closes[-1] > highs[-2]
-
-
-def _is_bearish_confirmation(opens: List[float], lows: List[float], closes: List[float]) -> bool:
-    if len(closes) < 2:
-        return False
-    return closes[-1] < opens[-1] and closes[-1] < lows[-2]
-
-
-def _trend_h4(symbol: str) -> Optional[dict]:
-    data = _closed_hlcv(symbol, "4h", 230)
-    if not data:
+def _to_bool(v: Any) -> Optional[bool]:
+    if v is None:
         return None
-
-    closes = data["close"]
-    highs = data["high"]
-    lows = data["low"]
-    ctime = data["close_time"][-1]
-
-    ema50 = ind.ema_series(closes, 50)
-    ema200 = ind.ema_series(closes, 200)
-    adx = ind.compute_adx(highs, lows, closes, 14)["adx"]
-
-    e50 = ema50[-1]
-    e200 = ema200[-1]
-    close = closes[-1]
-    if e50 is None or e200 is None:
-        return None
-
-    long_trend = close > e200 and e50 > e200 and adx >= ADX_MIN
-    short_trend = close < e200 and e50 < e200 and adx >= ADX_MIN
-    return {
-        "long_trend": long_trend,
-        "short_trend": short_trend,
-        "close": close,
-        "adx": adx,
-        "candle_time": ctime,
-    }
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return bool(int(v))
+    if isinstance(v, str):
+        t = v.strip().lower()
+        if t in {"1", "true", "yes", "y"}:
+            return True
+        if t in {"0", "false", "no", "n"}:
+            return False
+    return None
 
 
-def _entry_h1(symbol: str, direction: str) -> Optional[dict]:
-    data = _closed_hlcv(symbol, "1h", 260)
+def _pick(d: Dict[str, Any], *keys: str, default: Any = None) -> Any:
+    for k in keys:
+        if k in d and d[k] is not None:
+            return d[k]
+    return default
+
+
+def _tf_snapshot(symbol: str, interval: str) -> Optional[Dict[str, Any]]:
+    data = _closed_hlcv(symbol, interval, 260 if interval == "1h" else 230)
     if not data:
         return None
 
@@ -200,79 +182,124 @@ def _entry_h1(symbol: str, direction: str) -> Optional[dict]:
     highs = data["high"]
     lows = data["low"]
     closes = data["close"]
+    volumes = data["volume"]
     close_time = data["close_time"][-1]
 
-    ema20 = ind.ema_series(closes, 20)
-    ema50 = ind.ema_series(closes, 50)
-    atr = ind.atr_series(highs, lows, closes, 14)
-
-    e20 = ema20[-1]
-    e50 = ema50[-1]
-    atr_v = atr[-1]
-    if e20 is None or e50 is None or atr_v is None or atr_v <= 0:
+    try:
+        ema50 = ind.ema_series(closes, 50)[-1]
+        ema200 = ind.ema_series(closes, 200)[-1]
+        rsi14 = ind.rsi_series(closes, 14)[-1]
+        _, _, macd_hist_s = ind.macd_series(closes, 12, 26, 9)
+        macd_hist = macd_hist_s[-1] if macd_hist_s else None
+        prev_macd_hist = macd_hist_s[-2] if len(macd_hist_s) >= 2 else None
+        macd_rising = (macd_hist is not None and prev_macd_hist is not None and macd_hist > prev_macd_hist)
+        adx14 = ind.compute_adx(highs, lows, closes, 14)["adx"]
+        atr14 = ind.atr_series(highs, lows, closes, 14)[-1]
+        _, bb_upper_s, bb_lower_s = ind.bollinger_bands(closes, 20, 2.0)
+        bb_upper = bb_upper_s[-1] if bb_upper_s else None
+        bb_lower = bb_lower_s[-1] if bb_lower_s else None
+    except Exception as e:
+        logging.warning(f"[STRATEGY] {symbol} {interval} indicator error: {e}")
         return None
 
-    touch_long = False
-    touch_short = False
-    start = max(1, len(closes) - PULLBACK_LOOKBACK - 1)
-    end = len(closes) - 1
-    for i in range(start, end):
-        e20_i = ema20[i]
-        e50_i = ema50[i]
-        if e20_i is None or e50_i is None:
-            continue
-        if lows[i] <= max(e20_i, e50_i):
-            touch_long = True
-        if highs[i] >= min(e20_i, e50_i):
-            touch_short = True
+    close = closes[-1]
+    bb_pct = None
+    if bb_upper is not None and bb_lower is not None and bb_upper > bb_lower:
+        bb_pct = (close - bb_lower) / (bb_upper - bb_lower)
 
-    if direction == "LONG":
-        if not touch_long or not _is_bullish_confirmation(opens, highs, closes):
-            return None
-        entry = closes[-1]
-        stop = entry - ATR_SL_MULT * atr_v
-        risk = entry - stop
-        if risk <= 0:
-            return None
-        recent_high = max(highs[-31:-1]) if len(highs) > 31 else max(highs[:-1])
-        reward = recent_high - entry
-        rr = reward / risk if risk > 0 else 0.0
-        if rr < RR_MIN:
-            return None
-        return {
-            "direction": "LONG",
-            "entry": entry,
-            "stop": stop,
-            "target": recent_high,
-            "rr": rr,
-            "atr": atr_v,
-            "candle_time": close_time,
-        }
+    avg_vol = sum(volumes[-21:-1]) / 20 if len(volumes) >= 21 else None
+    volume_spike = bool(avg_vol and avg_vol > 0 and volumes[-1] > avg_vol * 1.5)
 
-    if direction == "SHORT":
-        if not touch_short or not _is_bearish_confirmation(opens, lows, closes):
-            return None
-        entry = closes[-1]
-        stop = entry + ATR_SL_MULT * atr_v
-        risk = stop - entry
-        if risk <= 0:
-            return None
-        recent_low = min(lows[-31:-1]) if len(lows) > 31 else min(lows[:-1])
-        reward = entry - recent_low
-        rr = reward / risk if risk > 0 else 0.0
-        if rr < RR_MIN:
-            return None
-        return {
-            "direction": "SHORT",
-            "entry": entry,
-            "stop": stop,
-            "target": recent_low,
-            "rr": rr,
-            "atr": atr_v,
-            "candle_time": close_time,
-        }
+    buy_signal = False
+    if len(closes) >= 2:
+        buy_signal = closes[-1] > opens[-1] and closes[-1] > highs[-2]
 
-    return None
+    ema_bullish = bool(ema50 is not None and ema200 is not None and close > ema200 and ema50 > ema200)
+    ema_bearish = bool(ema50 is not None and ema200 is not None and close < ema200 and ema50 < ema200)
+
+    atr_pct = (atr14 / close) if (atr14 is not None and close > 0) else None
+
+    return {
+        "symbol": symbol,
+        "interval": interval,
+        "candle_time": close_time,
+        "close": close,
+        "ema_bullish": ema_bullish,
+        "ema_bearish": ema_bearish,
+        "macd_hist": macd_hist,
+        "adx_14": adx14,
+        "rsi_14": rsi14,
+        "buy_signal": buy_signal,
+        "volume_spike": volume_spike,
+        "macd_rising": macd_rising,
+        "atr_14": atr14,
+        "atr_pct": atr_pct,
+        "bb_pct": bb_pct,
+    }
+
+
+def _generate_signal(symbol: str) -> Dict[str, Any]:
+    d1 = _tf_snapshot(symbol, "1d")
+    h4 = _tf_snapshot(symbol, "4h")
+    h1 = _tf_snapshot(symbol, "1h")
+    if not d1 or not h4 or not h1:
+        return {"state": "NO SIGNAL", "reason": "Thiếu dữ liệu đa khung"}
+
+    # Name fallback mapping to support legacy/alternate field names.
+    ema_bullish_d1 = _to_bool(_pick(d1, "ema_bullish_d1", "ema_bullish", "ema_bull", default=False))
+    ema_bearish_d1 = _to_bool(_pick(d1, "ema_bearish_d1", "ema_bearish", "ema_bear", default=False))
+    ema_bullish_h4 = _to_bool(_pick(h4, "ema_bullish_h4", "ema_bullish", "ema_bull", default=False))
+    macd_hist_h4 = _pick(h4, "macd_hist_h4", "macd_hist")
+    adx_14_h4 = _pick(h4, "adx_14_h4", "adx_14")
+    rsi_14_h4 = _pick(h4, "rsi_14_h4", "rsi_14")
+
+    buy_signal_h1 = _to_bool(_pick(h1, "buy_signal_h1", "buy_signal", default=False))
+    volume_spike_h1 = _to_bool(_pick(h1, "volume_spike_h1", "volume_spike", default=False))
+    macd_rising_h1 = _to_bool(_pick(h1, "macd_rising_h1", "macd_rising", default=False))
+    rsi_14_h1 = _pick(h1, "rsi_14_h1", "rsi_14")
+    bb_pct_h1 = _pick(h1, "bb_pct_h1", "bb_pct")
+    close_h1 = _pick(h1, "close_h1", "close")
+    atr_14_h1 = _pick(h1, "atr_14_h1", "atr_14_h1", "atr_14", "atr")
+    atr_pct_h1 = _pick(h1, "atr_pct_h1", "atr_pct")
+    if atr_pct_h1 is None and atr_14_h1 is not None and close_h1:
+        atr_pct_h1 = atr_14_h1 / close_h1
+
+    # Volatility filter
+    if atr_pct_h1 is None:
+        logging.warning(f"[STRATEGY] {symbol}: thiếu atr_pct_h1/atr_14_h1, bỏ qua tín hiệu an toàn")
+        return {"state": "NO SIGNAL", "reason": "Thiếu ATR% H1"}
+    if atr_pct_h1 < MIN_ATR_PCT:
+        return {"state": "NO SIGNAL", "reason": f"ATR% H1 thấp ({atr_pct_h1:.4f})"}
+
+    long_ok = bool(
+        ema_bullish_d1
+        and ema_bullish_h4
+        and macd_hist_h4 is not None and macd_hist_h4 > 0
+        and adx_14_h4 is not None and adx_14_h4 > 20
+        and buy_signal_h1
+        and volume_spike_h1
+    )
+
+    short_ok = bool(
+        ema_bearish_d1
+        and macd_hist_h4 is not None and macd_hist_h4 < 0
+        and rsi_14_h4 is not None and rsi_14_h4 < 50
+        and (macd_rising_h1 is False)
+        and rsi_14_h1 is not None and rsi_14_h1 > 50
+    )
+
+    # Additional block filters
+    if long_ok:
+        if (rsi_14_h1 is not None and rsi_14_h1 > 68) or (bb_pct_h1 is not None and bb_pct_h1 > 0.95):
+            return {"state": "NO SIGNAL", "reason": "LONG bị chặn (quá nóng)", "h1": h1, "h4": h4, "d1": d1}
+        return {"state": "LONG", "reason": "D1/H4/H1 đều xác nhận LONG", "h1": h1, "h4": h4, "d1": d1}
+
+    if short_ok:
+        if (rsi_14_h1 is not None and rsi_14_h1 < 40) or (bb_pct_h1 is not None and bb_pct_h1 < 0.10):
+            return {"state": "NO SIGNAL", "reason": "SHORT bị chặn (quá bán)", "h1": h1, "h4": h4, "d1": d1}
+        return {"state": "SHORT", "reason": "D1/H4/H1 đều xác nhận SHORT", "h1": h1, "h4": h4, "d1": d1}
+
+    return {"state": "NO SIGNAL", "reason": "Không đủ điều kiện LONG/SHORT", "h1": h1, "h4": h4, "d1": d1}
 
 
 def _cooldown_ok(symbol: str, direction: str, candle_time: int) -> bool:
@@ -307,41 +334,23 @@ def _format_signal(symbol: str, trend: dict, signal: dict) -> str:
 
 
 def _format_startup_analysis(symbol: str) -> str:
-    trend = _trend_h4(symbol)
-    if not trend:
-        return f"{symbol}: không đủ dữ liệu H4 để phân tích."
-
-    price = trend["close"]
-    adx = trend["adx"]
-    trend_str = (
-        "Xu hướng LONG"
-        if trend["long_trend"]
-        else "Xu hướng SHORT"
-        if trend["short_trend"]
-        else "Chưa rõ xu hướng"
-    )
-
-    long_setup = _entry_h1(symbol, "LONG")
-    short_setup = _entry_h1(symbol, "SHORT")
-
-    setup_lines = []
-    if long_setup:
-        setup_lines.append(
-            f"Setup LONG: vào ${long_setup['entry']:,.2f} | SL ${long_setup['stop']:,.2f} | "
-            f"TP ${long_setup['target']:,.2f} | RR {long_setup['rr']:.2f}"
-        )
-    if short_setup:
-        setup_lines.append(
-            f"Setup SHORT: vào ${short_setup['entry']:,.2f} | SL ${short_setup['stop']:,.2f} | "
-            f"TP ${short_setup['target']:,.2f} | RR {short_setup['rr']:.2f}"
-        )
-    if not setup_lines:
-        setup_lines.append("H1: chưa có setup đạt điều kiện RR >= 1.5")
-
+    res = _generate_signal(symbol)
+    state = res.get("state", "NO SIGNAL")
+    reason = res.get("reason", "Không có lý do")
+    h1 = res.get("h1") or {}
+    h4 = res.get("h4") or {}
+    d1 = res.get("d1") or {}
     return (
         f"<b>{symbol}</b>\n"
-        f"H4: {trend_str} | Giá đóng ${price:,.2f} | ADX(14) {adx:.1f}\n"
-        + "\n".join(setup_lines)
+        f"Trạng thái: <b>{state}</b>\n"
+        f"D1 ema_bullish={int(bool(_pick(d1, 'ema_bullish', default=False)))} | "
+        f"ema_bearish={int(bool(_pick(d1, 'ema_bearish', default=False)))}\n"
+        f"H4 macd_hist={_pick(h4, 'macd_hist', default='N/A')} | "
+        f"adx_14={_pick(h4, 'adx_14', default='N/A')} | rsi_14={_pick(h4, 'rsi_14', default='N/A')}\n"
+        f"H1 buy_signal={int(bool(_pick(h1, 'buy_signal', default=False)))} | "
+        f"volume_spike={int(bool(_pick(h1, 'volume_spike', default=False)))} | "
+        f"rsi_14={_pick(h1, 'rsi_14', default='N/A')} | bb_pct={_pick(h1, 'bb_pct', default='N/A')}\n"
+        f"Lý do: {reason}"
     )
 
 
@@ -360,47 +369,42 @@ def send_startup_market_analysis() -> None:
 
 def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
     symbol = symbol.upper()
-    trend = _trend_h4(symbol)
-    if not trend:
-        return {"symbol": symbol, "action": "HOLD", "reason": "Không đủ dữ liệu H4"}
+    res = _generate_signal(symbol)
+    state = res.get("state", "NO SIGNAL")
+    if state not in {"LONG", "SHORT"}:
+        return {"symbol": symbol, "action": "HOLD", "reason": res.get("reason", "NO SIGNAL")}
 
-    direction = None
-    if trend["long_trend"]:
-        direction = "LONG"
-    elif trend["short_trend"]:
-        direction = "SHORT"
-    else:
-        return {"symbol": symbol, "action": "HOLD", "reason": "Không thỏa điều kiện trend H4"}
+    h1 = res.get("h1") or {}
+    h4 = res.get("h4") or {}
+    candle_time = int(_pick(h1, "candle_time", default=0) or 0)
+    if candle_time <= 0:
+        logging.warning(f"[STRATEGY] {symbol}: thiếu candle_time H1, bỏ qua an toàn")
+        return {"symbol": symbol, "action": "HOLD", "reason": "Thiếu candle_time H1"}
 
-    # ETH chỉ được phép theo xu hướng cùng chiều với BTC trên H4.
-    if symbol == "ETHUSDT":
-        btc_trend = _trend_h4("BTCUSDT")
-        if not btc_trend:
-            return {"symbol": symbol, "action": "HOLD", "reason": "Không đủ dữ liệu trend BTC H4"}
-        if direction == "LONG" and not btc_trend["long_trend"]:
-            return {"symbol": symbol, "action": "HOLD", "reason": "ETH LONG bị chặn vì BTC chưa LONG trend"}
-        if direction == "SHORT" and not btc_trend["short_trend"]:
-            return {"symbol": symbol, "action": "HOLD", "reason": "ETH SHORT bị chặn vì BTC chưa SHORT trend"}
-
-    signal = _entry_h1(symbol, direction)
-    if not signal:
-        return {"symbol": symbol, "action": "HOLD", "reason": f"Không có setup H1 {direction}"}
-
-    if not _cooldown_ok(symbol, direction, signal["candle_time"]):
+    if not _cooldown_ok(symbol, state, candle_time):
         return {"symbol": symbol, "action": "HOLD", "reason": "Cooldown active"}
 
+    entry = _pick(h1, "close", default=0.0)
+    atr = _pick(h1, "atr_14", default=0.0)
+    if not entry or not atr:
+        return {"symbol": symbol, "action": "HOLD", "reason": "Thiếu close/ATR H1"}
+    stop = entry - ATR_SL_MULT * atr if state == "LONG" else entry + ATR_SL_MULT * atr
+
+    signal = {"direction": state, "entry": entry, "stop": stop, "target": entry, "rr": RR_MIN, "atr": atr}
+    trend = {"adx": _pick(h4, "adx_14", default=0.0)}
+
     if send_notify:
-        title = f"{symbol} - TÍN HIỆU {direction}"
+        title = f"{symbol} - TÍN HIỆU {state}"
         _telegram_notify(title, _format_signal(symbol, trend, signal))
 
     return {
         "symbol": symbol,
         "action": "SIGNAL",
-        "direction": direction,
-        "entry": signal["entry"],
-        "stop": signal["stop"],
-        "target": signal["target"],
-        "rr": signal["rr"],
+        "direction": state,
+        "entry": entry,
+        "stop": stop,
+        "target": None,
+        "rr": None,
     }
 
 
