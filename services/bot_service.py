@@ -288,7 +288,7 @@ def _cooldown_ok(symbol: str, direction: str, candle_time: int) -> bool:
 
 
 def _format_signal(symbol: str, trend: dict, signal: dict) -> str:
-    direction = signal["direction"]
+    direction = "LONG (MUA)" if signal["direction"] == "LONG" else "SHORT (BÁN)"
     entry = signal["entry"]
     stop = signal["stop"]
     target = signal["target"]
@@ -296,24 +296,30 @@ def _format_signal(symbol: str, trend: dict, signal: dict) -> str:
     atr = signal["atr"]
     adx = trend["adx"]
     return (
-        f"Direction: <b>{direction}</b>\n"
-        f"Entry: <b>${entry:,.2f}</b>\n"
-        f"Stop-loss (ATR14): <b>${stop:,.2f}</b>\n"
-        f"Target: <b>${target:,.2f}</b>\n"
+        f"Hướng lệnh: <b>{direction}</b>\n"
+        f"Điểm vào: <b>${entry:,.2f}</b>\n"
+        f"Cắt lỗ (ATR14): <b>${stop:,.2f}</b>\n"
+        f"Mục tiêu: <b>${target:,.2f}</b>\n"
         f"RR: <b>{rr:.2f}</b>\n"
-        f"H4 ADX(14): {adx:.1f} | H1 ATR(14): {atr:,.2f}\n"
-        f"Rule: H4 trend + H1 pullback + confirmation + closed candle"
+        f"ADX(14) H4: {adx:.1f} | ATR(14) H1: {atr:,.2f}\n"
+        f"Điều kiện: trend H4 + pullback H1 + nến xác nhận + nến đã đóng"
     )
 
 
 def _format_startup_analysis(symbol: str) -> str:
     trend = _trend_h4(symbol)
     if not trend:
-        return f"{symbol}: khong du du lieu H4 de phan tich."
+        return f"{symbol}: không đủ dữ liệu H4 để phân tích."
 
     price = trend["close"]
     adx = trend["adx"]
-    trend_str = "LONG trend" if trend["long_trend"] else "SHORT trend" if trend["short_trend"] else "NO TREND"
+    trend_str = (
+        "Xu hướng LONG"
+        if trend["long_trend"]
+        else "Xu hướng SHORT"
+        if trend["short_trend"]
+        else "Chưa rõ xu hướng"
+    )
 
     long_setup = _entry_h1(symbol, "LONG")
     short_setup = _entry_h1(symbol, "SHORT")
@@ -321,20 +327,20 @@ def _format_startup_analysis(symbol: str) -> str:
     setup_lines = []
     if long_setup:
         setup_lines.append(
-            f"LONG setup: entry ${long_setup['entry']:,.2f} | SL ${long_setup['stop']:,.2f} | "
+            f"Setup LONG: vào ${long_setup['entry']:,.2f} | SL ${long_setup['stop']:,.2f} | "
             f"TP ${long_setup['target']:,.2f} | RR {long_setup['rr']:.2f}"
         )
     if short_setup:
         setup_lines.append(
-            f"SHORT setup: entry ${short_setup['entry']:,.2f} | SL ${short_setup['stop']:,.2f} | "
+            f"Setup SHORT: vào ${short_setup['entry']:,.2f} | SL ${short_setup['stop']:,.2f} | "
             f"TP ${short_setup['target']:,.2f} | RR {short_setup['rr']:.2f}"
         )
     if not setup_lines:
-        setup_lines.append("H1 setup: chua co setup dat dieu kien RR >= 1.5")
+        setup_lines.append("H1: chưa có setup đạt điều kiện RR >= 1.5")
 
     return (
         f"<b>{symbol}</b>\n"
-        f"H4: {trend_str} | Close ${price:,.2f} | ADX(14) {adx:.1f}\n"
+        f"H4: {trend_str} | Giá đóng ${price:,.2f} | ADX(14) {adx:.1f}\n"
         + "\n".join(setup_lines)
     )
 
@@ -345,10 +351,10 @@ def send_startup_market_analysis() -> None:
         return
     parts = [_format_startup_analysis(symbol) for symbol in FIXED_SYMBOLS]
     message = (
-        "Bot vua khoi dong. Tong hop phan tich thi truong hien tai (nen da dong):\n\n"
+        "Bot vừa khởi động. Tổng hợp phân tích thị trường hiện tại (nến đã đóng):\n\n"
         + "\n\n".join(parts)
     )
-    sent = _telegram_notify("STARTUP MARKET ANALYSIS", message)
+    sent = _telegram_notify("PHÂN TÍCH THỊ TRƯỜNG KHI KHỞI ĐỘNG", message)
     logging.info(f"[TELEGRAM] Startup market analysis sent to {sent} chat(s)")
 
 
@@ -356,7 +362,7 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
     symbol = symbol.upper()
     trend = _trend_h4(symbol)
     if not trend:
-        return {"symbol": symbol, "action": "HOLD", "reason": "No enough H4 data"}
+        return {"symbol": symbol, "action": "HOLD", "reason": "Không đủ dữ liệu H4"}
 
     direction = None
     if trend["long_trend"]:
@@ -364,17 +370,27 @@ def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
     elif trend["short_trend"]:
         direction = "SHORT"
     else:
-        return {"symbol": symbol, "action": "HOLD", "reason": "H4 trend condition not met"}
+        return {"symbol": symbol, "action": "HOLD", "reason": "Không thỏa điều kiện trend H4"}
+
+    # ETH chỉ được phép theo xu hướng cùng chiều với BTC trên H4.
+    if symbol == "ETHUSDT":
+        btc_trend = _trend_h4("BTCUSDT")
+        if not btc_trend:
+            return {"symbol": symbol, "action": "HOLD", "reason": "Không đủ dữ liệu trend BTC H4"}
+        if direction == "LONG" and not btc_trend["long_trend"]:
+            return {"symbol": symbol, "action": "HOLD", "reason": "ETH LONG bị chặn vì BTC chưa LONG trend"}
+        if direction == "SHORT" and not btc_trend["short_trend"]:
+            return {"symbol": symbol, "action": "HOLD", "reason": "ETH SHORT bị chặn vì BTC chưa SHORT trend"}
 
     signal = _entry_h1(symbol, direction)
     if not signal:
-        return {"symbol": symbol, "action": "HOLD", "reason": f"No H1 {direction} setup"}
+        return {"symbol": symbol, "action": "HOLD", "reason": f"Không có setup H1 {direction}"}
 
     if not _cooldown_ok(symbol, direction, signal["candle_time"]):
         return {"symbol": symbol, "action": "HOLD", "reason": "Cooldown active"}
 
     if send_notify:
-        title = f"{symbol} - {direction} SIGNAL"
+        title = f"{symbol} - TÍN HIỆU {direction}"
         _telegram_notify(title, _format_signal(symbol, trend, signal))
 
     return {
