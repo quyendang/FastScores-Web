@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ symbol }} — Phân tích Crypto (Newbie Mode)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/css/edu.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
+      --text: #e6edf3; --text-sub: #8b949e;
+      --green: #3fb950; --red: #f85149; --yellow: #d29922; --blue: #388bfd;
+      --purple: #bc8cff; --orange: #f0883e; --accent: #58a6ff;
+      --nb-glow-green: 0 0 28px rgba(63,185,80,.25);
+      --nb-glow-red:   0 0 28px rgba(248,81,73,.25);
+      --nb-glow-yellow:0 0 20px rgba(210,153,34,.2);
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+    a { color: var(--accent); text-decoration: none; }
+    .page { max-width: 960px; margin: 0 auto; padding: 16px 16px 64px; }
+
+    /* Reuse base styles */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge-green  { background: rgba(63,185,80,.15);  color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .badge-red    { background: rgba(248,81,73,.15);  color: var(--red);   border: 1px solid rgba(248,81,73,.3); }
+    .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow);border: 1px solid rgba(210,153,34,.3); }
+    .badge-blue   { background: rgba(56,139,253,.15); color: var(--blue);  border: 1px solid rgba(56,139,253,.3); }
+    .badge-gray   { background: var(--surface2); color: var(--text-sub); border: 1px solid var(--border); }
+    .badge-orange { background: rgba(255,140,0,.15); color: #ff8c00; border: 1px solid rgba(255,140,0,.3); }
+    .text-green { color: var(--green); } .text-red { color: var(--red); }
+    .text-yellow{ color: var(--yellow); } .text-sub { color: var(--text-sub); }
+    .btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-ghost  { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    select, input[type=text] { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+    select:focus, input[type=text]:focus { outline: none; border-color: var(--accent); }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+    .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .panel-body { padding: 16px; }
+
+    /* Navbar */
+    .navbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .navbar-title { font-size: 1.2rem; font-weight: 700; }
+    .navbar-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+    .nb-mode-toggle { display: flex; gap: 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+    .nb-mode-btn { padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-sub); transition: all .15s; }
+    .nb-mode-btn.active { background: var(--accent); color: #000; }
+
+    /* ── HERO ─────────────────────────────────────────────────────────────── */
+    .nb-hero {
+      background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px 24px; text-align: center; margin-bottom: 16px;
+    }
+    .nb-hero-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-sub); margin-bottom: 8px; }
+    .nb-hero-question { font-size: 1.6rem; font-weight: 800; margin-bottom: 28px; }
+    .nb-decision-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; max-width: 640px; margin: 0 auto 20px; }
+    .nb-btn-decision {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 20px 12px; border-radius: 14px; border: 2px solid transparent;
+      cursor: default; opacity: .35; transition: opacity .2s, transform .2s;
+      background: var(--surface2);
+    }
+    .nb-btn-decision.nb-active { opacity: 1; transform: scale(1.04); }
+    .nb-btn-buy.nb-active  { border-color: var(--green); background: rgba(63,185,80,.1); box-shadow: var(--nb-glow-green); }
+    .nb-btn-sell.nb-active { border-color: var(--red);   background: rgba(248,81,73,.1); box-shadow: var(--nb-glow-red); }
+    .nb-btn-wait.nb-active { border-color: var(--yellow);background: rgba(210,153,34,.1); box-shadow: var(--nb-glow-yellow); }
+    .nb-btn-icon  { font-size: 2rem; }
+    .nb-btn-label { font-size: 1.3rem; font-weight: 800; }
+    .nb-btn-conf  { font-size: 12px; color: var(--text-sub); }
+    .nb-btn-buy.nb-active  .nb-btn-label { color: var(--green); }
+    .nb-btn-sell.nb-active .nb-btn-label { color: var(--red); }
+    .nb-btn-wait.nb-active .nb-btn-label { color: var(--yellow); }
+    .nb-hero-reason { font-size: 13px; color: var(--text-sub); max-width: 480px; margin: 0 auto; line-height: 1.6; }
+
+    /* ── Risk Banner ──────────────────────────────────────────────────────── */
+    .nb-risk-banner {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.4);
+      border-left: 4px solid var(--red); border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 16px;
+      animation: riskPulse 2.5s ease-in-out infinite;
+    }
+    @keyframes riskPulse {
+      0%,100% { border-left-color: var(--red); }
+      50%      { border-left-color: rgba(248,81,73,.35); }
+    }
+    .nb-risk-icon { font-size: 20px; flex-shrink: 0; }
+    .nb-risk-text { font-size: 13px; line-height: 1.6; }
+    .nb-risk-text strong { color: var(--red); }
+
+    /* ── Action Card ──────────────────────────────────────────────────────── */
+    .nb-action-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+    .nb-action-header { padding: 12px 18px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .nb-action-body { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; padding: 20px 18px; gap: 8px; }
+    .nb-action-row { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+    .nb-action-label { font-size: 11px; color: var(--text-sub); text-transform: uppercase; letter-spacing: .05em; }
+    .nb-action-value { font-size: 1.4rem; font-weight: 800; }
+    .nb-action-sub   { font-size: 13px; font-weight: 600; }
+    .nb-action-entry .nb-action-value { color: var(--accent); }
+    .nb-action-tp    .nb-action-value { color: var(--green); }
+    .nb-action-sl    .nb-action-value { color: var(--red); }
+    .nb-action-divider { font-size: 20px; color: var(--border); }
+    .nb-action-footer { padding: 10px 18px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-sub); text-align: center; }
+    .nb-tp-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 18px 14px; }
+    .nb-tp-chip {
+      flex: 1; min-width: 120px; padding: 10px 14px; border-radius: 8px;
+      background: rgba(63,185,80,.07); border: 1px solid rgba(63,185,80,.25);
+      text-align: center;
+    }
+    .nb-tp-chip-label { font-size: 11px; color: var(--text-sub); }
+    .nb-tp-chip-price { font-size: 1.1rem; font-weight: 700; color: var(--green); }
+    .nb-tp-chip-pct   { font-size: 12px; color: var(--green); }
+
+    /* ── Mood Widget ──────────────────────────────────────────────────────── */
+    .nb-mood-widget {
+      display: flex; align-items: center; gap: 16px; padding: 16px 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 16px;
+    }
+    .nb-mood-emoji { font-size: 2.5rem; flex-shrink: 0; }
+    .nb-mood-text strong { display: block; font-size: 15px; margin-bottom: 2px; }
+    .nb-mood-text span   { font-size: 12px; color: var(--text-sub); }
+
+    /* ── Visual Indicators ────────────────────────────────────────────────── */
+    .nb-indicators-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+    .nb-ind-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    .nb-ind-title { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sub); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
+    .nb-ind-status { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .nb-ind-up     { color: var(--green); }
+    .nb-ind-recover{ color: #58a6ff; }
+    .nb-ind-warn   { color: var(--yellow); }
+    .nb-ind-down   { color: var(--red); }
+    .nb-ind-desc   { font-size: 12px; color: var(--text-sub); line-height: 1.4; }
+    .nb-strength-bar-wrap { height: 8px; background: rgba(255,255,255,.08); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .nb-strength-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg,#388bfd,#58a6ff); transition: width .8s ease; }
+
+    /* ── Reasons & Warnings ───────────────────────────────────────────────── */
+    .nb-reasons-wrap { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .nb-reasons-card, .nb-warnings-card { flex: 1; min-width: 240px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .nb-reasons-card { border-color: rgba(63,185,80,.3); background: rgba(63,185,80,.04); }
+    .nb-warnings-card { border-color: rgba(248,81,73,.3); background: rgba(248,81,73,.04); }
+    .nb-card-title { font-size: 12px; font-weight: 700; margin-bottom: 10px; }
+    .nb-reasons-card .nb-card-title { color: var(--green); }
+    .nb-warnings-card .nb-card-title { color: var(--red); }
+    .nb-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .nb-list li { font-size: 12px; color: var(--text); line-height: 1.5; padding-left: 18px; position: relative; }
+    .nb-list li::before { position: absolute; left: 0; }
+    .nb-reasons-card  .nb-list li::before { content: "✓"; color: var(--green); }
+    .nb-warnings-card .nb-list li::before { content: "⚠"; color: var(--yellow); }
+
+    /* ── AI Section ───────────────────────────────────────────────────────── */
+    .nb-ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .nb-ai-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .nb-ai-header { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--text-sub); }
+    .nb-ai-body { padding: 14px 16px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+    .nb-ai-entry { grid-column: 1 / -1; background: rgba(63,185,80,.04); border-color: rgba(63,185,80,.25); }
+    .nb-ai-entry .nb-ai-header { color: var(--green); border-color: rgba(63,185,80,.2); }
+    .nb-ai-entry .nb-ai-body   { font-weight: 600; font-size: 14px; }
+
+    /* ── Chart ────────────────────────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 340px; }
+
+    /* ── Checklist Panel ──────────────────────────────────────────────────── */
+    .nb-checklist-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+
+    /* ── Confidence Gauge Panel ───────────────────────────────────────────── */
+    .nb-confidence-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .nb-confidence-title { font-size: 12px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+    /* ── Strategy Tag ─────────────────────────────────────────────────────── */
+    .nb-strategy-chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+      background: rgba(88,166,255,.1); border: 1px solid rgba(88,166,255,.25);
+      border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--accent);
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 680px) {
+      .nb-decision-buttons { grid-template-columns: 1fr; gap: 8px; }
+      .nb-btn-decision { flex-direction: row; justify-content: flex-start; padding: 14px 16px; gap: 12px; }
+      .nb-btn-icon { font-size: 1.6rem; }
+      .nb-btn-label { font-size: 1.1rem; }
+      .nb-action-body { grid-template-columns: 1fr; }
+      .nb-action-divider { display: none; }
+      .nb-indicators-grid { grid-template-columns: 1fr 1fr; }
+      .nb-ai-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 420px) {
+      .nb-indicators-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <div class="navbar-title">📊 Crypto Bot</div>
+    {% if d1_bullish %}<span class="badge badge-green">📈 Uptrend</span>
+    {% elif d1_bearish %}<span class="badge badge-red">📉 Downtrend</span>
+    {% else %}<span class="badge badge-yellow">↔ Neutral</span>{% endif %}
+
+    <div class="navbar-controls">
+      <form method="get" action="/bot" style="display:flex;gap:8px;align-items:center">
+        <input type="hidden" name="view" value="newbie" />
+        <input type="text" name="symbol" value="{{ symbol }}" style="width:120px" placeholder="Symbol" />
+        <select name="tf">
+          {% for t in ["15m","1h","4h","1d"] %}
+            <option value="{{ t }}" {% if t == tf %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Go</button>
+      </form>
+      <div class="nb-mode-toggle">
+        <a href="/bot?symbol={{ symbol }}&tf={{ tf }}&view=newbie" class="nb-mode-btn active">Newbie</a>
+        <a href="/bot?symbol={{ symbol }}&tf={{ tf }}&view=expert" class="nb-mode-btn">Expert</a>
+      </div>
+    </div>
+  </div>
+
+  {# ── Computed vars ── #}
+  {% set bs = snap.get('buy_score', 0) %}
+  {% set ss = snap.get('sell_score', 0) %}
+  {% set buy_conf  = (bs / 13 * 100) | round(0) | int %}
+  {% set sell_conf = (ss / 13 * 100) | round(0) | int %}
+  {% set act = tracker_action %}
+  {% if act in ['BUY', 'LOOKING'] %}{% set hero_action = 'BUY' %}
+  {% elif act == 'CLOSE' %}{% set hero_action = 'SELL' %}
+  {% else %}{% set hero_action = 'WAIT' %}{% endif %}
+  {% set confidence_val = (newbie_plan.confidence_pct if newbie_plan else 0) %}
+  {% set rsi_dash = (snap.get('rsi_14', 50) / 100 * 251) | round(1) %}
+  {% set adx_raw  = snap.get('adx_14', 0) if snap.get('adx_14', 0) < 60 else 60 %}
+  {% set adx_pct  = (adx_raw / 60 * 100) | int %}
+
+  {# ── Risk Banner ── #}
+  {% if dctx.get('danger') or snap.get('sell_score', 0) >= 8 %}
+  <div class="nb-risk-banner">
+    <span class="nb-risk-icon">⚠️</span>
+    <div class="nb-risk-text">
+      <strong>Cảnh báo rủi ro cao!</strong>
+      {% if dctx.get('danger') %} Thị trường đang ở vùng quá mua nguy hiểm. Không nên vào lệnh mới lúc này.{% endif %}
+      {% if snap.get('sell_score', 0) >= 8 %} Có {{ snap.get('sell_score') }}/13 tín hiệu bán đang đồng thuận.{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── HERO ── #}
+  <section class="nb-hero">
+    <p class="nb-hero-eyebrow">{{ symbol }} · Khung {{ tf }}</p>
+    <h1 class="nb-hero-question">Nên làm gì với {{ symbol }}?</h1>
+
+    <div class="nb-decision-buttons">
+      <div class="nb-btn-decision nb-btn-buy {% if hero_action == 'BUY' %}nb-active{% endif %}">
+        <span class="nb-btn-icon">📈</span>
+        <span class="nb-btn-label">MUA</span>
+        <span class="nb-btn-conf">{{ buy_conf }}% tin cậy</span>
+      </div>
+      <div class="nb-btn-decision nb-btn-wait {% if hero_action == 'WAIT' %}nb-active{% endif %}">
+        <span class="nb-btn-icon">⏳</span>
+        <span class="nb-btn-label">CHỜ</span>
+        <span class="nb-btn-conf">Quan sát thêm</span>
+      </div>
+      <div class="nb-btn-decision nb-btn-sell {% if hero_action == 'SELL' %}nb-active{% endif %}">
+        <span class="nb-btn-icon">📉</span>
+        <span class="nb-btn-label">BÁN</span>
+        <span class="nb-btn-conf">{{ sell_conf }}% tin cậy</span>
+      </div>
+    </div>
+
+    {% if newbie_plan and newbie_plan.strategy_name != 'Chờ Tín Hiệu' %}
+    <div style="margin-bottom:14px">
+      <span class="nb-strategy-chip">🎯 Chiến lược: {{ newbie_plan.strategy_name }}</span>
+    </div>
+    {% endif %}
+
+    <p class="nb-hero-reason">{{ tracker_reason or "Đang phân tích tín hiệu..." }}</p>
+  </section>
+
+  {# ── Market Mood ── #}
+  {% if newbie_plan %}
+  <div class="nb-mood-widget">
+    <span class="nb-mood-emoji">{{ newbie_plan.market_mood_emoji }}</span>
+    <div class="nb-mood-text">
+      <strong class="
+        {% if newbie_plan.market_mood in ['BULLISH_STRONG','BULLISH'] %}text-green
+        {% elif newbie_plan.market_mood == 'BEARISH' %}text-red
+        {% elif newbie_plan.market_mood == 'WARNING' %}text-red
+        {% else %}text-yellow{% endif %}
+      ">{{ newbie_plan.market_mood_text }}</strong>
+      <span>
+        {% if dctx.get('uptrend') %}Xu hướng dài hạn (1D) đang tăng{% else %}Xu hướng dài hạn (1D) đang giảm{% endif %}
+        · Giá: <strong>${{ "{:,.2f}".format(last_price) if last_price else "N/A" }}</strong>
+        {% if change_24h is not none %}
+          <span class="{% if change_24h >= 0 %}text-green{% else %}text-red{% endif %}">
+            ({{ "{:+.2f}".format(change_24h) }}%)
+          </span>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Action Card ── #}
+  {% if newbie_plan %}
+  <div class="nb-action-card">
+    <div class="nb-action-header">
+      📋 Kế hoạch giao dịch gợi ý
+      <span class="badge badge-yellow" style="margin-left:auto;font-size:11px">Mô phỏng</span>
+      {% if newbie_plan.entry.type == 'NOW' %}
+        <span class="badge badge-green" style="font-size:11px">Vào ngay</span>
+      {% else %}
+        <span class="badge badge-blue" style="font-size:11px">Đặt lệnh chờ</span>
+      {% endif %}
+    </div>
+    <div class="nb-action-body">
+      <div class="nb-action-row nb-action-entry">
+        <div class="nb-action-label">🎯 Vào lệnh</div>
+        <div class="nb-action-value">${{ "{:,.2f}".format(newbie_plan.entry.price) }}</div>
+        <div class="nb-action-sub text-sub">{{ newbie_plan.entry.type }}</div>
+      </div>
+      <div class="nb-action-divider">→</div>
+      <div class="nb-action-row nb-action-sl">
+        <div class="nb-action-label">🛑 Cắt lỗ</div>
+        <div class="nb-action-value">${{ "{:,.2f}".format(newbie_plan.sl.price) }}</div>
+        <div class="nb-action-sub text-red">{{ newbie_plan.sl.pct }}%</div>
+      </div>
+      <div class="nb-action-divider">→</div>
+      <div class="nb-action-row nb-action-tp">
+        <div class="nb-action-label">✅ R:R</div>
+        <div class="nb-action-value {% if newbie_plan.risk_reward >= 1.5 %}text-green{% else %}text-yellow{% endif %}">
+          1:{{ newbie_plan.risk_reward }}
+        </div>
+        <div class="nb-action-sub text-sub">Risk/Reward</div>
+      </div>
+    </div>
+    {% if newbie_plan.tp %}
+    <div class="nb-tp-row">
+      {% for tp in newbie_plan.tp %}
+      <div class="nb-tp-chip">
+        <div class="nb-tp-chip-label">{{ tp.label }}</div>
+        <div class="nb-tp-chip-price">${{ "{:,.2f}".format(tp.price) }}</div>
+        <div class="nb-tp-chip-pct">{{ "{:+.1f}".format(tp.pct) }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="nb-action-footer">
+      {{ newbie_plan.position_note }}
+      · {{ newbie_plan.sl.note }}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Signal explanation ── #}
+  {% if act in ['BUY', 'LOOKING', 'CLOSE'] %}
+  <div class="edu-signal-card {% if act in ['BUY','LOOKING'] %}edu-signal-buy{% elif act == 'CLOSE' %}edu-signal-sell{% else %}edu-signal-wait{% endif %}">
+    <div class="edu-signal-header">
+      {% if act in ['BUY','LOOKING'] %}<span class="edu-signal-icon">📈</span>
+        <span>Tín hiệu <strong>MUA</strong> — tại sao hệ thống đề xuất?</span>
+      {% elif act == 'CLOSE' %}<span class="edu-signal-icon">📉</span>
+        <span>Tín hiệu <strong>THOÁT</strong> — tại sao hệ thống đề xuất?</span>
+      {% endif %}
+      <button class="edu-signal-toggle" aria-expanded="false" aria-controls="edu-signal-body">Xem lý do ▼</button>
+    </div>
+    <div class="edu-signal-body" id="edu-signal-body" hidden>
+      <div class="edu-reason-list">
+        {% set trend_str = "Nhìn dài hạn (1D): giá trên đường xu hướng — uptrend" if dctx.get('uptrend') else "Nhìn dài hạn (1D): giá dưới đường xu hướng — downtrend" %}
+        {% set trend_pct = 85 if dctx.get('bull_ema') else 55 %}
+        <div class="edu-reason-item">
+          <div class="edu-reason-text">{{ trend_str }}</div>
+          <div class="edu-reason-bar-wrap">
+            <div class="edu-reason-bar"><div class="edu-reason-bar-fill {% if dctx.get('uptrend') %}edu-bar-green{% else %}edu-bar-red{% endif %}" style="width:{{ trend_pct }}%"></div></div>
+            <span class="edu-reason-pct">{{ trend_pct }}%</span>
+          </div>
+        </div>
+        {% set rsi_v = snap.get('rsi_14', 50) %}
+        {% if rsi_v < 40 %}{% set mom_str = "Đà bán đã kiệt sức — giá có thể sắp phục hồi" %}{% set mom_pct = (100 - rsi_v) | int %}
+        {% elif snap.get('macd_rising') %}{% set mom_str = "Đà mua đang tăng dần — phe mua đang mạnh lên" %}{% set mom_pct = snap.get('adx_14', 30) | int %}
+        {% else %}{% set mom_str = "Đà giao dịch đang ở mức trung lập" %}{% set mom_pct = 40 %}{% endif %}
+        <div class="edu-reason-item">
+          <div class="edu-reason-text">{{ mom_str }}</div>
+          <div class="edu-reason-bar-wrap">
+            <div class="edu-reason-bar"><div class="edu-reason-bar-fill edu-bar-blue" style="width:{{ [mom_pct, 95] | min }}%"></div></div>
+            <span class="edu-reason-pct">{{ [mom_pct, 95] | min }}%</span>
+          </div>
+        </div>
+        {% set score_pct = (bs / 13 * 100) | int %}
+        <div class="edu-reason-item">
+          <div class="edu-reason-text">{{ bs }}/13 tiêu chí kỹ thuật xác nhận ({% if bs >= 9 %}rất mạnh{% elif bs >= 7 %}tốt{% elif bs >= 5 %}trung bình{% else %}yếu{% endif %})</div>
+          <div class="edu-reason-bar-wrap">
+            <div class="edu-reason-bar"><div class="edu-reason-bar-fill {% if score_pct >= 70 %}edu-bar-green{% elif score_pct >= 45 %}edu-bar-yellow{% else %}edu-bar-red{% endif %}" style="width:{{ score_pct }}%"></div></div>
+            <span class="edu-reason-pct">{{ score_pct }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Visual Indicators ── #}
+  <div class="nb-indicators-grid">
+
+    {# RSI Gauge #}
+    <div class="nb-ind-card">
+      <div class="nb-ind-title">Sức mua/bán (RSI) <button class="edu-tip-btn" data-tip="rsi">?</button></div>
+      <svg viewBox="0 0 200 115" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:180px;display:block;margin:0 auto -4px">
+        <path d="M 20 95 A 80 80 0 0 1 180 95" fill="none" stroke="#21262d" stroke-width="14" stroke-linecap="round"/>
+        <path d="M 20 95 A 80 80 0 0 1 180 95" fill="none"
+          stroke="{% if snap.get('rsi_14',50) < 35 %}#3fb950{% elif snap.get('rsi_14',50) > 65 %}#f85149{% else %}#388bfd{% endif %}"
+          stroke-width="14" stroke-linecap="round"
+          stroke-dasharray="{{ rsi_dash }} 251"/>
+        <text x="100" y="84" text-anchor="middle" fill="#e6edf3" font-size="26" font-weight="700" font-family="-apple-system,sans-serif">{{ snap.get('rsi_14', 50) | round(0) | int }}</text>
+        <text x="100" y="100" text-anchor="middle" fill="#8b949e" font-size="10" font-family="-apple-system,sans-serif">RSI</text>
+      </svg>
+      <div class="nb-ind-desc" style="text-align:center;margin-top:6px">
+        {% set rv = snap.get('rsi_14', 50) %}
+        {% if rv < 35 %}<span class="badge badge-green">Vùng quá bán — có thể sắp tăng</span>
+        {% elif rv > 65 %}<span class="badge badge-red">Vùng quá mua — cẩn thận</span>
+        {% else %}<span class="badge badge-gray">Vùng trung lập</span>{% endif %}
+      </div>
+    </div>
+
+    {# MACD Status #}
+    <div class="nb-ind-card">
+      <div class="nb-ind-title">Đà tăng/giảm (MACD) <button class="edu-tip-btn" data-tip="macd">?</button></div>
+      {% if snap.get('macd_rising') and snap.get('macd_hist', 0) > 0 %}
+        <div class="nb-ind-status nb-ind-up">✅ Đang tăng tốc</div>
+        <div class="nb-ind-desc">Lực mua đang mạnh lên, phe mua kiểm soát</div>
+      {% elif snap.get('macd_rising') and snap.get('macd_hist', 0) <= 0 %}
+        <div class="nb-ind-status nb-ind-recover">🔄 Đang phục hồi</div>
+        <div class="nb-ind-desc">Lực bán đang yếu dần, có thể sắp đảo chiều</div>
+      {% elif not snap.get('macd_rising') and snap.get('macd_hist', 0) > 0 %}
+        <div class="nb-ind-status nb-ind-warn">⚠️ Đà tăng giảm dần</div>
+        <div class="nb-ind-desc">Cẩn thận — lực mua đang yếu đi</div>
+      {% else %}
+        <div class="nb-ind-status nb-ind-down">🔴 Đà bán mạnh</div>
+        <div class="nb-ind-desc">Lực bán đang áp đảo lực mua</div>
+      {% endif %}
+    </div>
+
+    {# ADX Strength #}
+    <div class="nb-ind-card">
+      <div class="nb-ind-title">Độ mạnh xu hướng <button class="edu-tip-btn" data-tip="adx">?</button></div>
+      <div class="nb-strength-bar-wrap" style="margin:8px 0">
+        <div class="nb-strength-bar" style="width:{{ adx_pct }}%"></div>
+      </div>
+      {% set adx_v = snap.get('adx_14', 0) %}
+      <div class="nb-ind-status {% if adx_v > 40 %}nb-ind-up{% elif adx_v > 25 %}nb-ind-recover{% else %}nb-ind-warn{% endif %}">
+        {% if adx_v > 40 %}🔥 Xu hướng rất mạnh ({{ adx_v | round(0) | int }})
+        {% elif adx_v > 25 %}💪 Xu hướng rõ ràng ({{ adx_v | round(0) | int }})
+        {% else %}😴 Xu hướng yếu ({{ adx_v | round(0) | int }}){% endif %}
+      </div>
+      <div class="nb-ind-desc">
+        {% if adx_v <= 20 %}Thị trường đi ngang — tránh giao dịch theo xu hướng
+        {% elif adx_v <= 25 %}Xu hướng đang hình thành — theo dõi thêm
+        {% else %}Tín hiệu theo xu hướng đáng tin cậy hơn{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Reasons & Warnings ── #}
+  {% if newbie_plan %}
+  <div class="nb-reasons-wrap">
+    {% if newbie_plan.reasons %}
+    <div class="nb-reasons-card">
+      <div class="nb-card-title">✅ Tín hiệu tích cực</div>
+      <ul class="nb-list">
+        {% for r in newbie_plan.reasons %}<li>{{ r }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if newbie_plan.warnings %}
+    <div class="nb-warnings-card">
+      <div class="nb-card-title">⚠️ Điểm cần lưu ý</div>
+      <ul class="nb-list">
+        {% for w in newbie_plan.warnings %}<li>{{ w }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Confidence Gauge ── #}
+  {% if newbie_plan %}
+  <div class="nb-confidence-panel">
+    <div class="nb-confidence-title">
+      Độ tin cậy tín hiệu
+      <button class="edu-tip-btn" data-tip="buy_score">?</button>
+    </div>
+    <div class="edu-gauge-wrap">
+      <svg class="edu-gauge" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#21262d" stroke-width="16" stroke-linecap="round"/>
+        <path id="edu-gauge-fill" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#30363d"
+          stroke-width="16" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="251"/>
+        <text x="100" y="88" text-anchor="middle" fill="#e6edf3" font-size="28" font-weight="700" font-family="-apple-system,sans-serif">{{ confidence_val }}%</text>
+        <text x="100" y="108" text-anchor="middle" fill="#8b949e" font-size="10" font-family="-apple-system,sans-serif">{{ bs }}/13 tiêu chí</text>
+      </svg>
+    </div>
+    <div class="edu-gauge-legend">
+      <span class="edu-gauge-zone edu-zone-red">0–40% Tránh</span>
+      <span class="edu-gauge-zone edu-zone-yellow">40–70% Thận trọng</span>
+      <span class="edu-gauge-zone edu-zone-green">70–100% Tốt</span>
+    </div>
+    <div class="edu-gauge-status">
+      {% if confidence_val >= 70 %}<span class="text-green">✓ Đủ tín hiệu để xem xét vào lệnh</span>
+      {% elif confidence_val >= 40 %}<span class="text-yellow">⚠ Tín hiệu trung bình — chờ thêm xác nhận</span>
+      {% else %}<span class="text-red">✗ Tín hiệu yếu — chưa nên giao dịch</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Price Chart ── #}
+  <div class="panel" style="margin-bottom:16px">
+    <div class="panel-header">
+      📉 Biểu đồ giá · {{ symbol }}
+      <button class="edu-tip-btn" data-tip="sr">?</button>
+      <span style="margin-left:auto;font-size:12px;color:var(--text-sub)">Xanh = hỗ trợ · Đỏ = kháng cự</span>
+    </div>
+    <div class="panel-body" style="padding:12px">
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+  </div>
+
+  {# ── AI Section ── #}
+  <div class="nb-ai-grid">
+    {% if ai_analysis %}
+    <div class="nb-ai-card">
+      <div class="nb-ai-header">🧑‍🏫 Giải thích dễ hiểu</div>
+      <div class="nb-ai-body">{{ ai_analysis }}</div>
+    </div>
+    {% endif %}
+    {% if ai_analysis2 %}
+    <div class="nb-ai-card">
+      <div class="nb-ai-header">⚠️ Điểm cần lưu ý</div>
+      <div class="nb-ai-body" style="white-space:pre-line">{{ ai_analysis2 }}</div>
+    </div>
+    {% endif %}
+    {% if ai_entry_timing %}
+    <div class="nb-ai-card nb-ai-entry">
+      <div class="nb-ai-header">🎯 Nên làm gì lúc này?</div>
+      <div class="nb-ai-body">{{ ai_entry_timing }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Pre-trade Checklist ── #}
+  {% if act in ['BUY', 'LOOKING'] and newbie_plan %}
+  <div class="nb-checklist-panel">
+    <div class="panel-header">✅ Checklist trước khi vào lệnh</div>
+    <div class="panel-body">
+      <p style="font-size:12px;color:var(--text-sub);margin-bottom:14px">Xác nhận tất cả trước khi bấm mua. Bỏ qua bất kỳ mục nào = tăng rủi ro.</p>
+      <div class="edu-checklist-items">
+        {% for item in newbie_plan.checklist %}
+        <label class="edu-check-item {% if item.ok %}checked{% endif %}">
+          <input type="checkbox" class="edu-check-input" {% if item.ok %}checked{% endif %}>
+          <span class="edu-check-box">{% if item.ok %}<span style="color:#000;font-size:11px;font-weight:700">✓</span>{% endif %}</span>
+          <div class="edu-check-content">
+            <span class="edu-check-text">{{ item.item }}</span>
+            <span class="edu-check-hint">{% if item.ok %}✓ Đáp ứng{% else %}✗ Chưa đáp ứng{% endif %}</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="edu-checklist-progress">
+        {% set ok_count = newbie_plan.checklist | selectattr('ok', 'equalto', true) | list | length %}
+        {% set total_count = newbie_plan.checklist | length %}
+        {% set pct_done = (ok_count / total_count * 100) | int %}
+        <div class="edu-check-progress-bar">
+          <div class="edu-check-progress-fill" id="edu-check-fill" style="width:{{ pct_done }}%"></div>
+        </div>
+        <span class="edu-check-progress-text" id="edu-check-text">{{ ok_count }}/{{ total_count }} hoàn thành</span>
+      </div>
+      {% if ok_count == total_count %}
+      <div class="edu-checklist-cta">
+        <span class="text-green">✓ Đã sẵn sàng!</span>
+        <span style="color:var(--text-sub);font-size:12px"> Tất cả tiêu chí đều đạt. Hãy vào lệnh có kỷ luật.</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Expert CTA ── #}
+  <div style="text-align:center;padding:24px 0;border-top:1px solid var(--border);margin-top:8px">
+    <p style="font-size:13px;color:var(--text-sub);margin-bottom:12px">Muốn xem đầy đủ chỉ số kỹ thuật, biểu đồ RSI/MACD và lịch sử tín hiệu?</p>
+    <a href="/bot?symbol={{ symbol }}&tf={{ tf }}&view=expert" class="btn btn-ghost">Chuyển sang Expert Mode →</a>
+  </div>
+
+</div>{# .page #}
+
+{# ── Tooltip popup ── #}
+<div id="edu-tooltip" class="edu-tooltip" role="tooltip" hidden>
+  <div class="edu-tooltip-name"></div>
+  <div class="edu-tooltip-what"><span class="edu-icon">📖</span><span class="edu-tooltip-what-text"></span></div>
+  <div class="edu-tooltip-says"><span class="edu-icon">🎯</span><span class="edu-tooltip-says-text"></span></div>
+  <div class="edu-tooltip-action"><span class="edu-icon">⚡</span><span class="edu-tooltip-action-text"></span></div>
+  <button class="edu-tooltip-close">×</button>
+</div>
+
+{# ── Mini-lesson Widget ── #}
+<div id="edu-lesson-widget" class="edu-lesson-widget" role="complementary" aria-label="Bài học nhanh">
+  <div class="edu-lesson-header">
+    <span class="edu-lesson-icon">📚</span>
+    <span class="edu-lesson-title">Học trong khi xem</span>
+    <button class="edu-lesson-dismiss" id="eduLessonDismiss" aria-label="Ẩn">×</button>
+  </div>
+  <div class="edu-lesson-body" id="eduLessonBody"></div>
+  <div class="edu-lesson-footer">
+    <div class="edu-lesson-dots" id="eduLessonDots"></div>
+    <button class="edu-lesson-next" id="eduLessonNext">Tiếp theo →</button>
+  </div>
+</div>
+
+<script>
+// ── Chart data ────────────────────────────────────────────────────────────────
+const ROWS = {{ rows_json_str | safe }};
+const SR_D1   = {{ sr_d1_json   | safe }};
+const SR_NEAR = {{ sr_near_json | safe }};
+
+// ── Newbie snap data for tooltips ─────────────────────────────────────────────
+const EDU_SNAP = {
+  rsi_14:      {{ snap.get('rsi_14', 50) or 50 }},
+  adx_14:      {{ snap.get('adx_14', 0) or 0 }},
+  macd_hist:   {{ snap.get('macd_hist', 0) or 0 }},
+  macd_rising: {{ snap.get('macd_rising', false) | tojson }},
+  bb_pct:      {{ snap.get('bb_pct') or 0.5 }},
+  price:       {{ last_price or 0 }},
+  ema200:      {{ snap.get('ema200') or 0 }},
+  buy_score:   {{ snap.get('buy_score', 0) }},
+  confidence:  {{ confidence_val }},
+};
+
+// ── Build price chart ─────────────────────────────────────────────────────────
+(function() {
+  const labels  = ROWS.map(r => r.time_str.slice(5, 16));
+  const closes  = ROWS.map(r => r.price);
+  const ema34   = ROWS.map(r => r.ema34);
+  const ema200  = ROWS.map(r => r.ema200);
+  const bbU     = ROWS.map(r => r.bb_upper);
+  const bbL     = ROWS.map(r => r.bb_lower);
+  const vols    = ROWS.map(r => r.volume);
+
+  // S/R annotation lines
+  const allSR = [
+    ...(SR_D1.supports   || []).map(p => ({ price: p, color: 'rgba(63,185,80,.6)',  label: 'Hỗ trợ' })),
+    ...(SR_D1.resistances|| []).map(p => ({ price: p, color: 'rgba(248,81,73,.6)', label: 'Kháng cự' })),
+    ...(SR_NEAR.supports  || []).map(p => ({ price: p, color: 'rgba(63,185,80,.35)' })),
+    ...(SR_NEAR.resistances||[]).map(p => ({ price: p, color: 'rgba(248,81,73,.35)' })),
+  ];
+
+  const datasets = [
+    { label: 'Giá', data: closes, borderColor: '#e6edf3', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.2, yAxisID: 'y' },
+    { label: 'EMA34',  data: ema34,  borderColor: '#f0883e', borderWidth: 1.2, pointRadius: 0, fill: false, tension: 0.2, yAxisID: 'y', borderDash: [] },
+    { label: 'EMA200', data: ema200, borderColor: '#bc8cff', borderWidth: 1.2, pointRadius: 0, fill: false, tension: 0.2, yAxisID: 'y' },
+    { label: 'BB Upper', data: bbU, borderColor: 'rgba(88,166,255,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: 0.2, yAxisID: 'y', borderDash: [4,3] },
+    { label: 'BB Lower', data: bbL, borderColor: 'rgba(88,166,255,.4)', borderWidth: 1, pointRadius: 0, fill: false, tension: 0.2, yAxisID: 'y', borderDash: [4,3] },
+    { label: 'Volume', data: vols, type: 'bar', backgroundColor: 'rgba(88,166,255,.12)', yAxisID: 'yVol', order: 10 },
+  ];
+
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#8b949e', bodyColor: '#e6edf3', padding: 10,
+          callbacks: {
+            label: (ctx) => {
+              if (ctx.dataset.label === 'Volume') return null;
+              const v = ctx.raw;
+              return v != null ? `${ctx.dataset.label}: $${Number(v).toLocaleString('en', {minimumFractionDigits:2,maximumFractionDigits:2})}` : null;
+            }
+          }
+        },
+        annotation: { annotations: {} },
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: '#21262d' } },
+        y: { position: 'right', ticks: { color: '#8b949e', font: { size: 11 }, callback: v => '$' + Number(v).toLocaleString() }, grid: { color: 'rgba(48,54,61,.6)' } },
+        yVol: { position: 'left', display: false, max: Math.max(...vols) * 6 },
+      },
+    }
+  });
+})();
+</script>
+
+<script src="/static/js/edu_data.js"></script>
+<script src="/static/js/edu_ui.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  initEduTooltips(EDU_SNAP);
+  initSignalExpand();
+  initEduGauge(EDU_SNAP.confidence);
+  initEduChecklist();
+  initEduLessons();
+});
+</script>
+</body>
+</html>

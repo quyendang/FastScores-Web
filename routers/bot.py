@@ -19,7 +19,10 @@ from services.bot_service import (
     run_symbol_tracker_once, compute_simulated_trade,
     RSI_PERIOD, MACD_FAST, MACD_SLOW, MACD_SIGNAL, TRACKER_INTERVAL,
 )
-from services.bot_ai import call_openrouter_analysis, call_openrouter_analysis_model2
+from services.bot_ai import (
+    call_openrouter_analysis, call_openrouter_analysis_model2,
+    call_ai_newbie_summary, call_ai_risk_warning, call_ai_entry_timing,
+)
 
 router = APIRouter(prefix="/bot", tags=["bot"])
 templates = Jinja2Templates(directory="templates")
@@ -54,10 +57,13 @@ async def bot_dashboard(
     request: Request,
     symbol: str = Query("ETHUSDT"),
     tf: str = Query("4h"),
+    view: str = Query("newbie"),
 ):
     symbol = symbol.upper()
     if tf not in {"15m", "1h", "4h", "1d"}:
         tf = "4h"
+    if view not in {"newbie", "expert"}:
+        view = "newbie"
 
     # ── Parallel fetches ──────────────────────────────────────────────────────
     def _klines():
@@ -172,17 +178,38 @@ async def bot_dashboard(
         "adx_14": snap.get("adx_14"), "macd_hist": snap.get("macd_hist"),
         "macd_rising": snap.get("macd_rising"), "stoch_k": snap.get("stoch_k"),
         "uptrend": dctx.get("uptrend"), "entry_strategy": sim.get("strategy"),
-        # v5 additions
         "ema34": snap.get("ema34"), "ema50": snap.get("ema50"),
         "bars_below_ema200": snap.get("bars_below_ema200", 0),
         "entry_mode": sim.get("mode", ""),
+        # newbie extras
+        "buy_score": snap.get("buy_score", 0),
+        "sell_score": snap.get("sell_score", 0),
+        "in_buy_zone": snap.get("in_buy_zone", False),
+        "in_sell_zone": snap.get("in_sell_zone", False),
     }
-    ai1, ai2 = await asyncio.gather(
-        asyncio.to_thread(call_openrouter_analysis, symbol, tf, ai_snap),
-        asyncio.to_thread(call_openrouter_analysis_model2, symbol, tf, ai_snap),
-    )
 
-    return templates.TemplateResponse("bot_dashboard.html", {
+    # ── Newbie plan (zero extra API calls) ───────────────────────────────────
+    newbie_plan = None
+    if view == "newbie":
+        from services.bot_plan import compute_newbie_trade_plan
+        newbie_plan = compute_newbie_trade_plan(snap, sr_d1, sr_near, cfg, sim, dctx)
+
+    # ── AI calls ──────────────────────────────────────────────────────────────
+    if view == "newbie":
+        ai1, ai2, ai3 = await asyncio.gather(
+            asyncio.to_thread(call_ai_newbie_summary, symbol, tf, ai_snap),
+            asyncio.to_thread(call_ai_risk_warning, symbol, tf, ai_snap),
+            asyncio.to_thread(call_ai_entry_timing, symbol, tf, ai_snap, sim),
+        )
+    else:
+        ai1, ai2 = await asyncio.gather(
+            asyncio.to_thread(call_openrouter_analysis, symbol, tf, ai_snap),
+            asyncio.to_thread(call_openrouter_analysis_model2, symbol, tf, ai_snap),
+        )
+        ai3 = ""
+
+    template_name = "bot_dashboard_newbie.html" if view == "newbie" else "bot_dashboard.html"
+    return templates.TemplateResponse(template_name, {
         "request": request,
         "symbol": symbol, "tf": tf,
         "last_price": last_price, "change_24h": change_24h,
@@ -195,7 +222,9 @@ async def bot_dashboard(
         "sr_d1_json": json.dumps(sr_d1),
         "sr_near_json": json.dumps(sr_near),
         "db_signals_json": json.dumps(db_signals),
-        "ai_analysis": ai1, "ai_analysis2": ai2,
+        "view": view,
+        "newbie_plan": newbie_plan,
+        "ai_analysis": ai1, "ai_analysis2": ai2, "ai_entry_timing": ai3,
         # Legacy compat
         "d1_bullish": dctx.get("uptrend", False) and dctx.get("bull_ema", False),
         "d1_bearish": not dctx.get("uptrend", True) and dctx.get("bear_ema", False),

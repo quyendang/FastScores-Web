@@ -100,6 +100,169 @@ def call_openrouter_analysis_model2(symbol: str, tf: str, snap: dict) -> str:
     return result
 
 
+# ── Newbie-friendly AI functions ─────────────────────────────────────────────
+
+def call_ai_newbie_summary(symbol: str, tf: str, snap: dict) -> str:
+    """Newbie trend summary — plain Vietnamese, no technical terms. Cached 10 min."""
+    if not OPENROUTER_API_KEY:
+        return ""
+    cache_key = f"nb_sum_{symbol}_{tf}"
+    now = time.time()
+    if cache_key in _cache and now - _cache[cache_key][0] < AI_CACHE_TTL:
+        return _cache[cache_key][1]
+
+    price      = snap.get("price", 0)
+    uptrend    = snap.get("uptrend", False)
+    macd_up    = snap.get("macd_rising", False)
+    buy_score  = snap.get("buy_score", 0)
+    sell_score = snap.get("sell_score", 0)
+    in_buy     = snap.get("in_buy_zone", False)
+    in_sell    = snap.get("in_sell_zone", False)
+    strategy   = snap.get("entry_strategy", "")
+
+    trend_desc = "đang đi lên" if uptrend else "đang đi xuống"
+    momentum   = "đà mua đang tăng dần" if macd_up else "đà mua đang yếu đi"
+    zone_desc  = ("đang ở vùng giá hấp dẫn để mua" if in_buy else
+                  "đang ở vùng nhiều người muốn chốt lời" if in_sell else
+                  "đang ở giữa hai vùng")
+    signal_map = {
+        "DIP_BUY":      "Giá vừa về vùng rẻ sau khi điều chỉnh.",
+        "TREND_FOLLOW": "Sóng tăng đang hình thành rõ nét.",
+        "BREAKOUT_BUY": "Giá vừa phá vỡ vùng kháng cự.",
+        "BEAR_BOUNCE":  "Giá đang bật nhẹ trong xu hướng giảm.",
+    }
+    signal_desc = signal_map.get(strategy, "")
+
+    prompt = (
+        f"Bạn là người mentor dạy trading cho học viên hoàn toàn mới.\n"
+        f"Giải thích tình huống {symbol} khung {tf} bằng ngôn ngữ thật đơn giản, dùng ẩn dụ đời thường.\n\n"
+        f"Dữ liệu (ĐỪNG nhắc lại các con số, chỉ dùng để hiểu ngữ cảnh):\n"
+        f"- Giá: ${price:,.2f} | Xu hướng: {trend_desc}\n"
+        f"- Động lực: {momentum} | Vị trí: {zone_desc}\n"
+        f"- {signal_desc} Điểm mua: {buy_score}/13, điểm bán: {sell_score}/13\n\n"
+        f"Yêu cầu bắt buộc:\n"
+        f"1. KHÔNG dùng từ: RSI, ADX, MACD, EMA, Stochastic, indicator, resistance, support\n"
+        f"2. Dùng ẩn dụ: 'Giá đang như người chạy đà lên', 'Nhiều người đang muốn bán ở đây'\n"
+        f"3. Câu cuối PHẢI bắt đầu bằng 'Lúc này nên...'\n"
+        f"4. Tối đa 80 từ tiếng Việt, viết liền mạch không dùng bullet points"
+    )
+    result = _call(OPENROUTER_MODEL, [{"role": "user", "content": prompt}], temperature=0.5, max_tokens=180)
+    if result:
+        _cache[cache_key] = (now, result)
+    return result
+
+
+def call_ai_risk_warning(symbol: str, tf: str, snap: dict) -> str:
+    """Newbie risk checklist — 3 lines with ⚠️/✅ icons. Cached 15 min."""
+    if not OPENROUTER_API_KEY:
+        return ""
+    model = OPENROUTER_MODEL2 or OPENROUTER_MODEL
+    if not model:
+        return ""
+    cache_key = f"nb_risk_{symbol}_{tf}"
+    now = time.time()
+    NB_RISK_TTL = 900
+    if cache_key in _cache and now - _cache[cache_key][0] < NB_RISK_TTL:
+        return _cache[cache_key][1]
+
+    price      = snap.get("price", 0)
+    uptrend    = snap.get("uptrend", False)
+    buy_score  = snap.get("buy_score", 0)
+    sell_score = snap.get("sell_score", 0)
+    in_buy     = snap.get("in_buy_zone", False)
+    in_sell    = snap.get("in_sell_zone", False)
+    macd_up    = snap.get("macd_rising", False)
+    bars_below = snap.get("bars_below_ema200", 0)
+
+    parts = []
+    if in_sell:
+        parts.append("giá đang ở vùng mà nhiều người đã đặt lệnh bán từ trước")
+    if not uptrend:
+        parts.append("xu hướng lớn đang đi xuống")
+    if sell_score >= 7:
+        parts.append(f"có {sell_score} dấu hiệu cảnh báo đang xuất hiện")
+    if bars_below >= 5:
+        parts.append(f"giá đã đi dưới đường trung bình dài hạn {bars_below} cây nến liên tiếp")
+    if not macd_up:
+        parts.append("lực mua đang suy yếu")
+    if buy_score >= 8:
+        parts.append(f"có {buy_score} dấu hiệu tích cực")
+    if in_buy:
+        parts.append("giá đang ở vùng hỗ trợ tốt")
+
+    context_str = "; ".join(parts) if parts else "thị trường đang ở trạng thái trung tính"
+
+    prompt = (
+        f"Bạn đang tư vấn cho người mới học trading về {symbol} tại ${price:,.2f} (khung {tf}).\n"
+        f"Tình huống: {context_str}.\n\n"
+        f"Viết ĐÚNG 3 dòng theo format này, KHÔNG thêm gì khác:\n"
+        f"⚠️ [rủi ro hoặc điều cần chú ý, tối đa 15 từ]\n"
+        f"⚠️ [rủi ro hoặc điều cần chú ý, tối đa 15 từ]\n"
+        f"✅ [điểm tích cực hoặc điều kiện thuận lợi, tối đa 15 từ]\n\n"
+        f"KHÔNG dùng: RSI, ADX, MACD, EMA, indicator, resistance, support level, overbought, oversold\n"
+        f"DÙNG ngôn ngữ đời thường. Nếu tích cực nhiều hơn: cho 2 dấu ✅ và 1 dấu ⚠️"
+    )
+    result = _call(model, [{"role": "user", "content": prompt}], temperature=0.3, max_tokens=120)
+    if result:
+        _cache[cache_key] = (now, result)
+    return result
+
+
+def call_ai_entry_timing(symbol: str, tf: str, snap: dict, sim: dict) -> str:
+    """Entry timing advice — 1 sentence max 40 words. Cached 5 min."""
+    if not OPENROUTER_API_KEY:
+        return ""
+    model = OPENROUTER_MODEL3 or OPENROUTER_MODEL
+    if not model:
+        return ""
+    cache_key = f"nb_entry_{symbol}_{tf}"
+    now = time.time()
+    NB_ENTRY_TTL = 300
+    if cache_key in _cache and now - _cache[cache_key][0] < NB_ENTRY_TTL:
+        return _cache[cache_key][1]
+
+    price      = snap.get("price", 0)
+    uptrend    = snap.get("uptrend", False)
+    macd_up    = snap.get("macd_rising", False)
+    buy_score  = snap.get("buy_score", 0)
+    in_buy     = snap.get("in_buy_zone", False)
+    in_sell    = snap.get("in_sell_zone", False)
+
+    status    = sim.get("status", "WATCHING")
+    stop_p    = sim.get("stop_price", 0)
+    tp_p      = sim.get("tp_estimate", price * 1.02)
+    sl_pct    = sim.get("sl_pct", 0)
+
+    if status == "SIGNAL":
+        signal_ctx = f"Bot phát tín hiệu vào lệnh. SL đề xuất: ${stop_p:,.2f} ({sl_pct:.1f}% rủi ro). TP: ${tp_p:,.2f}."
+    elif status == "IN_TRADE":
+        signal_ctx = "Đang có lệnh mở."
+    else:
+        signal_ctx = "Chưa có tín hiệu rõ ràng."
+
+    trend_ctx = (
+        f"Xu hướng {'tăng' if uptrend else 'giảm'}, đà mua {'mạnh' if macd_up else 'yếu'}, "
+        f"điểm mua {buy_score}/13, "
+        f"{'vùng mua tốt' if in_buy else 'vùng bán' if in_sell else 'giữa hai vùng'}."
+    )
+
+    prompt = (
+        f"Trợ lý trading cho người mới. Đánh giá THỜI ĐIỂM vào lệnh MUA {symbol}.\n"
+        f"Giá hiện tại: ${price:,.2f} (khung {tf})\n"
+        f"Tình huống: {trend_ctx}\n"
+        f"{signal_ctx}\n\n"
+        f"Trả lời ĐÚNG 1 trong 3 dạng câu, KHÔNG giải thích thêm:\n"
+        f"- 'Vào lệnh ngay tại ${price:,.2f}, đặt cắt lỗ ${stop_p:,.2f}' (nếu điều kiện tốt)\n"
+        f"- 'Đợi giá về $[mức giá] rồi vào, vì [lý do ≤8 từ]' (nếu cần chờ)\n"
+        f"- 'Không phải lúc này vì [lý do ≤8 từ]' (nếu rủi ro cao)\n\n"
+        f"Tối đa 40 từ. KHÔNG dùng RSI, MACD, ADX, indicator."
+    )
+    result = _call(model, [{"role": "user", "content": prompt}], temperature=0.2, max_tokens=100)
+    if result:
+        _cache[cache_key] = (now, result)
+    return result
+
+
 # ── 4-model panel vote ────────────────────────────────────────────────────────
 
 def _model_short_label(model_id: str) -> str:
