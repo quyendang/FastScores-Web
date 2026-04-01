@@ -69,13 +69,19 @@ async def health():
 # ── Background scheduler (crypto bot) ────────────────────────────────────────
 @app.on_event("startup")
 def start_bot_scheduler():
-    from services.bot_service import symbols_tracker_job
+    from services.bot_service import symbols_tracker_job, send_startup_market_analysis
 
     def _job():
         try:
             symbols_tracker_job()
         except Exception as e:
             logging.error(f"[SCHEDULER] symbols_tracker_job error: {e}")
+
+    try:
+        send_startup_market_analysis()
+        logging.info("[SCHEDULER] Startup market analysis sent")
+    except Exception as e:
+        logging.error(f"[SCHEDULER] startup market analysis error: {e}")
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(

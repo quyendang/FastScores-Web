@@ -295,6 +295,51 @@ def _format_signal(symbol: str, trend: dict, signal: dict) -> str:
     )
 
 
+def _format_startup_analysis(symbol: str) -> str:
+    trend = _trend_h4(symbol)
+    if not trend:
+        return f"{symbol}: khong du du lieu H4 de phan tich."
+
+    price = trend["close"]
+    adx = trend["adx"]
+    trend_str = "LONG trend" if trend["long_trend"] else "SHORT trend" if trend["short_trend"] else "NO TREND"
+
+    long_setup = _entry_h1(symbol, "LONG")
+    short_setup = _entry_h1(symbol, "SHORT")
+
+    setup_lines = []
+    if long_setup:
+        setup_lines.append(
+            f"LONG setup: entry ${long_setup['entry']:,.2f} | SL ${long_setup['stop']:,.2f} | "
+            f"TP ${long_setup['target']:,.2f} | RR {long_setup['rr']:.2f}"
+        )
+    if short_setup:
+        setup_lines.append(
+            f"SHORT setup: entry ${short_setup['entry']:,.2f} | SL ${short_setup['stop']:,.2f} | "
+            f"TP ${short_setup['target']:,.2f} | RR {short_setup['rr']:.2f}"
+        )
+    if not setup_lines:
+        setup_lines.append("H1 setup: chua co setup dat dieu kien RR >= 1.5")
+
+    return (
+        f"<b>{symbol}</b>\n"
+        f"H4: {trend_str} | Close ${price:,.2f} | ADX(14) {adx:.1f}\n"
+        + "\n".join(setup_lines)
+    )
+
+
+def send_startup_market_analysis() -> None:
+    """Send one startup market brief for BTC/ETH to all Telegram bot users."""
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    parts = [_format_startup_analysis(symbol) for symbol in FIXED_SYMBOLS]
+    message = (
+        "Bot vua khoi dong. Tong hop phan tich thi truong hien tai (nen da dong):\n\n"
+        + "\n\n".join(parts)
+    )
+    _telegram_notify("STARTUP MARKET ANALYSIS", message)
+
+
 def run_symbol_tracker_once(symbol: str, send_notify: bool = True) -> dict:
     symbol = symbol.upper()
     trend = _trend_h4(symbol)
