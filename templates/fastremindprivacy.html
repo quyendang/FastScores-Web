@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — FastRemind</title>
+<meta name="description" content="FastRemind privacy policy. We don't collect, sell, or share your personal data. Everything stays on your device.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafaf7;
+    --bg-elevated: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-muted: #8a8a8a;
+    --rule: #e8e6e0;
+    --mint: #5cc9a8;
+    --mint-soft: #e8f6f1;
+    --warning: #d97706;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 24px rgba(0,0,0,0.06);
+    --shadow-lg: 0 24px 60px -24px rgba(26,26,26,0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111111;
+      --bg-elevated: #1c1c1c;
+      --ink: #f5f5f0;
+      --ink-soft: #c8c8c0;
+      --ink-muted: #888880;
+      --rule: #2a2a28;
+      --mint: #6ed4b3;
+      --mint-soft: #1a2c26;
+      --shadow-md: 0 4px 24px rgba(0,0,0,0.4);
+      --shadow-lg: 0 24px 60px -24px rgba(0,0,0,0.5);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ── Header ──────────────────────────── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(250, 250, 247, 0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--rule);
+  }
+  @media (prefers-color-scheme: dark) {
+    .header { background: rgba(17, 17, 17, 0.85); }
+  }
+
+  .header-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink);
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--mint);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+
+  .brand-name {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+  }
+
+  .lang-switch {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--rule);
+    border-radius: 99px;
+    font-size: 13px;
+  }
+  .lang-switch button {
+    border: 0;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 99px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--ink-soft);
+    transition: all 0.2s ease;
+  }
+  .lang-switch button.active {
+    background: var(--bg-elevated);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ── Hero ──────────────────────────── */
+  .hero {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 80px 24px 48px;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mint);
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(40px, 6vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 20px;
+  }
+
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--mint);
+  }
+
+  .lede {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 56ch;
+  }
+
+  .meta {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+
+  .meta strong {
+    display: block;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  /* ── TL;DR Pill Card ──────────────────── */
+  .tldr {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px 48px;
+  }
+
+  .tldr-card {
+    background: var(--mint-soft);
+    border-radius: 24px;
+    padding: 32px;
+    border: 1px solid color-mix(in srgb, var(--mint) 20%, transparent);
+  }
+
+  .tldr-card h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+    color: var(--ink);
+  }
+
+  .tldr-list {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+  }
+
+  .tldr-list li {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    color: var(--ink-soft);
+    font-size: 15.5px;
+  }
+
+  .tldr-list li::before {
+    content: "→";
+    color: var(--mint);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  /* ── Content ──────────────────────────── */
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  section {
+    margin-bottom: 56px;
+    scroll-margin-top: 96px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  h2 .num {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-top: 28px;
+    margin-bottom: 12px;
+  }
+
+  p {
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+
+  ul, ol {
+    color: var(--ink-soft);
+    padding-left: 24px;
+    margin-bottom: 16px;
+  }
+
+  li {
+    margin-bottom: 8px;
+  }
+
+  strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  a {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--mint);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1.5px;
+    transition: color 0.2s ease;
+  }
+  a:hover { color: var(--mint); }
+
+  /* ── Data Table Card ─────────────────── */
+  .data-table {
+    background: var(--bg-elevated);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+
+  .data-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 15px;
+  }
+  .data-row:last-child { border-bottom: 0; }
+
+  .data-row dt {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .data-row dd {
+    color: var(--ink-soft);
+  }
+
+  @media (max-width: 580px) {
+    .data-row {
+      grid-template-columns: 1fr;
+      gap: 4px;
+      padding: 16px 20px;
+    }
+  }
+
+  /* ── Footer ──────────────────────────── */
+  .footer {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+
+  .footer-links a {
+    text-decoration: none;
+    color: var(--ink-soft);
+  }
+  .footer-links a:hover { color: var(--mint); }
+
+  /* ── Lang toggle ────────────────────── */
+  [data-lang="en"] { display: none; }
+  body.lang-en [data-lang="vi"] { display: none; }
+  body.lang-en [data-lang="en"] { display: block; }
+  body.lang-en li[data-lang="en"],
+  body.lang-en span[data-lang="en"] { display: inline-block; }
+
+  /* Print friendly */
+  @media print {
+    .header, .lang-switch, .footer { display: none; }
+    body { background: white; color: black; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <a href="#" class="brand">
+      <span class="brand-mark">F</span>
+      <span class="brand-name">FastRemind</span>
+    </a>
+    <div class="lang-switch" role="tablist">
+      <button class="active" data-lang-btn="vi">Tiếng Việt</button>
+      <button data-lang-btn="en">English</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ TIẾNG VIỆT ═══════════════════════════ -->
+
+<div data-lang="vi">
+
+<section class="hero">
+  <span class="eyebrow">Quyền riêng tư</span>
+  <h1>Dữ liệu của bạn <em>thuộc về bạn</em>.</h1>
+  <p class="lede">
+    FastRemind không thu thập, không bán, không chia sẻ thông tin cá nhân của bạn. Toàn bộ dữ liệu tài chính ở lại trên thiết bị của bạn — không có server, không có tài khoản, không có theo dõi hành vi.
+  </p>
+  <div class="meta">
+    <div>
+      <strong>Hiệu lực</strong>
+      <span>28 tháng 4, 2026</span>
+    </div>
+    <div>
+      <strong>Phiên bản</strong>
+      <span>1.0</span>
+    </div>
+    <div>
+      <strong>Áp dụng cho</strong>
+      <span>FastRemind iOS</span>
+    </div>
+  </div>
+</section>
+
+<section class="tldr">
+  <div class="tldr-card">
+    <h2>Tóm tắt nhanh</h2>
+    <ul class="tldr-list">
+      <li>Chúng tôi không yêu cầu tài khoản, email, hay số điện thoại.</li>
+      <li>Mọi nhắc nhở, thanh toán, ảnh biên lai đều lưu cục bộ trên iPhone của bạn.</li>
+      <li>Chúng tôi không có server xử lý dữ liệu cá nhân của bạn.</li>
+      <li>Quảng cáo (chỉ user miễn phí) qua Google AdMob — bạn có thể từ chối tracking trong iOS.</li>
+      <li>Bạn có thể xoá toàn bộ dữ liệu bất cứ lúc nào trong Cài đặt → Xoá tất cả dữ liệu.</li>
+    </ul>
+  </div>
+</section>
+
+<main class="content">
+
+  <section id="who-we-are">
+    <h2><span class="num">01</span><span>Chúng tôi là ai</span></h2>
+    <p>
+      FastRemind ("ứng dụng", "chúng tôi") là một ứng dụng iOS dùng để nhắc nhở các khoản tài chính cá nhân — hoá đơn, vay nợ, các khoản cho vay. Ứng dụng được phát triển và phát hành bởi <strong>[Tên nhà phát triển]</strong>, một nhà phát triển độc lập tại Việt Nam.
+    </p>
+    <p>
+      Chính sách quyền riêng tư này giải thích cách FastRemind xử lý thông tin khi bạn sử dụng ứng dụng. Vì FastRemind hoạt động hoàn toàn ngoại tuyến, phần lớn nội dung dưới đây là về những gì chúng tôi <strong>không làm</strong>.
+    </p>
+  </section>
+
+  <section id="data-we-collect">
+    <h2><span class="num">02</span><span>Thông tin chúng tôi thu thập</span></h2>
+    <p>
+      <strong>Chúng tôi không thu thập bất kỳ thông tin cá nhân nào.</strong> Cụ thể, chúng tôi không thu thập:
+    </p>
+    <ul>
+      <li>Tên, email, số điện thoại, hay bất kỳ thông tin định danh nào</li>
+      <li>Vị trí địa lý của bạn</li>
+      <li>Danh bạ, lịch, ảnh, hay bất kỳ dữ liệu cá nhân nào ngoài app</li>
+      <li>Hành vi sử dụng app (analytics, tracking, telemetry)</li>
+      <li>Lịch sử thanh toán, số dư tài khoản, thông tin ngân hàng</li>
+    </ul>
+    <p>
+      FastRemind không có hệ thống đăng ký, đăng nhập, hay tài khoản người dùng dưới bất kỳ hình thức nào.
+    </p>
+  </section>
+
+  <section id="data-on-device">
+    <h2><span class="num">03</span><span>Dữ liệu lưu trên thiết bị của bạn</span></h2>
+    <p>
+      Khi bạn sử dụng FastRemind, các thông tin sau được lưu <strong>cục bộ trên iPhone của bạn</strong> (qua SwiftData và iOS App Group). Không có thông tin nào được gửi ra ngoài thiết bị:
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Nhắc nhở</dt>
+        <dd>Tiêu đề, số tiền, ngày đến hạn, danh mục, lãi suất, ghi chú, lịch sử lặp lại.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Thanh toán</dt>
+        <dd>Số tiền đã trả, ngày thanh toán, ghi chú, ảnh biên lai (nếu bạn chọn đính kèm).</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Tuỳ chọn</dt>
+        <dd>Cài đặt giao diện, ngôn ngữ, màu chủ đề, tuỳ chọn thông báo, trạng thái Premium, streak.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Tên hiển thị</dt>
+        <dd>Nếu bạn nhập tên trong onboarding — chỉ lưu cục bộ để hiển thị lời chào.</dd>
+      </dl>
+    </div>
+    <p>
+      Bạn có toàn quyền xoá toàn bộ dữ liệu này bất cứ lúc nào tại <strong>Cài đặt → Xoá tất cả dữ liệu</strong>, hoặc bằng cách gỡ ứng dụng khỏi iPhone.
+    </p>
+  </section>
+
+  <section id="third-parties">
+    <h2><span class="num">04</span><span>Dịch vụ bên thứ ba</span></h2>
+
+    <h3>Google AdMob (chỉ với user miễn phí)</h3>
+    <p>
+      FastRemind hiển thị quảng cáo banner và interstitial cho người dùng miễn phí thông qua <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Mobile Ads SDK</a>. Khi bạn dùng ứng dụng:
+    </p>
+    <ul>
+      <li>iOS sẽ hiển thị thông báo App Tracking Transparency (ATT) hỏi bạn có cho phép Google sử dụng identifier để hiển thị quảng cáo phù hợp hơn không.</li>
+      <li>Nếu bạn <strong>đồng ý</strong>: Google nhận identifier (IDFA) để cá nhân hoá quảng cáo.</li>
+      <li>Nếu bạn <strong>từ chối</strong>: chỉ quảng cáo không cá nhân hoá được hiển thị, không có dữ liệu tracking.</li>
+      <li>Bạn có thể đổi lựa chọn bất cứ lúc nào trong <strong>iOS Settings → Privacy → Tracking</strong>.</li>
+    </ul>
+    <p>
+      Sau khi bạn mua FastRemind Premium, toàn bộ quảng cáo bị tắt vĩnh viễn, kể cả Google Mobile Ads SDK không được khởi động nữa.
+    </p>
+
+    <h3>Apple StoreKit</h3>
+    <p>
+      Việc mua Premium được xử lý bởi Apple StoreKit. Chúng tôi không nhận thông tin thanh toán, số thẻ, hay danh tính Apple ID của bạn — chỉ một xác nhận giao dịch (transaction ID) để xác thực entitlement. Xem <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Chính sách quyền riêng tư của Apple</a>.
+    </p>
+
+    <h3>Apple iOS Frameworks</h3>
+    <p>
+      FastRemind sử dụng các framework hệ thống của Apple (UserNotifications, SwiftData, WidgetKit, LocalAuthentication). Đây là các API hệ thống chạy trên thiết bị của bạn — không gửi dữ liệu cho Apple ngoài những gì iOS đã làm sẵn.
+    </p>
+  </section>
+
+  <section id="permissions">
+    <h2><span class="num">05</span><span>Quyền truy cập thiết bị</span></h2>
+    <p>
+      FastRemind chỉ yêu cầu quyền khi bạn dùng tính năng tương ứng. Bạn có thể từ chối hoặc thu hồi bất cứ lúc nào trong iOS Settings.
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Thông báo</dt>
+        <dd>Để gửi nhắc nhở local trước hạn. Tất cả notification chạy trên thiết bị, không có push server.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Thư viện ảnh</dt>
+        <dd>Chỉ khi bạn chọn đính kèm ảnh biên lai. Ảnh được lưu cục bộ và không gửi đi đâu.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Face ID / Touch ID</dt>
+        <dd>Tuỳ chọn — chỉ khi bạn bật khoá ứng dụng. Apple xử lý xác thực sinh trắc học, app không nhận dữ liệu Face ID.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>App Tracking Transparency</dt>
+        <dd>Chỉ trên phiên bản miễn phí, để hỏi đồng ý cho AdMob cá nhân hoá quảng cáo.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section id="children">
+    <h2><span class="num">06</span><span>Trẻ em</span></h2>
+    <p>
+      FastRemind không hướng đến trẻ em dưới 13 tuổi và không cố ý thu thập thông tin từ trẻ em. Vì ứng dụng không yêu cầu tài khoản và không thu thập dữ liệu cá nhân, không có cơ chế nào để chúng tôi xác định độ tuổi người dùng.
+    </p>
+  </section>
+
+  <section id="changes">
+    <h2><span class="num">07</span><span>Thay đổi chính sách</span></h2>
+    <p>
+      Khi có thay đổi quan trọng, chúng tôi sẽ cập nhật ngày hiệu lực ở đầu trang này và thông báo qua bản update của ứng dụng (qua phần "Có gì mới"). Việc tiếp tục sử dụng ứng dụng sau khi cập nhật đồng nghĩa với việc bạn chấp nhận chính sách mới.
+    </p>
+  </section>
+
+  <section id="contact-vi">
+    <h2><span class="num">08</span><span>Liên hệ</span></h2>
+    <p>
+      Mọi thắc mắc về chính sách quyền riêng tư, vui lòng gửi về:
+    </p>
+    <p>
+      <strong>Email:</strong> <a href="mailto:dangtkhuong@gmail.com">dangtkhuong@gmail.com</a><br>
+      <strong>Trang hỗ trợ:</strong> <a href="https://fasteng.app/fastremind-support">https://fasteng.app/fastremind-support</a>
+    </p>
+  </section>
+
+</main>
+
+</div>
+
+<!-- ═══════════════════════════ ENGLISH ═══════════════════════════ -->
+
+<div data-lang="en">
+
+<section class="hero">
+  <span class="eyebrow">Privacy</span>
+  <h1>Your data <em>stays yours</em>.</h1>
+  <p class="lede">
+    FastRemind doesn't collect, sell, or share your personal information. All your financial data stays on your device — no servers, no accounts, no behavioral tracking.
+  </p>
+  <div class="meta">
+    <div>
+      <strong>Effective</strong>
+      <span>April 28, 2026</span>
+    </div>
+    <div>
+      <strong>Version</strong>
+      <span>1.0</span>
+    </div>
+    <div>
+      <strong>Applies to</strong>
+      <span>FastRemind for iOS</span>
+    </div>
+  </div>
+</section>
+
+<section class="tldr">
+  <div class="tldr-card">
+    <h2>The short version</h2>
+    <ul class="tldr-list">
+      <li>We don't ask for an account, email, or phone number.</li>
+      <li>Every reminder, payment, and receipt photo stays on your iPhone.</li>
+      <li>We don't operate servers that handle your personal data.</li>
+      <li>Ads (free tier only) come via Google AdMob — you can opt out of tracking in iOS.</li>
+      <li>You can wipe everything anytime via Settings → Delete all data.</li>
+    </ul>
+  </div>
+</section>
+
+<main class="content">
+
+  <section>
+    <h2><span class="num">01</span><span>Who we are</span></h2>
+    <p>
+      FastRemind ("the app", "we") is an iOS application for tracking personal financial reminders — bills, loans, and amounts owed. The app is developed and published by <strong>[Developer Name]</strong>, an independent developer based in Vietnam.
+    </p>
+    <p>
+      This privacy policy explains how FastRemind handles information when you use the app. Because FastRemind operates entirely offline, much of what follows describes what we <strong>don't</strong> do.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span><span>Information we collect</span></h2>
+    <p>
+      <strong>We don't collect any personal information.</strong> Specifically, we don't collect:
+    </p>
+    <ul>
+      <li>Your name, email, phone number, or any identifying information</li>
+      <li>Your geographic location</li>
+      <li>Contacts, calendars, photos, or any data outside the app</li>
+      <li>Usage analytics, behavioral tracking, or telemetry</li>
+      <li>Payment history, account balances, or banking information</li>
+    </ul>
+    <p>
+      FastRemind has no sign-up, login, or user account system of any kind.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span><span>Data stored on your device</span></h2>
+    <p>
+      When you use FastRemind, the following information is stored <strong>locally on your iPhone</strong> (via SwiftData and an iOS App Group). Nothing is transmitted off your device:
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Reminders</dt>
+        <dd>Title, amount, due date, category, interest rate, notes, recurring schedule.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Payments</dt>
+        <dd>Paid amount, payment date, notes, receipt photo (if you choose to attach one).</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Preferences</dt>
+        <dd>Appearance, language, theme color, notification settings, Premium status, streak.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Display name</dt>
+        <dd>If you enter one during onboarding — used only locally for greetings.</dd>
+      </dl>
+    </div>
+    <p>
+      You can delete all of this data at any time via <strong>Settings → Delete all data</strong>, or by uninstalling the app.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span><span>Third-party services</span></h2>
+
+    <h3>Google AdMob (free tier only)</h3>
+    <p>
+      FastRemind shows banner and interstitial ads to free users via <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Mobile Ads SDK</a>. When you use the app:
+    </p>
+    <ul>
+      <li>iOS shows an App Tracking Transparency (ATT) prompt asking whether Google may use an identifier to show more relevant ads.</li>
+      <li>If you <strong>allow</strong>: Google receives the IDFA to personalize ads.</li>
+      <li>If you <strong>deny</strong>: only non-personalized ads are shown, with no tracking data exchanged.</li>
+      <li>You can change this at any time in <strong>iOS Settings → Privacy → Tracking</strong>.</li>
+    </ul>
+    <p>
+      Once you purchase FastRemind Premium, ads are disabled permanently and Google Mobile Ads SDK no longer initializes.
+    </p>
+
+    <h3>Apple StoreKit</h3>
+    <p>
+      Premium purchases are handled by Apple StoreKit. We don't receive payment information, card numbers, or your Apple ID — just a transaction receipt to verify entitlement. See <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's Privacy Policy</a>.
+    </p>
+
+    <h3>Apple iOS Frameworks</h3>
+    <p>
+      FastRemind uses Apple's system frameworks (UserNotifications, SwiftData, WidgetKit, LocalAuthentication). These are on-device system APIs — no data is sent to Apple beyond what iOS already does by default.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span><span>Device permissions</span></h2>
+    <p>
+      FastRemind only requests permissions when you use the relevant feature. You can deny or revoke any permission anytime in iOS Settings.
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Notifications</dt>
+        <dd>For sending local reminders before due dates. All notifications are local — no push server is involved.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Photo Library</dt>
+        <dd>Only when you attach a receipt photo. Photos stay local and are not transmitted.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Face ID / Touch ID</dt>
+        <dd>Optional — only when you enable app lock. Biometric authentication is handled by Apple; the app never receives Face ID data.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>App Tracking Transparency</dt>
+        <dd>Free tier only, to ask consent for AdMob ad personalization.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span><span>Children</span></h2>
+    <p>
+      FastRemind is not directed at children under 13 and does not knowingly collect data from them. Because the app requires no account and collects no personal data, we have no mechanism to identify a user's age.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">07</span><span>Changes to this policy</span></h2>
+    <p>
+      When we make material changes, we'll update the effective date at the top of this page and note it in the app's "What's New" release notes. Continued use of the app after an update means you accept the revised policy.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">08</span><span>Contact</span></h2>
+    <p>
+      For privacy-related questions, please contact:
+    </p>
+    <p>
+      <strong>Email:</strong> <a href="mailto:dangtkhuong@gmail.com">dangtkhuong@gmail.com</a><br>
+      <strong>Support:</strong> <a href="https://fasteng.app/fastremind-support">https://fasteng.app/fastremind-support</a>
+    </p>
+  </section>
+
+</main>
+
+</div>
+
+<footer class="footer">
+  <div data-lang="vi">© 2026 FastRemind. Mọi quyền được bảo lưu.</div>
+  <div data-lang="en">© 2026 FastRemind. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="support.html" data-lang="vi">Hỗ trợ</a>
+    <a href="support.html" data-lang="en">Support</a>
+    <a href="#" data-lang="vi">Điều khoản</a>
+    <a href="#" data-lang="en">Terms</a>
+  </div>
+</footer>
+
+<script>
+  // Language toggle
+  const buttons = document.querySelectorAll('[data-lang-btn]');
+  const body = document.body;
+
+  function setLang(lang) {
+    if (lang === 'en') {
+      body.classList.add('lang-en');
+      document.documentElement.lang = 'en';
+    } else {
+      body.classList.remove('lang-en');
+      document.documentElement.lang = 'vi';
+    }
+    buttons.forEach(b => {
+      b.classList.toggle('active', b.dataset.langBtn === lang);
+    });
+    try { localStorage.setItem('fr_lang', lang); } catch(e) {}
+  }
+
+  buttons.forEach(b => {
+    b.addEventListener('click', () => setLang(b.dataset.langBtn));
+  });
+
+  // Restore saved language
+  try {
+    const saved = localStorage.getItem('fr_lang');
+    if (saved) setLang(saved);
+  } catch(e) {}
+</script>
+
+</body>
+</html>

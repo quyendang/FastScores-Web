@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support — FastRemind</title>
+<meta name="description" content="Get help with FastRemind. FAQs, troubleshooting, and contact information.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafaf7;
+    --bg-elevated: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-muted: #8a8a8a;
+    --rule: #e8e6e0;
+    --mint: #5cc9a8;
+    --mint-soft: #e8f6f1;
+    --warning: #d97706;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 24px rgba(0,0,0,0.06);
+    --shadow-lg: 0 24px 60px -24px rgba(26,26,26,0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111111;
+      --bg-elevated: #1c1c1c;
+      --ink: #f5f5f0;
+      --ink-soft: #c8c8c0;
+      --ink-muted: #888880;
+      --rule: #2a2a28;
+      --mint: #6ed4b3;
+      --mint-soft: #1a2c26;
+      --shadow-md: 0 4px 24px rgba(0,0,0,0.4);
+      --shadow-lg: 0 24px 60px -24px rgba(0,0,0,0.5);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── Header ──────────────────────────── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(250, 250, 247, 0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--rule);
+  }
+  @media (prefers-color-scheme: dark) {
+    .header { background: rgba(17, 17, 17, 0.85); }
+  }
+
+  .header-inner {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink);
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--mint);
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .brand-name {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+  }
+
+  .lang-switch {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--rule);
+    border-radius: 99px;
+    font-size: 13px;
+  }
+  .lang-switch button {
+    border: 0;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 99px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--ink-soft);
+    transition: all 0.2s ease;
+  }
+  .lang-switch button.active {
+    background: var(--bg-elevated);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ── Hero ──────────────────────────── */
+  .hero {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 80px 24px 32px;
+    text-align: center;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mint);
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(40px, 6vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 20px;
+  }
+
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--mint);
+  }
+
+  .lede {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 52ch;
+    margin: 0 auto;
+  }
+
+  /* ── Quick links grid ─────────────────── */
+  .quick-grid {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .quick-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    padding: 28px 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .quick-card:hover {
+    border-color: var(--mint);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .quick-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--mint-soft);
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+  }
+
+  .quick-card h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 20px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  .quick-card p {
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  .quick-card .arrow {
+    color: var(--mint);
+    font-size: 18px;
+    margin-top: 4px;
+  }
+
+  /* ── Section ──────────────────────────── */
+  .section {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  .section-sub {
+    color: var(--ink-soft);
+    margin-bottom: 32px;
+  }
+
+  /* ── FAQ accordion ────────────────────── */
+  .faq {
+    background: var(--bg-elevated);
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .faq-item {
+    border-bottom: 1px solid var(--rule);
+  }
+  .faq-item:last-child { border-bottom: 0; }
+
+  .faq-question {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    padding: 22px 28px;
+    text-align: left;
+    font-family: inherit;
+    font-size: 16.5px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    transition: background 0.15s ease;
+  }
+  .faq-question:hover { background: var(--mint-soft); }
+
+  .faq-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--rule);
+    color: var(--ink-soft);
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    transition: all 0.25s ease;
+  }
+
+  .faq-item[open] .faq-icon {
+    background: var(--mint);
+    color: white;
+    transform: rotate(45deg);
+  }
+
+  .faq-answer {
+    padding: 0 28px 24px;
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    line-height: 1.65;
+  }
+
+  .faq-answer p { margin-bottom: 12px; }
+  .faq-answer p:last-child { margin-bottom: 0; }
+
+  .faq-answer ul, .faq-answer ol {
+    padding-left: 24px;
+    margin-bottom: 12px;
+  }
+
+  .faq-answer li { margin-bottom: 6px; }
+
+  .faq-answer code {
+    background: var(--rule);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .faq-answer strong { color: var(--ink); font-weight: 600; }
+
+  /* details/summary marker reset */
+  details summary { list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+
+  /* ── Contact CTA ──────────────────────── */
+  .contact-cta {
+    max-width: 880px;
+    margin: 32px auto 80px;
+    padding: 0 24px;
+  }
+
+  .contact-card {
+    background: linear-gradient(135deg, var(--mint-soft), var(--bg-elevated));
+    border: 1px solid color-mix(in srgb, var(--mint) 25%, transparent);
+    border-radius: 28px;
+    padding: 48px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .contact-card::before {
+    content: "";
+    position: absolute;
+    top: -100px;
+    right: -100px;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--mint) 20%, transparent) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .contact-card-inner { position: relative; z-index: 1; }
+
+  .contact-card h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    color: var(--ink);
+  }
+
+  .contact-card p {
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+    max-width: 48ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .contact-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 28px;
+    border-radius: 99px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: 0;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .btn-primary:hover {
+    background: var(--mint);
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: var(--bg-elevated);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+  }
+  .btn-secondary:hover {
+    border-color: var(--mint);
+    color: var(--mint);
+  }
+
+  /* ── Info chips ─────────────────────── */
+  .info-strip {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .info-chip {
+    background: var(--bg-elevated);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 16px 20px;
+    font-size: 14px;
+  }
+
+  .info-chip-label {
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+
+  .info-chip-value {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ── Footer ──────────────────────────── */
+  .footer {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+
+  .footer-links a {
+    text-decoration: none;
+    color: var(--ink-soft);
+  }
+  .footer-links a:hover { color: var(--mint); }
+
+  /* ── Lang toggle ────────────────────── */
+  [data-lang="en"] { display: none; }
+  body.lang-en [data-lang="vi"] { display: none; }
+  body.lang-en [data-lang="en"] { display: block; }
+  body.lang-en span[data-lang="en"] { display: inline; }
+
+  /* Print friendly */
+  @media print {
+    .header, .lang-switch, .footer, .contact-cta { display: none; }
+    body { background: white; color: black; }
+    .faq-item { break-inside: avoid; }
+    details { display: block; }
+    details > * { display: block !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <a href="privacy.html" class="brand">
+      <span class="brand-mark">F</span>
+      <span class="brand-name">FastRemind</span>
+    </a>
+    <div class="lang-switch" role="tablist">
+      <button class="active" data-lang-btn="vi">Tiếng Việt</button>
+      <button data-lang-btn="en">English</button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ TIẾNG VIỆT ═══════════════════════════ -->
+
+<div data-lang="vi">
+
+<section class="hero">
+  <span class="eyebrow">Trung tâm hỗ trợ</span>
+  <h1>Cần giúp gì <em>cho bạn</em>?</h1>
+  <p class="lede">
+    Câu trả lời cho hầu hết câu hỏi đều ở dưới đây. Nếu bạn vẫn cần trợ giúp, gửi email cho chúng tôi — chúng tôi đọc tất cả tin nhắn.
+  </p>
+</section>
+
+<div class="info-strip">
+  <div class="info-chip">
+    <div class="info-chip-label">Phiên bản</div>
+    <div class="info-chip-value">1.0.0</div>
+  </div>
+  <div class="info-chip">
+    <div class="info-chip-label">iOS tối thiểu</div>
+    <div class="info-chip-value">iOS 17+</div>
+  </div>
+  <div class="info-chip">
+    <div class="info-chip-label">Phản hồi</div>
+    <div class="info-chip-value">trong 48 giờ</div>
+  </div>
+  <div class="info-chip">
+    <div class="info-chip-label">Ngôn ngữ</div>
+    <div class="info-chip-value">VI · EN</div>
+  </div>
+</div>
+
+<div class="quick-grid">
+  <a href="#getting-started" class="quick-card">
+    <div class="quick-icon">🚀</div>
+    <h3>Bắt đầu</h3>
+    <p>Cách tạo nhắc nhở đầu tiên và cài đặt thông báo.</p>
+    <span class="arrow">→</span>
+  </a>
+  <a href="#premium" class="quick-card">
+    <div class="quick-icon">✨</div>
+    <h3>Premium & IAP</h3>
+    <p>Mua, khôi phục giao dịch, và quản lý đăng ký.</p>
+    <span class="arrow">→</span>
+  </a>
+  <a href="#troubleshooting" class="quick-card">
+    <div class="quick-icon">🔧</div>
+    <h3>Khắc phục sự cố</h3>
+    <p>Thông báo không hiện, widget không cập nhật, đồng bộ.</p>
+    <span class="arrow">→</span>
+  </a>
+  <a href="#contact" class="quick-card">
+    <div class="quick-icon">✉️</div>
+    <h3>Liên hệ</h3>
+    <p>Gửi email cho nhà phát triển. Chúng tôi đọc mọi phản hồi.</p>
+    <span class="arrow">→</span>
+  </a>
+</div>
+
+<section class="section" id="getting-started">
+  <h2 class="section-title">Bắt đầu</h2>
+  <p class="section-sub">Những điều cần biết khi bạn mở app lần đầu.</p>
+
+  <div class="faq">
+    <details class="faq-item">
+      <summary class="faq-question">
+        Làm sao để tạo nhắc nhở đầu tiên?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Mở tab <strong>Trang chủ</strong>, nhấn nút <strong>"+" floating</strong> ở góc phải dưới. Điền tiêu đề, số tiền, ngày đến hạn và chọn loại (phải trả hoặc sẽ thu). Nhấn <strong>Lưu</strong> là xong.</p>
+        <p>Bạn có thể nhập thêm lãi suất, phí trễ hạn, lặp lại định kỳ ở mục <strong>Nâng cao</strong>.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        FastRemind có cần đăng ký tài khoản không?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Không. FastRemind hoạt động hoàn toàn ngoại tuyến. Không cần email, không cần mật khẩu, không cần đăng nhập. Bạn chỉ việc mở app và dùng ngay.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Dữ liệu của tôi được lưu ở đâu?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Tất cả dữ liệu (nhắc nhở, lịch sử thanh toán, ảnh biên lai) được lưu <strong>cục bộ trên iPhone của bạn</strong>. Không có server, không có cloud sync, không có ai khác có thể xem được.</p>
+        <p>Khi bạn gỡ app, toàn bộ dữ liệu sẽ bị xoá vĩnh viễn. Hãy xuất CSV trước nếu bạn muốn sao lưu.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Cách tính lãi suất hoạt động như thế nào?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Khi bạn nhập <strong>lãi suất % tháng</strong>, FastRemind tự động tính lãi từ <strong>ngày bắt đầu tính lãi</strong> đến hôm nay theo công thức:</p>
+        <ul>
+          <li><strong>Lãi đơn:</strong> Gốc × Lãi suất × (Số ngày / 30)</li>
+          <li><strong>Lãi kép:</strong> Gốc × (1 + Lãi suất)^(Số tháng) − Gốc</li>
+        </ul>
+        <p>FastRemind dùng quy ước <strong>30 ngày = 1 tháng</strong> để tính nhanh và nhất quán.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Phí trễ hạn được tính ra sao?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Phí trễ áp dụng <strong>chỉ cho khoản phải trả</strong> đã quá hạn. Mỗi ngày sau hạn, app cộng thêm: Gốc × Phí trễ % ngày.</p>
+        <p>Phí trễ tối đa được cap ở <strong>10% gốc</strong> để tránh tích luỹ vượt mức.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="section" id="premium">
+  <h2 class="section-title">Premium & In-App Purchase</h2>
+  <p class="section-sub">Gói Premium mua một lần dùng trọn đời, không phải subscription.</p>
+
+  <div class="faq">
+    <details class="faq-item">
+      <summary class="faq-question">
+        FastRemind Premium gồm những gì?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <ul>
+          <li><strong>Bỏ giới hạn 5 nhắc nhở</strong> — tạo bao nhiêu cũng được.</li>
+          <li><strong>Bỏ toàn bộ quảng cáo</strong> — không banner, không interstitial, vĩnh viễn.</li>
+          <li><strong>Mở khoá 8 màu giao diện</strong> — tuỳ chỉnh theme yêu thích.</li>
+          <li><strong>Hỗ trợ nhà phát triển độc lập</strong> tiếp tục cải tiến app.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Đây có phải subscription hàng tháng không?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p><strong>Không.</strong> FastRemind Premium là gói <strong>mua một lần, dùng trọn đời</strong>. Bạn trả một lần duy nhất, dùng vĩnh viễn trên mọi iPhone đăng nhập cùng Apple ID.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Tôi đã mua nhưng đổi sang iPhone mới — làm sao lấy lại?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Vào <strong>Cài đặt → FastRemind Premium → Khôi phục giao dịch</strong>. App sẽ kiểm tra lại Apple ID và tự động kích hoạt lại Premium nếu bạn đã từng mua.</p>
+        <p>Lưu ý: Bạn phải đăng nhập cùng Apple ID đã dùng để mua.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Tôi muốn yêu cầu hoàn tiền — làm thế nào?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Hoàn tiền IAP do Apple xử lý, không phải FastRemind. Bạn có thể yêu cầu hoàn tiền tại <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener">reportaproblem.apple.com</a> trong vòng 90 ngày kể từ ngày mua.</p>
+        <p>Apple thường phản hồi trong 24–48 giờ.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="section" id="troubleshooting">
+  <h2 class="section-title">Khắc phục sự cố</h2>
+  <p class="section-sub">Những vấn đề thường gặp và cách xử lý.</p>
+
+  <div class="faq">
+    <details class="faq-item">
+      <summary class="faq-question">
+        Tôi không nhận được thông báo nhắc nhở
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Kiểm tra theo thứ tự:</p>
+        <ol>
+          <li><strong>iOS Settings → Notifications → FastRemind</strong> → bật <strong>Allow Notifications</strong>.</li>
+          <li>Đảm bảo các kiểu cảnh báo (Lock Screen, Notification Center, Banners) đều bật.</li>
+          <li>Kiểm tra <strong>Focus Mode / Do Not Disturb</strong> trên iPhone của bạn.</li>
+          <li>Trong app: <strong>Cài đặt → Thông báo</strong> → đảm bảo bạn đã chọn ngày nhắc trước hạn.</li>
+          <li>Kiểm tra reminder đó có đang ở trạng thái <strong>Tắt tiếng</strong> không.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Widget trên Home Screen không cập nhật
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Widget của iOS được cập nhật theo lịch của hệ thống — không phải mỗi khi bạn thay đổi data. Thử các cách:</p>
+        <ol>
+          <li>Chờ vài phút và kiểm tra lại — iOS sẽ tự refresh.</li>
+          <li>Mở app FastRemind → đợi vài giây → quay lại Home Screen.</li>
+          <li>Gỡ widget và thêm lại từ widget gallery.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Số tiền hiển thị sai sau khi đánh dấu đã trả
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>FastRemind tính lãi và phí trễ <strong>real-time</strong> đến thời điểm hiện tại. Nếu reminder có lãi suất, số tiền còn lại có thể tăng theo ngày dù bạn đã trả một phần.</p>
+        <p>Khi bạn thanh toán <strong>đủ toàn bộ</strong>, app sẽ "đóng băng" tính lãi tại thời điểm đó. Từ đó về sau, số tiền không tăng nữa.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Face ID không hoạt động khi mở app
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Đảm bảo bạn đã bật <strong>Cài đặt → Bảo mật → Khoá ứng dụng bằng Face ID</strong>. Nếu vẫn không hoạt động:</p>
+        <ol>
+          <li>Vào <strong>iOS Settings → Face ID & Passcode</strong> → đảm bảo Face ID hoạt động.</li>
+          <li>Vào <strong>iOS Settings → FastRemind</strong> → cấp quyền Face ID.</li>
+          <li>Khởi động lại iPhone.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Làm sao xuất dữ liệu để sao lưu?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Vào <strong>Cài đặt → Dữ liệu → Xuất CSV</strong>. App sẽ tạo file CSV chứa toàn bộ nhắc nhở và lịch sử thanh toán, sau đó mở Share Sheet để bạn lưu vào Files, gửi email, hoặc backup lên iCloud Drive.</p>
+        <p>Bạn nên xuất CSV định kỳ trước khi nâng cấp iOS lớn hoặc đổi máy.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="contact-cta" id="contact">
+  <div class="contact-card">
+    <div class="contact-card-inner">
+      <h2>Vẫn cần trợ giúp?</h2>
+      <p>Email là cách nhanh nhất để liên hệ với nhà phát triển. Chúng tôi đọc mọi tin nhắn và thường phản hồi trong vòng 48 giờ.</p>
+      <div class="contact-actions">
+        <a href="mailto:dangtkhuong@gmail.com?subject=FastRemind%20Support" class="btn btn-primary">
+          ✉ Gửi email hỗ trợ
+        </a>
+        <a href="privacy.html" class="btn btn-secondary">
+          Xem chính sách quyền riêng tư
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- ═══════════════════════════ ENGLISH ═══════════════════════════ -->
+
+<div data-lang="en">
+
+<section class="hero">
+  <span class="eyebrow">Help Center</span>
+  <h1>How can we <em>help you</em>?</h1>
+  <p class="lede">
+    Most questions have answers below. If you still need help, send us an email — we read every message.
+  </p>
+</section>
+
+<div class="info-strip">
+  <div class="info-chip">
+    <div class="info-chip-label">Version</div>
+    <div class="info-chip-value">1.0.0</div>
+  </div>
+  <div class="info-chip">
+    <div class="info-chip-label">Min iOS</div>
+    <div class="info-chip-value">iOS 17+</div>
+  </div>
+  <div class="info-chip">
+    <div class="info-chip-label">Reply time</div>
+    <div class="info-chip-value">within 48 hrs</div>
+  </div>
+  <div class="info-chip">
+    <div class="info-chip-label">Languages</div>
+    <div class="info-chip-value">VI · EN</div>
+  </div>
+</div>
+
+<div class="quick-grid">
+  <a href="#getting-started-en" class="quick-card">
+    <div class="quick-icon">🚀</div>
+    <h3>Getting started</h3>
+    <p>How to create your first reminder and configure notifications.</p>
+    <span class="arrow">→</span>
+  </a>
+  <a href="#premium-en" class="quick-card">
+    <div class="quick-icon">✨</div>
+    <h3>Premium & IAP</h3>
+    <p>Purchase, restore transactions, and manage your access.</p>
+    <span class="arrow">→</span>
+  </a>
+  <a href="#troubleshooting-en" class="quick-card">
+    <div class="quick-icon">🔧</div>
+    <h3>Troubleshooting</h3>
+    <p>Notifications not showing, widget not updating, sync issues.</p>
+    <span class="arrow">→</span>
+  </a>
+  <a href="#contact-en" class="quick-card">
+    <div class="quick-icon">✉️</div>
+    <h3>Contact</h3>
+    <p>Email the developer directly. We read every message.</p>
+    <span class="arrow">→</span>
+  </a>
+</div>
+
+<section class="section" id="getting-started-en">
+  <h2 class="section-title">Getting started</h2>
+  <p class="section-sub">What to know when you first open the app.</p>
+
+  <div class="faq">
+    <details class="faq-item">
+      <summary class="faq-question">
+        How do I create my first reminder?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Open the <strong>Home</strong> tab, tap the <strong>floating "+" button</strong> in the bottom-right. Fill in the title, amount, due date, and choose the type (Payable or Receivable). Tap <strong>Save</strong> and you're done.</p>
+        <p>You can add interest rate, late fees, and recurring schedules in the <strong>Advanced</strong> section.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Does FastRemind require an account?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>No. FastRemind works fully offline. No email, no password, no login. Just open the app and start using it immediately.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Where is my data stored?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>All your data (reminders, payment history, receipt photos) is stored <strong>locally on your iPhone</strong>. No servers, no cloud sync, no one else can see it.</p>
+        <p>If you uninstall the app, your data is permanently deleted. Export to CSV first if you want a backup.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        How does the interest calculation work?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>When you enter a <strong>monthly interest rate</strong>, FastRemind calculates interest from the <strong>start date</strong> to today using:</p>
+        <ul>
+          <li><strong>Simple interest:</strong> Principal × Rate × (Days / 30)</li>
+          <li><strong>Compound interest:</strong> Principal × (1 + Rate)^(Months) − Principal</li>
+        </ul>
+        <p>FastRemind uses a <strong>30-day month convention</strong> for fast, consistent calculation.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        How are late fees calculated?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Late fees apply <strong>only to overdue Payable reminders</strong>. For each day past due, the app adds: Principal × daily late fee %.</p>
+        <p>Total late fees are capped at <strong>10% of principal</strong> to prevent runaway accumulation.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="section" id="premium-en">
+  <h2 class="section-title">Premium & In-App Purchase</h2>
+  <p class="section-sub">Premium is a one-time, lifetime unlock — not a subscription.</p>
+
+  <div class="faq">
+    <details class="faq-item">
+      <summary class="faq-question">
+        What's included in FastRemind Premium?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <ul>
+          <li><strong>Unlimited reminders</strong> — no more 5-reminder cap.</li>
+          <li><strong>No ads, ever</strong> — no banners, no interstitials, permanently.</li>
+          <li><strong>All 8 color themes unlocked</strong> — pick your favorite.</li>
+          <li><strong>Support an indie developer</strong> who keeps improving the app.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Is this a monthly subscription?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p><strong>No.</strong> FastRemind Premium is a <strong>one-time purchase, lifetime access</strong>. Pay once, use forever on every iPhone signed in to the same Apple ID.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        I bought Premium but switched to a new iPhone — how do I get it back?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Go to <strong>Settings → FastRemind Premium → Restore Purchases</strong>. The app will check your Apple ID and re-activate Premium automatically if you've previously purchased.</p>
+        <p>Note: You must be signed in with the same Apple ID used for the original purchase.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        How do I request a refund?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>IAP refunds are handled by Apple, not FastRemind. You can request a refund at <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener">reportaproblem.apple.com</a> within 90 days of purchase.</p>
+        <p>Apple typically responds within 24–48 hours.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="section" id="troubleshooting-en">
+  <h2 class="section-title">Troubleshooting</h2>
+  <p class="section-sub">Common issues and how to fix them.</p>
+
+  <div class="faq">
+    <details class="faq-item">
+      <summary class="faq-question">
+        I'm not getting reminder notifications
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Check in this order:</p>
+        <ol>
+          <li><strong>iOS Settings → Notifications → FastRemind</strong> → enable <strong>Allow Notifications</strong>.</li>
+          <li>Make sure all alert styles (Lock Screen, Notification Center, Banners) are on.</li>
+          <li>Check your <strong>Focus Mode / Do Not Disturb</strong> settings.</li>
+          <li>In-app: <strong>Settings → Notifications</strong> → ensure you've selected reminder days before due.</li>
+          <li>Check whether the reminder is set to <strong>Muted</strong>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        The Home Screen widget isn't updating
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>iOS widgets refresh on a system-controlled schedule — not every time you change data. Try:</p>
+        <ol>
+          <li>Wait a few minutes — iOS will refresh automatically.</li>
+          <li>Open FastRemind → wait a few seconds → return to Home Screen.</li>
+          <li>Remove and re-add the widget from the gallery.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Amount looks wrong after marking as paid
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>FastRemind calculates interest and late fees <strong>in real time</strong> up to the current moment. If a reminder has interest, the remaining amount can grow daily even after a partial payment.</p>
+        <p>When you pay it off <strong>in full</strong>, the app freezes interest accrual at that point. From then on, the amount stops growing.</p>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        Face ID doesn't work when opening the app
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Make sure you've enabled <strong>Settings → Privacy → Lock app with Face ID</strong> in the app. If it still doesn't work:</p>
+        <ol>
+          <li>Go to <strong>iOS Settings → Face ID & Passcode</strong> → confirm Face ID is working.</li>
+          <li>Go to <strong>iOS Settings → FastRemind</strong> → grant Face ID permission.</li>
+          <li>Restart your iPhone.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="faq-item">
+      <summary class="faq-question">
+        How do I export my data for backup?
+        <span class="faq-icon">+</span>
+      </summary>
+      <div class="faq-answer">
+        <p>Go to <strong>Settings → Data → Export CSV</strong>. The app generates a CSV file with all your reminders and payment history, then opens the Share Sheet so you can save it to Files, email it, or back up to iCloud Drive.</p>
+        <p>We recommend exporting CSV regularly before major iOS upgrades or device changes.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="contact-cta" id="contact-en">
+  <div class="contact-card">
+    <div class="contact-card-inner">
+      <h2>Still need help?</h2>
+      <p>Email is the fastest way to reach the developer. We read every message and usually reply within 48 hours.</p>
+      <div class="contact-actions">
+        <a href="mailto:dangtkhuong@gmail.com?subject=FastRemind%20Support" class="btn btn-primary">
+          ✉ Email support
+        </a>
+        <a href="privacy.html" class="btn btn-secondary">
+          View privacy policy
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer class="footer">
+  <div data-lang="vi">© 2026 FastRemind. Mọi quyền được bảo lưu.</div>
+  <div data-lang="en">© 2026 FastRemind. All rights reserved.</div>
+  <div class="footer-links">
+    <a href="privacy.html" data-lang="vi">Quyền riêng tư</a>
+    <a href="privacy.html" data-lang="en">Privacy</a>
+    <a href="#" data-lang="vi">Điều khoản</a>
+    <a href="#" data-lang="en">Terms</a>
+  </div>
+</footer>
+
+<script>
+  // Language toggle
+  const buttons = document.querySelectorAll('[data-lang-btn]');
+  const body = document.body;
+
+  function setLang(lang) {
+    if (lang === 'en') {
+      body.classList.add('lang-en');
+      document.documentElement.lang = 'en';
+    } else {
+      body.classList.remove('lang-en');
+      document.documentElement.lang = 'vi';
+    }
+    buttons.forEach(b => {
+      b.classList.toggle('active', b.dataset.langBtn === lang);
+    });
+    try { localStorage.setItem('fr_lang', lang); } catch(e) {}
+  }
+
+  buttons.forEach(b => {
+    b.addEventListener('click', () => setLang(b.dataset.langBtn));
+  });
+
+  // Restore saved language
+  try {
+    const saved = localStorage.getItem('fr_lang');
+    if (saved) setLang(saved);
+  } catch(e) {}
+
+  // Auto-close other FAQs when one opens (optional UX)
+  document.querySelectorAll('.faq').forEach(faq => {
+    faq.addEventListener('click', (e) => {
+      const item = e.target.closest('.faq-item');
+      if (!item || !item.hasAttribute('open')) return;
+      // (kept open behavior — no auto-close, allow multi-expand)
+    });
+  });
+</script>
+
+</body>
+</html>
