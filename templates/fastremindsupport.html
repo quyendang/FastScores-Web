@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Support — FastRemind</title>
-<meta name="description" content="Get help with FastRemind. FAQs, troubleshooting, and contact information.">
+<title>Privacy Policy — FastRemind</title>
+<meta name="description" content="FastRemind privacy policy. We don't collect, sell, or share your personal data. Everything stays on your device.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -40,6 +40,7 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   html { scroll-behavior: smooth; }
 
   body {
@@ -50,6 +51,7 @@
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   /* ── Header ──────────────────────────── */
@@ -67,7 +69,7 @@
   }
 
   .header-inner {
-    max-width: 880px;
+    max-width: 720px;
     margin: 0 auto;
     padding: 16px 24px;
     display: flex;
@@ -93,6 +95,7 @@
     color: #fff;
     font-weight: 700;
     font-size: 15px;
+    letter-spacing: -0.01em;
   }
 
   .brand-name {
@@ -129,10 +132,9 @@
 
   /* ── Hero ──────────────────────────── */
   .hero {
-    max-width: 880px;
+    max-width: 720px;
     margin: 0 auto;
-    padding: 80px 24px 32px;
-    text-align: center;
+    padding: 80px 24px 48px;
   }
 
   .eyebrow {
@@ -148,7 +150,7 @@
   h1 {
     font-family: 'Fraunces', serif;
     font-weight: 500;
-    font-size: clamp(40px, 6vw, 60px);
+    font-size: clamp(40px, 6vw, 56px);
     line-height: 1.05;
     letter-spacing: -0.025em;
     color: var(--ink);
@@ -165,297 +167,184 @@
     font-size: 19px;
     line-height: 1.55;
     color: var(--ink-soft);
-    max-width: 52ch;
-    margin: 0 auto;
+    max-width: 56ch;
   }
 
-  /* ── Quick links grid ─────────────────── */
-  .quick-grid {
-    max-width: 880px;
+  .meta {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+
+  .meta strong {
+    display: block;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  /* ── TL;DR Pill Card ──────────────────── */
+  .tldr {
+    max-width: 720px;
     margin: 0 auto;
-    padding: 48px 24px;
+    padding: 0 24px 48px;
+  }
+
+  .tldr-card {
+    background: var(--mint-soft);
+    border-radius: 24px;
+    padding: 32px;
+    border: 1px solid color-mix(in srgb, var(--mint) 20%, transparent);
+  }
+
+  .tldr-card h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+    color: var(--ink);
+  }
+
+  .tldr-list {
+    list-style: none;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  .tldr-list li {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    color: var(--ink-soft);
+    font-size: 15.5px;
+  }
+
+  .tldr-list li::before {
+    content: "→";
+    color: var(--mint);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  /* ── Content ──────────────────────────── */
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  section {
+    margin-bottom: 56px;
+    scroll-margin-top: 96px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 28px;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
     gap: 16px;
   }
 
-  .quick-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--rule);
-    border-radius: 20px;
-    padding: 28px 24px;
-    text-decoration: none;
-    color: inherit;
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .quick-card:hover {
-    border-color: var(--mint);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .quick-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: var(--mint-soft);
-    display: grid;
-    place-items: center;
-    font-size: 22px;
-  }
-
-  .quick-card h3 {
-    font-family: 'Fraunces', serif;
+  h2 .num {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
     font-weight: 500;
-    font-size: 20px;
-    color: var(--ink);
-    letter-spacing: -0.01em;
+    color: var(--ink-muted);
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
   }
 
-  .quick-card p {
-    font-size: 14.5px;
+  h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-top: 28px;
+    margin-bottom: 12px;
+  }
+
+  p {
     color: var(--ink-soft);
-    line-height: 1.5;
+    margin-bottom: 16px;
   }
 
-  .quick-card .arrow {
-    color: var(--mint);
-    font-size: 18px;
-    margin-top: 4px;
+  ul, ol {
+    color: var(--ink-soft);
+    padding-left: 24px;
+    margin-bottom: 16px;
   }
 
-  /* ── Section ──────────────────────────── */
-  .section {
-    max-width: 880px;
-    margin: 0 auto;
-    padding: 32px 24px;
-  }
-
-  .section-title {
-    font-family: 'Fraunces', serif;
-    font-weight: 500;
-    font-size: 32px;
-    letter-spacing: -0.02em;
-    color: var(--ink);
+  li {
     margin-bottom: 8px;
   }
 
-  .section-sub {
-    color: var(--ink-soft);
-    margin-bottom: 32px;
+  strong {
+    color: var(--ink);
+    font-weight: 600;
   }
 
-  /* ── FAQ accordion ────────────────────── */
-  .faq {
+  a {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--mint);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1.5px;
+    transition: color 0.2s ease;
+  }
+  a:hover { color: var(--mint); }
+
+  /* ── Data Table Card ─────────────────── */
+  .data-table {
     background: var(--bg-elevated);
     border: 1px solid var(--rule);
-    border-radius: 20px;
+    border-radius: 16px;
     overflow: hidden;
+    margin: 20px 0;
   }
 
-  .faq-item {
-    border-bottom: 1px solid var(--rule);
-  }
-  .faq-item:last-child { border-bottom: 0; }
-
-  .faq-question {
-    width: 100%;
-    background: transparent;
-    border: 0;
-    padding: 22px 28px;
-    text-align: left;
-    font-family: inherit;
-    font-size: 16.5px;
-    font-weight: 600;
-    color: var(--ink);
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .data-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
     gap: 24px;
-    transition: background 0.15s ease;
-  }
-  .faq-question:hover { background: var(--mint-soft); }
-
-  .faq-icon {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--rule);
-    color: var(--ink-soft);
-    display: grid;
-    place-items: center;
-    font-size: 14px;
-    transition: all 0.25s ease;
-  }
-
-  .faq-item[open] .faq-icon {
-    background: var(--mint);
-    color: white;
-    transform: rotate(45deg);
-  }
-
-  .faq-answer {
-    padding: 0 28px 24px;
-    color: var(--ink-soft);
-    font-size: 15.5px;
-    line-height: 1.65;
-  }
-
-  .faq-answer p { margin-bottom: 12px; }
-  .faq-answer p:last-child { margin-bottom: 0; }
-
-  .faq-answer ul, .faq-answer ol {
-    padding-left: 24px;
-    margin-bottom: 12px;
-  }
-
-  .faq-answer li { margin-bottom: 6px; }
-
-  .faq-answer code {
-    background: var(--rule);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  }
-
-  .faq-answer strong { color: var(--ink); font-weight: 600; }
-
-  /* details/summary marker reset */
-  details summary { list-style: none; }
-  details summary::-webkit-details-marker { display: none; }
-
-  /* ── Contact CTA ──────────────────────── */
-  .contact-cta {
-    max-width: 880px;
-    margin: 32px auto 80px;
-    padding: 0 24px;
-  }
-
-  .contact-card {
-    background: linear-gradient(135deg, var(--mint-soft), var(--bg-elevated));
-    border: 1px solid color-mix(in srgb, var(--mint) 25%, transparent);
-    border-radius: 28px;
-    padding: 48px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .contact-card::before {
-    content: "";
-    position: absolute;
-    top: -100px;
-    right: -100px;
-    width: 280px;
-    height: 280px;
-    background: radial-gradient(circle, color-mix(in srgb, var(--mint) 20%, transparent) 0%, transparent 70%);
-    border-radius: 50%;
-    pointer-events: none;
-  }
-
-  .contact-card-inner { position: relative; z-index: 1; }
-
-  .contact-card h2 {
-    font-family: 'Fraunces', serif;
-    font-weight: 500;
-    font-size: 32px;
-    letter-spacing: -0.02em;
-    margin-bottom: 12px;
-    color: var(--ink);
-  }
-
-  .contact-card p {
-    color: var(--ink-soft);
-    margin-bottom: 28px;
-    max-width: 48ch;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .contact-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 13px 28px;
-    border-radius: 99px;
-    font-family: inherit;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--rule);
     font-size: 15px;
+  }
+  .data-row:last-child { border-bottom: 0; }
+
+  .data-row dt {
     font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    border: 0;
-    transition: all 0.2s ease;
-  }
-
-  .btn-primary {
-    background: var(--ink);
-    color: var(--bg);
-  }
-  .btn-primary:hover {
-    background: var(--mint);
-    color: white;
-    transform: translateY(-1px);
-  }
-
-  .btn-secondary {
-    background: var(--bg-elevated);
     color: var(--ink);
-    border: 1px solid var(--rule);
-  }
-  .btn-secondary:hover {
-    border-color: var(--mint);
-    color: var(--mint);
   }
 
-  /* ── Info chips ─────────────────────── */
-  .info-strip {
-    max-width: 880px;
-    margin: 0 auto;
-    padding: 0 24px 32px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
+  .data-row dd {
+    color: var(--ink-soft);
   }
 
-  .info-chip {
-    background: var(--bg-elevated);
-    border: 1px solid var(--rule);
-    border-radius: 14px;
-    padding: 16px 20px;
-    font-size: 14px;
-  }
-
-  .info-chip-label {
-    color: var(--ink-muted);
-    font-size: 12px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 4px;
-  }
-
-  .info-chip-value {
-    color: var(--ink);
-    font-weight: 600;
+  @media (max-width: 580px) {
+    .data-row {
+      grid-template-columns: 1fr;
+      gap: 4px;
+      padding: 16px 20px;
+    }
   }
 
   /* ── Footer ──────────────────────────── */
   .footer {
-    max-width: 880px;
+    max-width: 720px;
     margin: 0 auto;
     padding: 40px 24px 60px;
     border-top: 1px solid var(--rule);
@@ -483,15 +372,13 @@
   [data-lang="en"] { display: none; }
   body.lang-en [data-lang="vi"] { display: none; }
   body.lang-en [data-lang="en"] { display: block; }
-  body.lang-en span[data-lang="en"] { display: inline; }
+  body.lang-en li[data-lang="en"],
+  body.lang-en span[data-lang="en"] { display: inline-block; }
 
   /* Print friendly */
   @media print {
-    .header, .lang-switch, .footer, .contact-cta { display: none; }
+    .header, .lang-switch, .footer { display: none; }
     body { background: white; color: black; }
-    .faq-item { break-inside: avoid; }
-    details { display: block; }
-    details > * { display: block !important; }
   }
 </style>
 </head>
@@ -499,7 +386,7 @@
 
 <header class="header">
   <div class="header-inner">
-    <a href="privacy.html" class="brand">
+    <a href="#" class="brand">
       <span class="brand-mark">F</span>
       <span class="brand-name">FastRemind</span>
     </a>
@@ -515,270 +402,176 @@
 <div data-lang="vi">
 
 <section class="hero">
-  <span class="eyebrow">Trung tâm hỗ trợ</span>
-  <h1>Cần giúp gì <em>cho bạn</em>?</h1>
+  <span class="eyebrow">Quyền riêng tư</span>
+  <h1>Dữ liệu của bạn <em>thuộc về bạn</em>.</h1>
   <p class="lede">
-    Câu trả lời cho hầu hết câu hỏi đều ở dưới đây. Nếu bạn vẫn cần trợ giúp, gửi email cho chúng tôi — chúng tôi đọc tất cả tin nhắn.
+    FastRemind không thu thập, không bán, không chia sẻ thông tin cá nhân của bạn. Toàn bộ dữ liệu tài chính ở lại trên thiết bị của bạn — không có server, không có tài khoản, không có theo dõi hành vi.
   </p>
-</section>
-
-<div class="info-strip">
-  <div class="info-chip">
-    <div class="info-chip-label">Phiên bản</div>
-    <div class="info-chip-value">1.0.0</div>
-  </div>
-  <div class="info-chip">
-    <div class="info-chip-label">iOS tối thiểu</div>
-    <div class="info-chip-value">iOS 17+</div>
-  </div>
-  <div class="info-chip">
-    <div class="info-chip-label">Phản hồi</div>
-    <div class="info-chip-value">trong 48 giờ</div>
-  </div>
-  <div class="info-chip">
-    <div class="info-chip-label">Ngôn ngữ</div>
-    <div class="info-chip-value">VI · EN</div>
-  </div>
-</div>
-
-<div class="quick-grid">
-  <a href="#getting-started" class="quick-card">
-    <div class="quick-icon">🚀</div>
-    <h3>Bắt đầu</h3>
-    <p>Cách tạo nhắc nhở đầu tiên và cài đặt thông báo.</p>
-    <span class="arrow">→</span>
-  </a>
-  <a href="#premium" class="quick-card">
-    <div class="quick-icon">✨</div>
-    <h3>Premium & IAP</h3>
-    <p>Mua, khôi phục giao dịch, và quản lý đăng ký.</p>
-    <span class="arrow">→</span>
-  </a>
-  <a href="#troubleshooting" class="quick-card">
-    <div class="quick-icon">🔧</div>
-    <h3>Khắc phục sự cố</h3>
-    <p>Thông báo không hiện, widget không cập nhật, đồng bộ.</p>
-    <span class="arrow">→</span>
-  </a>
-  <a href="#contact" class="quick-card">
-    <div class="quick-icon">✉️</div>
-    <h3>Liên hệ</h3>
-    <p>Gửi email cho nhà phát triển. Chúng tôi đọc mọi phản hồi.</p>
-    <span class="arrow">→</span>
-  </a>
-</div>
-
-<section class="section" id="getting-started">
-  <h2 class="section-title">Bắt đầu</h2>
-  <p class="section-sub">Những điều cần biết khi bạn mở app lần đầu.</p>
-
-  <div class="faq">
-    <details class="faq-item">
-      <summary class="faq-question">
-        Làm sao để tạo nhắc nhở đầu tiên?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Mở tab <strong>Trang chủ</strong>, nhấn nút <strong>"+" floating</strong> ở góc phải dưới. Điền tiêu đề, số tiền, ngày đến hạn và chọn loại (phải trả hoặc sẽ thu). Nhấn <strong>Lưu</strong> là xong.</p>
-        <p>Bạn có thể nhập thêm lãi suất, phí trễ hạn, lặp lại định kỳ ở mục <strong>Nâng cao</strong>.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        FastRemind có cần đăng ký tài khoản không?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Không. FastRemind hoạt động hoàn toàn ngoại tuyến. Không cần email, không cần mật khẩu, không cần đăng nhập. Bạn chỉ việc mở app và dùng ngay.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Dữ liệu của tôi được lưu ở đâu?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Tất cả dữ liệu (nhắc nhở, lịch sử thanh toán, ảnh biên lai) được lưu <strong>cục bộ trên iPhone của bạn</strong>. Không có server, không có cloud sync, không có ai khác có thể xem được.</p>
-        <p>Khi bạn gỡ app, toàn bộ dữ liệu sẽ bị xoá vĩnh viễn. Hãy xuất CSV trước nếu bạn muốn sao lưu.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Cách tính lãi suất hoạt động như thế nào?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Khi bạn nhập <strong>lãi suất % tháng</strong>, FastRemind tự động tính lãi từ <strong>ngày bắt đầu tính lãi</strong> đến hôm nay theo công thức:</p>
-        <ul>
-          <li><strong>Lãi đơn:</strong> Gốc × Lãi suất × (Số ngày / 30)</li>
-          <li><strong>Lãi kép:</strong> Gốc × (1 + Lãi suất)^(Số tháng) − Gốc</li>
-        </ul>
-        <p>FastRemind dùng quy ước <strong>30 ngày = 1 tháng</strong> để tính nhanh và nhất quán.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Phí trễ hạn được tính ra sao?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Phí trễ áp dụng <strong>chỉ cho khoản phải trả</strong> đã quá hạn. Mỗi ngày sau hạn, app cộng thêm: Gốc × Phí trễ % ngày.</p>
-        <p>Phí trễ tối đa được cap ở <strong>10% gốc</strong> để tránh tích luỹ vượt mức.</p>
-      </div>
-    </details>
-  </div>
-</section>
-
-<section class="section" id="premium">
-  <h2 class="section-title">Premium & In-App Purchase</h2>
-  <p class="section-sub">Gói Premium mua một lần dùng trọn đời, không phải subscription.</p>
-
-  <div class="faq">
-    <details class="faq-item">
-      <summary class="faq-question">
-        FastRemind Premium gồm những gì?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <ul>
-          <li><strong>Bỏ giới hạn 5 nhắc nhở</strong> — tạo bao nhiêu cũng được.</li>
-          <li><strong>Bỏ toàn bộ quảng cáo</strong> — không banner, không interstitial, vĩnh viễn.</li>
-          <li><strong>Mở khoá 8 màu giao diện</strong> — tuỳ chỉnh theme yêu thích.</li>
-          <li><strong>Hỗ trợ nhà phát triển độc lập</strong> tiếp tục cải tiến app.</li>
-        </ul>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Đây có phải subscription hàng tháng không?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p><strong>Không.</strong> FastRemind Premium là gói <strong>mua một lần, dùng trọn đời</strong>. Bạn trả một lần duy nhất, dùng vĩnh viễn trên mọi iPhone đăng nhập cùng Apple ID.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Tôi đã mua nhưng đổi sang iPhone mới — làm sao lấy lại?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Vào <strong>Cài đặt → FastRemind Premium → Khôi phục giao dịch</strong>. App sẽ kiểm tra lại Apple ID và tự động kích hoạt lại Premium nếu bạn đã từng mua.</p>
-        <p>Lưu ý: Bạn phải đăng nhập cùng Apple ID đã dùng để mua.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Tôi muốn yêu cầu hoàn tiền — làm thế nào?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Hoàn tiền IAP do Apple xử lý, không phải FastRemind. Bạn có thể yêu cầu hoàn tiền tại <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener">reportaproblem.apple.com</a> trong vòng 90 ngày kể từ ngày mua.</p>
-        <p>Apple thường phản hồi trong 24–48 giờ.</p>
-      </div>
-    </details>
-  </div>
-</section>
-
-<section class="section" id="troubleshooting">
-  <h2 class="section-title">Khắc phục sự cố</h2>
-  <p class="section-sub">Những vấn đề thường gặp và cách xử lý.</p>
-
-  <div class="faq">
-    <details class="faq-item">
-      <summary class="faq-question">
-        Tôi không nhận được thông báo nhắc nhở
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Kiểm tra theo thứ tự:</p>
-        <ol>
-          <li><strong>iOS Settings → Notifications → FastRemind</strong> → bật <strong>Allow Notifications</strong>.</li>
-          <li>Đảm bảo các kiểu cảnh báo (Lock Screen, Notification Center, Banners) đều bật.</li>
-          <li>Kiểm tra <strong>Focus Mode / Do Not Disturb</strong> trên iPhone của bạn.</li>
-          <li>Trong app: <strong>Cài đặt → Thông báo</strong> → đảm bảo bạn đã chọn ngày nhắc trước hạn.</li>
-          <li>Kiểm tra reminder đó có đang ở trạng thái <strong>Tắt tiếng</strong> không.</li>
-        </ol>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Widget trên Home Screen không cập nhật
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Widget của iOS được cập nhật theo lịch của hệ thống — không phải mỗi khi bạn thay đổi data. Thử các cách:</p>
-        <ol>
-          <li>Chờ vài phút và kiểm tra lại — iOS sẽ tự refresh.</li>
-          <li>Mở app FastRemind → đợi vài giây → quay lại Home Screen.</li>
-          <li>Gỡ widget và thêm lại từ widget gallery.</li>
-        </ol>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Số tiền hiển thị sai sau khi đánh dấu đã trả
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>FastRemind tính lãi và phí trễ <strong>real-time</strong> đến thời điểm hiện tại. Nếu reminder có lãi suất, số tiền còn lại có thể tăng theo ngày dù bạn đã trả một phần.</p>
-        <p>Khi bạn thanh toán <strong>đủ toàn bộ</strong>, app sẽ "đóng băng" tính lãi tại thời điểm đó. Từ đó về sau, số tiền không tăng nữa.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Face ID không hoạt động khi mở app
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Đảm bảo bạn đã bật <strong>Cài đặt → Bảo mật → Khoá ứng dụng bằng Face ID</strong>. Nếu vẫn không hoạt động:</p>
-        <ol>
-          <li>Vào <strong>iOS Settings → Face ID & Passcode</strong> → đảm bảo Face ID hoạt động.</li>
-          <li>Vào <strong>iOS Settings → FastRemind</strong> → cấp quyền Face ID.</li>
-          <li>Khởi động lại iPhone.</li>
-        </ol>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Làm sao xuất dữ liệu để sao lưu?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Vào <strong>Cài đặt → Dữ liệu → Xuất CSV</strong>. App sẽ tạo file CSV chứa toàn bộ nhắc nhở và lịch sử thanh toán, sau đó mở Share Sheet để bạn lưu vào Files, gửi email, hoặc backup lên iCloud Drive.</p>
-        <p>Bạn nên xuất CSV định kỳ trước khi nâng cấp iOS lớn hoặc đổi máy.</p>
-      </div>
-    </details>
-  </div>
-</section>
-
-<section class="contact-cta" id="contact">
-  <div class="contact-card">
-    <div class="contact-card-inner">
-      <h2>Vẫn cần trợ giúp?</h2>
-      <p>Email là cách nhanh nhất để liên hệ với nhà phát triển. Chúng tôi đọc mọi tin nhắn và thường phản hồi trong vòng 48 giờ.</p>
-      <div class="contact-actions">
-        <a href="mailto:dangtkhuong@gmail.com?subject=FastRemind%20Support" class="btn btn-primary">
-          ✉ Gửi email hỗ trợ
-        </a>
-        <a href="privacy.html" class="btn btn-secondary">
-          Xem chính sách quyền riêng tư
-        </a>
-      </div>
+  <div class="meta">
+    <div>
+      <strong>Hiệu lực</strong>
+      <span>28 tháng 4, 2026</span>
+    </div>
+    <div>
+      <strong>Phiên bản</strong>
+      <span>1.0</span>
+    </div>
+    <div>
+      <strong>Áp dụng cho</strong>
+      <span>FastRemind iOS</span>
     </div>
   </div>
 </section>
+
+<section class="tldr">
+  <div class="tldr-card">
+    <h2>Tóm tắt nhanh</h2>
+    <ul class="tldr-list">
+      <li>Chúng tôi không yêu cầu tài khoản, email, hay số điện thoại.</li>
+      <li>Mọi nhắc nhở, thanh toán, ảnh biên lai đều lưu cục bộ trên iPhone của bạn.</li>
+      <li>Chúng tôi không có server xử lý dữ liệu cá nhân của bạn.</li>
+      <li>Quảng cáo (chỉ user miễn phí) qua Google AdMob — bạn có thể từ chối tracking trong iOS.</li>
+      <li>Bạn có thể xoá toàn bộ dữ liệu bất cứ lúc nào trong Cài đặt → Xoá tất cả dữ liệu.</li>
+    </ul>
+  </div>
+</section>
+
+<main class="content">
+
+  <section id="who-we-are">
+    <h2><span class="num">01</span><span>Chúng tôi là ai</span></h2>
+    <p>
+      FastRemind ("ứng dụng", "chúng tôi") là một ứng dụng iOS dùng để nhắc nhở các khoản tài chính cá nhân — hoá đơn, vay nợ, các khoản cho vay. Ứng dụng được phát triển và phát hành bởi <strong>[Tên nhà phát triển]</strong>, một nhà phát triển độc lập tại Việt Nam.
+    </p>
+    <p>
+      Chính sách quyền riêng tư này giải thích cách FastRemind xử lý thông tin khi bạn sử dụng ứng dụng. Vì FastRemind hoạt động hoàn toàn ngoại tuyến, phần lớn nội dung dưới đây là về những gì chúng tôi <strong>không làm</strong>.
+    </p>
+  </section>
+
+  <section id="data-we-collect">
+    <h2><span class="num">02</span><span>Thông tin chúng tôi thu thập</span></h2>
+    <p>
+      <strong>Chúng tôi không thu thập bất kỳ thông tin cá nhân nào.</strong> Cụ thể, chúng tôi không thu thập:
+    </p>
+    <ul>
+      <li>Tên, email, số điện thoại, hay bất kỳ thông tin định danh nào</li>
+      <li>Vị trí địa lý của bạn</li>
+      <li>Danh bạ, lịch, ảnh, hay bất kỳ dữ liệu cá nhân nào ngoài app</li>
+      <li>Hành vi sử dụng app (analytics, tracking, telemetry)</li>
+      <li>Lịch sử thanh toán, số dư tài khoản, thông tin ngân hàng</li>
+    </ul>
+    <p>
+      FastRemind không có hệ thống đăng ký, đăng nhập, hay tài khoản người dùng dưới bất kỳ hình thức nào.
+    </p>
+  </section>
+
+  <section id="data-on-device">
+    <h2><span class="num">03</span><span>Dữ liệu lưu trên thiết bị của bạn</span></h2>
+    <p>
+      Khi bạn sử dụng FastRemind, các thông tin sau được lưu <strong>cục bộ trên iPhone của bạn</strong> (qua SwiftData và iOS App Group). Không có thông tin nào được gửi ra ngoài thiết bị:
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Nhắc nhở</dt>
+        <dd>Tiêu đề, số tiền, ngày đến hạn, danh mục, lãi suất, ghi chú, lịch sử lặp lại.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Thanh toán</dt>
+        <dd>Số tiền đã trả, ngày thanh toán, ghi chú, ảnh biên lai (nếu bạn chọn đính kèm).</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Tuỳ chọn</dt>
+        <dd>Cài đặt giao diện, ngôn ngữ, màu chủ đề, tuỳ chọn thông báo, trạng thái Premium, streak.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Tên hiển thị</dt>
+        <dd>Nếu bạn nhập tên trong onboarding — chỉ lưu cục bộ để hiển thị lời chào.</dd>
+      </dl>
+    </div>
+    <p>
+      Bạn có toàn quyền xoá toàn bộ dữ liệu này bất cứ lúc nào tại <strong>Cài đặt → Xoá tất cả dữ liệu</strong>, hoặc bằng cách gỡ ứng dụng khỏi iPhone.
+    </p>
+  </section>
+
+  <section id="third-parties">
+    <h2><span class="num">04</span><span>Dịch vụ bên thứ ba</span></h2>
+
+    <h3>Google AdMob (chỉ với user miễn phí)</h3>
+    <p>
+      FastRemind hiển thị quảng cáo banner và interstitial cho người dùng miễn phí thông qua <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Mobile Ads SDK</a>. Khi bạn dùng ứng dụng:
+    </p>
+    <ul>
+      <li>iOS sẽ hiển thị thông báo App Tracking Transparency (ATT) hỏi bạn có cho phép Google sử dụng identifier để hiển thị quảng cáo phù hợp hơn không.</li>
+      <li>Nếu bạn <strong>đồng ý</strong>: Google nhận identifier (IDFA) để cá nhân hoá quảng cáo.</li>
+      <li>Nếu bạn <strong>từ chối</strong>: chỉ quảng cáo không cá nhân hoá được hiển thị, không có dữ liệu tracking.</li>
+      <li>Bạn có thể đổi lựa chọn bất cứ lúc nào trong <strong>iOS Settings → Privacy → Tracking</strong>.</li>
+    </ul>
+    <p>
+      Sau khi bạn mua FastRemind Premium, toàn bộ quảng cáo bị tắt vĩnh viễn, kể cả Google Mobile Ads SDK không được khởi động nữa.
+    </p>
+
+    <h3>Apple StoreKit</h3>
+    <p>
+      Việc mua Premium được xử lý bởi Apple StoreKit. Chúng tôi không nhận thông tin thanh toán, số thẻ, hay danh tính Apple ID của bạn — chỉ một xác nhận giao dịch (transaction ID) để xác thực entitlement. Xem <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Chính sách quyền riêng tư của Apple</a>.
+    </p>
+
+    <h3>Apple iOS Frameworks</h3>
+    <p>
+      FastRemind sử dụng các framework hệ thống của Apple (UserNotifications, SwiftData, WidgetKit, LocalAuthentication). Đây là các API hệ thống chạy trên thiết bị của bạn — không gửi dữ liệu cho Apple ngoài những gì iOS đã làm sẵn.
+    </p>
+  </section>
+
+  <section id="permissions">
+    <h2><span class="num">05</span><span>Quyền truy cập thiết bị</span></h2>
+    <p>
+      FastRemind chỉ yêu cầu quyền khi bạn dùng tính năng tương ứng. Bạn có thể từ chối hoặc thu hồi bất cứ lúc nào trong iOS Settings.
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Thông báo</dt>
+        <dd>Để gửi nhắc nhở local trước hạn. Tất cả notification chạy trên thiết bị, không có push server.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Thư viện ảnh</dt>
+        <dd>Chỉ khi bạn chọn đính kèm ảnh biên lai. Ảnh được lưu cục bộ và không gửi đi đâu.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Face ID / Touch ID</dt>
+        <dd>Tuỳ chọn — chỉ khi bạn bật khoá ứng dụng. Apple xử lý xác thực sinh trắc học, app không nhận dữ liệu Face ID.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>App Tracking Transparency</dt>
+        <dd>Chỉ trên phiên bản miễn phí, để hỏi đồng ý cho AdMob cá nhân hoá quảng cáo.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section id="children">
+    <h2><span class="num">06</span><span>Trẻ em</span></h2>
+    <p>
+      FastRemind không hướng đến trẻ em dưới 13 tuổi và không cố ý thu thập thông tin từ trẻ em. Vì ứng dụng không yêu cầu tài khoản và không thu thập dữ liệu cá nhân, không có cơ chế nào để chúng tôi xác định độ tuổi người dùng.
+    </p>
+  </section>
+
+  <section id="changes">
+    <h2><span class="num">07</span><span>Thay đổi chính sách</span></h2>
+    <p>
+      Khi có thay đổi quan trọng, chúng tôi sẽ cập nhật ngày hiệu lực ở đầu trang này và thông báo qua bản update của ứng dụng (qua phần "Có gì mới"). Việc tiếp tục sử dụng ứng dụng sau khi cập nhật đồng nghĩa với việc bạn chấp nhận chính sách mới.
+    </p>
+  </section>
+
+  <section id="contact-vi">
+    <h2><span class="num">08</span><span>Liên hệ</span></h2>
+    <p>
+      Mọi thắc mắc về chính sách quyền riêng tư, vui lòng gửi về:
+    </p>
+    <p>
+      <strong>Email:</strong> <a href="mailto:dangtkhuong@gmail.com">dangtkhuong@gmail.com</a><br>
+      <strong>Trang hỗ trợ:</strong> <a href="https://fs.fasteng.app/fm/fr-support">https://fs.fasteng.app/fm/fr-support</a>
+    </p>
+  </section>
+
+</main>
 
 </div>
 
@@ -787,270 +580,176 @@
 <div data-lang="en">
 
 <section class="hero">
-  <span class="eyebrow">Help Center</span>
-  <h1>How can we <em>help you</em>?</h1>
+  <span class="eyebrow">Privacy</span>
+  <h1>Your data <em>stays yours</em>.</h1>
   <p class="lede">
-    Most questions have answers below. If you still need help, send us an email — we read every message.
+    FastRemind doesn't collect, sell, or share your personal information. All your financial data stays on your device — no servers, no accounts, no behavioral tracking.
   </p>
-</section>
-
-<div class="info-strip">
-  <div class="info-chip">
-    <div class="info-chip-label">Version</div>
-    <div class="info-chip-value">1.0.0</div>
-  </div>
-  <div class="info-chip">
-    <div class="info-chip-label">Min iOS</div>
-    <div class="info-chip-value">iOS 17+</div>
-  </div>
-  <div class="info-chip">
-    <div class="info-chip-label">Reply time</div>
-    <div class="info-chip-value">within 48 hrs</div>
-  </div>
-  <div class="info-chip">
-    <div class="info-chip-label">Languages</div>
-    <div class="info-chip-value">VI · EN</div>
-  </div>
-</div>
-
-<div class="quick-grid">
-  <a href="#getting-started-en" class="quick-card">
-    <div class="quick-icon">🚀</div>
-    <h3>Getting started</h3>
-    <p>How to create your first reminder and configure notifications.</p>
-    <span class="arrow">→</span>
-  </a>
-  <a href="#premium-en" class="quick-card">
-    <div class="quick-icon">✨</div>
-    <h3>Premium & IAP</h3>
-    <p>Purchase, restore transactions, and manage your access.</p>
-    <span class="arrow">→</span>
-  </a>
-  <a href="#troubleshooting-en" class="quick-card">
-    <div class="quick-icon">🔧</div>
-    <h3>Troubleshooting</h3>
-    <p>Notifications not showing, widget not updating, sync issues.</p>
-    <span class="arrow">→</span>
-  </a>
-  <a href="#contact-en" class="quick-card">
-    <div class="quick-icon">✉️</div>
-    <h3>Contact</h3>
-    <p>Email the developer directly. We read every message.</p>
-    <span class="arrow">→</span>
-  </a>
-</div>
-
-<section class="section" id="getting-started-en">
-  <h2 class="section-title">Getting started</h2>
-  <p class="section-sub">What to know when you first open the app.</p>
-
-  <div class="faq">
-    <details class="faq-item">
-      <summary class="faq-question">
-        How do I create my first reminder?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Open the <strong>Home</strong> tab, tap the <strong>floating "+" button</strong> in the bottom-right. Fill in the title, amount, due date, and choose the type (Payable or Receivable). Tap <strong>Save</strong> and you're done.</p>
-        <p>You can add interest rate, late fees, and recurring schedules in the <strong>Advanced</strong> section.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Does FastRemind require an account?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>No. FastRemind works fully offline. No email, no password, no login. Just open the app and start using it immediately.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Where is my data stored?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>All your data (reminders, payment history, receipt photos) is stored <strong>locally on your iPhone</strong>. No servers, no cloud sync, no one else can see it.</p>
-        <p>If you uninstall the app, your data is permanently deleted. Export to CSV first if you want a backup.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        How does the interest calculation work?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>When you enter a <strong>monthly interest rate</strong>, FastRemind calculates interest from the <strong>start date</strong> to today using:</p>
-        <ul>
-          <li><strong>Simple interest:</strong> Principal × Rate × (Days / 30)</li>
-          <li><strong>Compound interest:</strong> Principal × (1 + Rate)^(Months) − Principal</li>
-        </ul>
-        <p>FastRemind uses a <strong>30-day month convention</strong> for fast, consistent calculation.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        How are late fees calculated?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Late fees apply <strong>only to overdue Payable reminders</strong>. For each day past due, the app adds: Principal × daily late fee %.</p>
-        <p>Total late fees are capped at <strong>10% of principal</strong> to prevent runaway accumulation.</p>
-      </div>
-    </details>
-  </div>
-</section>
-
-<section class="section" id="premium-en">
-  <h2 class="section-title">Premium & In-App Purchase</h2>
-  <p class="section-sub">Premium is a one-time, lifetime unlock — not a subscription.</p>
-
-  <div class="faq">
-    <details class="faq-item">
-      <summary class="faq-question">
-        What's included in FastRemind Premium?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <ul>
-          <li><strong>Unlimited reminders</strong> — no more 5-reminder cap.</li>
-          <li><strong>No ads, ever</strong> — no banners, no interstitials, permanently.</li>
-          <li><strong>All 8 color themes unlocked</strong> — pick your favorite.</li>
-          <li><strong>Support an indie developer</strong> who keeps improving the app.</li>
-        </ul>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Is this a monthly subscription?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p><strong>No.</strong> FastRemind Premium is a <strong>one-time purchase, lifetime access</strong>. Pay once, use forever on every iPhone signed in to the same Apple ID.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        I bought Premium but switched to a new iPhone — how do I get it back?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Go to <strong>Settings → FastRemind Premium → Restore Purchases</strong>. The app will check your Apple ID and re-activate Premium automatically if you've previously purchased.</p>
-        <p>Note: You must be signed in with the same Apple ID used for the original purchase.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        How do I request a refund?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>IAP refunds are handled by Apple, not FastRemind. You can request a refund at <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener">reportaproblem.apple.com</a> within 90 days of purchase.</p>
-        <p>Apple typically responds within 24–48 hours.</p>
-      </div>
-    </details>
-  </div>
-</section>
-
-<section class="section" id="troubleshooting-en">
-  <h2 class="section-title">Troubleshooting</h2>
-  <p class="section-sub">Common issues and how to fix them.</p>
-
-  <div class="faq">
-    <details class="faq-item">
-      <summary class="faq-question">
-        I'm not getting reminder notifications
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Check in this order:</p>
-        <ol>
-          <li><strong>iOS Settings → Notifications → FastRemind</strong> → enable <strong>Allow Notifications</strong>.</li>
-          <li>Make sure all alert styles (Lock Screen, Notification Center, Banners) are on.</li>
-          <li>Check your <strong>Focus Mode / Do Not Disturb</strong> settings.</li>
-          <li>In-app: <strong>Settings → Notifications</strong> → ensure you've selected reminder days before due.</li>
-          <li>Check whether the reminder is set to <strong>Muted</strong>.</li>
-        </ol>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        The Home Screen widget isn't updating
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>iOS widgets refresh on a system-controlled schedule — not every time you change data. Try:</p>
-        <ol>
-          <li>Wait a few minutes — iOS will refresh automatically.</li>
-          <li>Open FastRemind → wait a few seconds → return to Home Screen.</li>
-          <li>Remove and re-add the widget from the gallery.</li>
-        </ol>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Amount looks wrong after marking as paid
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>FastRemind calculates interest and late fees <strong>in real time</strong> up to the current moment. If a reminder has interest, the remaining amount can grow daily even after a partial payment.</p>
-        <p>When you pay it off <strong>in full</strong>, the app freezes interest accrual at that point. From then on, the amount stops growing.</p>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        Face ID doesn't work when opening the app
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Make sure you've enabled <strong>Settings → Privacy → Lock app with Face ID</strong> in the app. If it still doesn't work:</p>
-        <ol>
-          <li>Go to <strong>iOS Settings → Face ID & Passcode</strong> → confirm Face ID is working.</li>
-          <li>Go to <strong>iOS Settings → FastRemind</strong> → grant Face ID permission.</li>
-          <li>Restart your iPhone.</li>
-        </ol>
-      </div>
-    </details>
-
-    <details class="faq-item">
-      <summary class="faq-question">
-        How do I export my data for backup?
-        <span class="faq-icon">+</span>
-      </summary>
-      <div class="faq-answer">
-        <p>Go to <strong>Settings → Data → Export CSV</strong>. The app generates a CSV file with all your reminders and payment history, then opens the Share Sheet so you can save it to Files, email it, or back up to iCloud Drive.</p>
-        <p>We recommend exporting CSV regularly before major iOS upgrades or device changes.</p>
-      </div>
-    </details>
-  </div>
-</section>
-
-<section class="contact-cta" id="contact-en">
-  <div class="contact-card">
-    <div class="contact-card-inner">
-      <h2>Still need help?</h2>
-      <p>Email is the fastest way to reach the developer. We read every message and usually reply within 48 hours.</p>
-      <div class="contact-actions">
-        <a href="mailto:dangtkhuong@gmail.com?subject=FastRemind%20Support" class="btn btn-primary">
-          ✉ Email support
-        </a>
-        <a href="privacy.html" class="btn btn-secondary">
-          View privacy policy
-        </a>
-      </div>
+  <div class="meta">
+    <div>
+      <strong>Effective</strong>
+      <span>April 28, 2026</span>
+    </div>
+    <div>
+      <strong>Version</strong>
+      <span>1.0</span>
+    </div>
+    <div>
+      <strong>Applies to</strong>
+      <span>FastRemind for iOS</span>
     </div>
   </div>
 </section>
+
+<section class="tldr">
+  <div class="tldr-card">
+    <h2>The short version</h2>
+    <ul class="tldr-list">
+      <li>We don't ask for an account, email, or phone number.</li>
+      <li>Every reminder, payment, and receipt photo stays on your iPhone.</li>
+      <li>We don't operate servers that handle your personal data.</li>
+      <li>Ads (free tier only) come via Google AdMob — you can opt out of tracking in iOS.</li>
+      <li>You can wipe everything anytime via Settings → Delete all data.</li>
+    </ul>
+  </div>
+</section>
+
+<main class="content">
+
+  <section>
+    <h2><span class="num">01</span><span>Who we are</span></h2>
+    <p>
+      FastRemind ("the app", "we") is an iOS application for tracking personal financial reminders — bills, loans, and amounts owed. The app is developed and published by <strong>[Developer Name]</strong>, an independent developer based in Vietnam.
+    </p>
+    <p>
+      This privacy policy explains how FastRemind handles information when you use the app. Because FastRemind operates entirely offline, much of what follows describes what we <strong>don't</strong> do.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span><span>Information we collect</span></h2>
+    <p>
+      <strong>We don't collect any personal information.</strong> Specifically, we don't collect:
+    </p>
+    <ul>
+      <li>Your name, email, phone number, or any identifying information</li>
+      <li>Your geographic location</li>
+      <li>Contacts, calendars, photos, or any data outside the app</li>
+      <li>Usage analytics, behavioral tracking, or telemetry</li>
+      <li>Payment history, account balances, or banking information</li>
+    </ul>
+    <p>
+      FastRemind has no sign-up, login, or user account system of any kind.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span><span>Data stored on your device</span></h2>
+    <p>
+      When you use FastRemind, the following information is stored <strong>locally on your iPhone</strong> (via SwiftData and an iOS App Group). Nothing is transmitted off your device:
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Reminders</dt>
+        <dd>Title, amount, due date, category, interest rate, notes, recurring schedule.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Payments</dt>
+        <dd>Paid amount, payment date, notes, receipt photo (if you choose to attach one).</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Preferences</dt>
+        <dd>Appearance, language, theme color, notification settings, Premium status, streak.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Display name</dt>
+        <dd>If you enter one during onboarding — used only locally for greetings.</dd>
+      </dl>
+    </div>
+    <p>
+      You can delete all of this data at any time via <strong>Settings → Delete all data</strong>, or by uninstalling the app.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span><span>Third-party services</span></h2>
+
+    <h3>Google AdMob (free tier only)</h3>
+    <p>
+      FastRemind shows banner and interstitial ads to free users via <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Mobile Ads SDK</a>. When you use the app:
+    </p>
+    <ul>
+      <li>iOS shows an App Tracking Transparency (ATT) prompt asking whether Google may use an identifier to show more relevant ads.</li>
+      <li>If you <strong>allow</strong>: Google receives the IDFA to personalize ads.</li>
+      <li>If you <strong>deny</strong>: only non-personalized ads are shown, with no tracking data exchanged.</li>
+      <li>You can change this at any time in <strong>iOS Settings → Privacy → Tracking</strong>.</li>
+    </ul>
+    <p>
+      Once you purchase FastRemind Premium, ads are disabled permanently and Google Mobile Ads SDK no longer initializes.
+    </p>
+
+    <h3>Apple StoreKit</h3>
+    <p>
+      Premium purchases are handled by Apple StoreKit. We don't receive payment information, card numbers, or your Apple ID — just a transaction receipt to verify entitlement. See <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's Privacy Policy</a>.
+    </p>
+
+    <h3>Apple iOS Frameworks</h3>
+    <p>
+      FastRemind uses Apple's system frameworks (UserNotifications, SwiftData, WidgetKit, LocalAuthentication). These are on-device system APIs — no data is sent to Apple beyond what iOS already does by default.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span><span>Device permissions</span></h2>
+    <p>
+      FastRemind only requests permissions when you use the relevant feature. You can deny or revoke any permission anytime in iOS Settings.
+    </p>
+    <div class="data-table">
+      <dl class="data-row">
+        <dt>Notifications</dt>
+        <dd>For sending local reminders before due dates. All notifications are local — no push server is involved.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Photo Library</dt>
+        <dd>Only when you attach a receipt photo. Photos stay local and are not transmitted.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>Face ID / Touch ID</dt>
+        <dd>Optional — only when you enable app lock. Biometric authentication is handled by Apple; the app never receives Face ID data.</dd>
+      </dl>
+      <dl class="data-row">
+        <dt>App Tracking Transparency</dt>
+        <dd>Free tier only, to ask consent for AdMob ad personalization.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span><span>Children</span></h2>
+    <p>
+      FastRemind is not directed at children under 13 and does not knowingly collect data from them. Because the app requires no account and collects no personal data, we have no mechanism to identify a user's age.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">07</span><span>Changes to this policy</span></h2>
+    <p>
+      When we make material changes, we'll update the effective date at the top of this page and note it in the app's "What's New" release notes. Continued use of the app after an update means you accept the revised policy.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">08</span><span>Contact</span></h2>
+    <p>
+      For privacy-related questions, please contact:
+    </p>
+    <p>
+      <strong>Email:</strong> <a href="mailto:dangtkhuong@gmail.com">dangtkhuong@gmail.com</a><br>
+      <strong>Support:</strong> <a href="https://fs.fasteng.app/fm/fr-support">https://fs.fasteng.app/fm/fr-support</a>
+    </p>
+  </section>
+
+</main>
 
 </div>
 
@@ -1058,8 +757,8 @@
   <div data-lang="vi">© 2026 FastRemind. Mọi quyền được bảo lưu.</div>
   <div data-lang="en">© 2026 FastRemind. All rights reserved.</div>
   <div class="footer-links">
-    <a href="privacy.html" data-lang="vi">Quyền riêng tư</a>
-    <a href="privacy.html" data-lang="en">Privacy</a>
+    <a href="support.html" data-lang="vi">Hỗ trợ</a>
+    <a href="support.html" data-lang="en">Support</a>
     <a href="#" data-lang="vi">Điều khoản</a>
     <a href="#" data-lang="en">Terms</a>
   </div>
@@ -1093,15 +792,6 @@
     const saved = localStorage.getItem('fr_lang');
     if (saved) setLang(saved);
   } catch(e) {}
-
-  // Auto-close other FAQs when one opens (optional UX)
-  document.querySelectorAll('.faq').forEach(faq => {
-    faq.addEventListener('click', (e) => {
-      const item = e.target.closest('.faq-item');
-      if (!item || !item.hasAttribute('open')) return;
-      // (kept open behavior — no auto-close, allow multi-expand)
-    });
-  });
 </script>
 
 </body>
