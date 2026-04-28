@@ -60,6 +60,16 @@ async def support(request: Request):
 async def privacy(request: Request):
     return templates.TemplateResponse("privacy.html", {"request": request})
 
+@app.get("/fr-support", response_class=HTMLResponse)
+async def support(request: Request):
+    return templates.TemplateResponse("fastremindsupport.html", {"request": request})
+
+
+@app.get("/fr-privacy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    return templates.TemplateResponse("fastremindprivacy.html", {"request": request})
+
+
 
 @app.get("/health")
 async def health():
